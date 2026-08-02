@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "21st": {
+      "url": "https://21st.dev/api/mcp",
+      "headers": {
+        "x-api-key": "21st_sk_8a531766e4866e834e46bf8c3400c85b5dbaf202c1da7c6ba4df339400ad502a"
+      }
+    },
+    "annnimate": {
+      "url": "https://annnimate.com/api/mcp"
+    }
+  }
+}

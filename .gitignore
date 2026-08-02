@@ -1,0 +1,155 @@
+# ============================================================
+# UCEK — Unstop Igniters Club Placement Platform
+# .gitignore — Comprehensive exclusion list
+# ============================================================
+
+
+# ── DEPENDENCIES ────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+
+# ── BUILD OUTPUT ────────────────────────────────────────────
+dist/
+dist-ssr/
+build/
+out/
+.vite/
+
+
+# ── ENVIRONMENT & SECRETS ───────────────────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+*.pem
+*.key
+*.cert
+secrets/
+
+
+# ── LOGS ────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+
+# ── CACHE & TEMP FILES ──────────────────────────────────────
+.cache/
+.parcel-cache/
+.turbo/
+.nx/cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+.temp/
+tmp/
+temp/
+
+
+# ── TESTING ─────────────────────────────────────────────────
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+playwright/.cache/
+
+
+# ── EDITOR & IDE ────────────────────────────────────────────
+# VS Code (keep extensions.json for team consistency)
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# JetBrains IDEs (WebStorm, IntelliJ)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim / Neovim
+*.swp
+*.swo
+*.sw?
+*~
+
+# Emacs
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+
+# ── OS GENERATED FILES ──────────────────────────────────────
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+
+
+# ── TYPESCRIPT ──────────────────────────────────────────────
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+
+# ── VITE SPECIFIC ───────────────────────────────────────────
+*.local
+vite.config.ts.timestamp-*
+
+
+# ── PACKAGE MANAGER LOCK FILES (keep one, ignore others) ────
+# We use npm — ignore yarn/pnpm lock files
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+.pnpm-store/
+
+
+# ── SHADCN / UI GENERATED ───────────────────────────────────
+# Keep generated components in src/components/ui/ tracked
+# Uncomment below only if you want to exclude them:
+# src/components/ui/
+
+
+# ── STORYBOOK (if added later) ──────────────────────────────
+storybook-static/
+.storybook/
+
+
+# ── DEPLOYMENT ──────────────────────────────────────────────
+.vercel/
+.netlify/
+.firebase/
+.amplify/
+
+
+# ── MISC ────────────────────────────────────────────────────
+*.tgz
+*.zip
+*.tar.gz
+.npmrc.local
+.yarnrc.local
