@@ -1,10 +1,33 @@
 # ============================================================
 # UCEK — Unstop Igniters Club Placement Platform
-# .gitignore — Comprehensive exclusion list
+# Root .gitignore for Monorepo (Frontend + Backend)
 # ============================================================
 
+# ── PYTHON & BACKEND ─────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
 
-# ── DEPENDENCIES ────────────────────────────────────────────
+# Virtual Environments
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python Testing & Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+
+# ── NODE & FRONTEND DEPENDENCIES ────────────────────────────
 node_modules/
 frontend/node_modules/
 .pnp
@@ -23,11 +46,15 @@ out/
 
 # ── ENVIRONMENT & SECRETS ───────────────────────────────────
 .env
+frontend/.env
+backend/.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 .env.*.local
+.env.*
+*.env
 *.pem
 *.key
 *.cert
@@ -72,7 +99,7 @@ playwright/.cache/
 !.vscode/extensions.json
 !.vscode/settings.json
 
-# JetBrains IDEs (WebStorm, IntelliJ)
+# JetBrains IDEs (WebStorm, IntelliJ, PyCharm)
 .idea/
 *.iml
 *.iws
@@ -123,23 +150,11 @@ tsconfig.tsbuildinfo
 vite.config.ts.timestamp-*
 
 
-# ── PACKAGE MANAGER LOCK FILES (keep one, ignore others) ────
-# We use npm — ignore yarn/pnpm lock files
+# ── PACKAGE MANAGER LOCK FILES ──────────────────────────────
 yarn.lock
 pnpm-lock.yaml
 bun.lockb
 .pnpm-store/
-
-
-# ── SHADCN / UI GENERATED ───────────────────────────────────
-# Keep generated components in src/components/ui/ tracked
-# Uncomment below only if you want to exclude them:
-# src/components/ui/
-
-
-# ── STORYBOOK (if added later) ──────────────────────────────
-storybook-static/
-.storybook/
 
 
 # ── DEPLOYMENT ──────────────────────────────────────────────

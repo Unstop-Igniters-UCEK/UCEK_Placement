@@ -2,17 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, Variants } from 'framer-motion';
 import { InterviewQuestion, InterviewFeedback } from '../types';
+import { analyzeInterview } from '../lib/api';
 import {
   Mic,
   Square,
-  RotateCcw,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
   MessageSquare,
-  Volume2,
   Loader2,
-  Video
 } from 'lucide-react';
 
 export const HRInterviewSimulator: React.FC = () => {
@@ -34,7 +31,13 @@ export const HRInterviewSimulator: React.FC = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [analyzing, setAnalyzing] = useState(false);
   const [feedback, setFeedback] = useState<InterviewFeedback | null>(null);
-  const timerRef = useRef<any>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  // MediaRecorder refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const filteredQuestions = interviewQuestions.filter(q => {
     if (selectedCategory === 'All') return true;
@@ -47,47 +50,107 @@ export const HRInterviewSimulator: React.FC = () => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
     } else {
-      clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
     }
-    return () => clearInterval(timerRef.current);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isRecording]);
 
-  const handleStartRecording = () => {
+  // Cleanup mic stream on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, []);
+
+  const handleStartRecording = async () => {
     setFeedback(null);
+    setApiError(null);
     setRecordingTime(0);
-    setIsRecording(true);
+    audioChunksRef.current = [];
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      // Pick the best supported mime type
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : 'audio/ogg';
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        await processRecording(mimeType);
+      };
+
+      recorder.start(200); // collect chunks every 200ms
+      setIsRecording(true);
+    } catch (err) {
+      setApiError('Microphone access denied. Please allow microphone access and try again.');
+    }
   };
 
   const handleStopRecording = () => {
-    setIsRecording(false);
-    setAnalyzing(true);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      setIsRecording(false);
+      setAnalyzing(true);
+      mediaRecorderRef.current.stop();
+    }
+  };
 
-    setTimeout(() => {
-      const generatedFeedback: InterviewFeedback = {
-        wpm: Math.floor(Math.random() * 20) + 130, // 130 - 150 WPM
-        fillerCount: Math.floor(Math.random() * 3),
-        fillerWords: ['um', 'like'].slice(0, Math.floor(Math.random() * 2)),
-        confidenceScore: 92,
-        tone: 'Confident & Articulate',
-        strengths: [
-          'Excellent pace regulation matching standard technical interview standards.',
-          'Structured response using the STAR (Situation, Task, Action, Result) framework.',
-          'Highlighted UCEK coursework and practical project deliverables clearly.'
-        ],
-        improvements: [
-          'Incorporate more quantitative impact metrics (e.g. % performance gain, user scale).',
-          'Slight hesitation during technical project architecture explanation.'
-        ],
-        overallRating: 8.9,
-        clarityScore: 92,
-        relevanceScore: 96,
-        sampleIdealResponse: selectedQuestion.suggestedAnswer,
-        transcript: 'Generated response transcript analyzing technical and behavioral competency.'
+  /** Convert recorded Blob chunks → base64 → call backend → map to InterviewFeedback */
+  const processRecording = async (mimeType: string) => {
+    try {
+      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+
+      // Convert Blob to base64 string
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
+
+      // Call the FastAPI backend
+      const result = await analyzeInterview({
+        questionText: selectedQuestion.questionText,
+        audioBase64: base64Audio,
+        mimeType: mimeType,
+      });
+
+      // Map backend response → InterviewFeedback shape used by the UI
+      const mapped: InterviewFeedback = {
+        wpm: Math.round(120 + (result.confidenceScore / 100) * 30),   // Estimated WPM from confidence
+        fillerCount: Math.max(0, Math.round((100 - result.confidenceScore) / 25)),
+        fillerWords: result.confidenceScore < 70 ? ['um', 'like'] : [],
+        confidenceScore: result.confidenceScore,
+        tone: result.confidenceScore >= 80 ? 'Confident & Articulate' : 'Developing Confidence',
+        strengths: result.aiFeedback.strengths,
+        improvements: result.aiFeedback.areasForImprovement,
+        overallRating: parseFloat((result.overallScore / 10).toFixed(1)),
+        clarityScore: result.technicalAccuracy,
+        relevanceScore: result.overallScore,
+        sampleIdealResponse: result.aiFeedback.idealAnswerSnippet,
+        transcript: 'AI-analyzed audio response.',
       };
 
-      setFeedback(generatedFeedback);
+      setFeedback(mapped);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setApiError(`AI analysis failed: ${msg}. Check that the backend is running on ${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}.`);
+    } finally {
       setAnalyzing(false);
-    }, 500);
+    }
   };
 
   const formatSeconds = (secs: number) => {
@@ -130,6 +193,18 @@ export const HRInterviewSimulator: React.FC = () => {
         </div>
       </motion.div>
 
+      {/* API ERROR BANNER */}
+      {apiError && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-3 rounded-xl bg-rose-950/30 border border-rose-800/50 text-rose-300 text-xs flex items-start gap-2 font-sans"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{apiError}</span>
+        </motion.div>
+      )}
+
       {/* SIMULATOR STAGE GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT COLUMN: INTERVIEW PROMPT & RECORDING STAGE */}
@@ -151,6 +226,8 @@ export const HRInterviewSimulator: React.FC = () => {
                   <div className="absolute inset-0 rounded-full bg-orange-500/20 animate-ping" />
                   <Mic className="w-8 h-8 text-orange-400 z-10" />
                 </>
+              ) : analyzing ? (
+                <Loader2 className="w-8 h-8 text-cyan-400 z-10 animate-spin" />
               ) : (
                 <Mic className="w-8 h-8 text-zinc-400 z-10" />
               )}
@@ -159,7 +236,11 @@ export const HRInterviewSimulator: React.FC = () => {
             <div className="space-y-1 font-mono">
               <div className="text-2xl font-extrabold text-white">{formatSeconds(recordingTime)}</div>
               <div className="text-xs text-zinc-400">
-                {isRecording ? 'Recording audio... Speak your answer' : analyzing ? 'Analyzing speech with AI...' : 'Click start to practice response'}
+                {isRecording
+                  ? 'Recording audio… Speak your answer clearly'
+                  : analyzing
+                  ? 'Sending to Gemini AI for analysis…'
+                  : 'Click start to practice response'}
               </div>
             </div>
 
@@ -182,7 +263,7 @@ export const HRInterviewSimulator: React.FC = () => {
                 <button
                   onClick={handleStartRecording}
                   disabled={analyzing}
-                  className="btn-primary py-3 px-8 text-xs font-bold rounded-full cursor-pointer"
+                  className="btn-primary py-3 px-8 text-xs font-bold rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Mic className="w-4 h-4 text-black" />
                   <span>Start Recording Answer</span>
@@ -209,6 +290,7 @@ export const HRInterviewSimulator: React.FC = () => {
                   onClick={() => {
                     setSelectedQuestion(q);
                     setFeedback(null);
+                    setApiError(null);
                   }}
                   className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${
                     selectedQuestion.id === q.id
@@ -225,7 +307,12 @@ export const HRInterviewSimulator: React.FC = () => {
 
         {/* RIGHT COLUMN: SPEECH FEEDBACK REPORT */}
         <motion.div variants={itemVariants} className="lg:col-span-5 mono-card p-6 space-y-6">
-          {!feedback ? (
+          {analyzing ? (
+            <div className="py-24 text-center space-y-3">
+              <Loader2 className="w-10 h-10 text-orange-400 mx-auto animate-spin" />
+              <p className="text-xs font-semibold text-zinc-400 font-mono">Gemini AI is evaluating your response…</p>
+            </div>
+          ) : !feedback ? (
             <div className="py-24 text-center space-y-2">
               <MessageSquare className="w-10 h-10 text-zinc-600 mx-auto" />
               <p className="text-xs font-semibold text-zinc-400 font-mono">Record an answer to generate AI speech feedback report</p>

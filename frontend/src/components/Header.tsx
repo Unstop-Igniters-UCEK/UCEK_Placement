@@ -36,7 +36,15 @@ export const Header: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const navItems = [
+  const navItems = user?.role === 'admin' ? [
+    { id: 'admin', label: 'Admin Dashboard', icon: ShieldCheck },
+    { id: 'dashboard', label: 'Student View', icon: LayoutDashboard },
+    { id: 'roadmap', label: 'Domain Roadmap', icon: Compass },
+    { id: 'resumes', label: 'AI Resume Suite', icon: FileText },
+    { id: 'tests', label: 'Mock Tests', icon: CheckSquare },
+    { id: 'interview', label: 'HR Interview', icon: Mic },
+    { id: 'mentorship', label: 'Mentorship', icon: Users },
+  ] : [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'roadmap', label: 'Domain Roadmap', icon: Compass },
     { id: 'resumes', label: 'AI Resume Suite', icon: FileText },
@@ -44,10 +52,6 @@ export const Header: React.FC = () => {
     { id: 'interview', label: 'HR Interview', icon: Mic },
     { id: 'mentorship', label: 'Mentorship', icon: Users },
   ];
-
-  if (user?.role === 'admin') {
-    navItems.push({ id: 'admin', label: 'Admin Panel', icon: ShieldCheck });
-  }
 
   return (
     <motion.header
@@ -57,20 +61,24 @@ export const Header: React.FC = () => {
       className="sticky top-0 z-40 w-full bg-transparent font-sans transition-all transform-gpu"
     >
       {/* TOP BRAND BAR */}
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-        {/* White Logo Section Only */}
-        <div 
-          onClick={() => setActiveTab('dashboard')} 
-          className="flex items-center cursor-pointer group shrink-0"
-        >
-          <div className="w-9 h-9 rounded-xl bg-white text-black flex items-center justify-center font-bold shadow-md group-hover:scale-105 transition-transform">
-            <GraduationCap className="w-5 h-5 text-black" />
+      <div className={`w-full mx-auto px-4 sm:px-6 h-14 flex items-center gap-4 ${
+        activeTab === 'admin' ? 'justify-end md:pl-72 max-w-none' : 'justify-between max-w-[1600px]'
+      }`}>
+        {/* White Logo Section Only (Hidden on Admin Panel) */}
+        {activeTab !== 'admin' && (
+          <div 
+            onClick={() => setActiveTab('dashboard')} 
+            className="flex items-center cursor-pointer group shrink-0"
+          >
+            <div className="w-9 h-9 rounded-xl bg-white text-black flex items-center justify-center font-bold shadow-md group-hover:scale-105 transition-transform">
+              <GraduationCap className="w-5 h-5 text-black" />
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Action Controls - USER AVATAR ONLY */}
+        {/* Action Controls - USER AVATAR ONLY (Pushed to far right) */}
         {user && (
-          <div className="flex items-center shrink-0">
+          <div className="flex items-center shrink-0 ml-auto">
 
             <div className="relative" ref={userMenuRef}>
               <button
@@ -142,8 +150,8 @@ export const Header: React.FC = () => {
         )}
       </div>
 
-      {/* CENTERED TAB NAVIGATION */}
-      {user && (
+      {/* CENTERED TAB NAVIGATION (Student workspace views only) */}
+      {user && activeTab !== 'admin' && (
         <div className="w-full flex justify-center px-4 pb-2 pt-0">
           <nav className="inline-flex items-center gap-1 p-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10 shadow-lg max-w-full overflow-x-auto no-scrollbar">
             {navItems.map(tab => {

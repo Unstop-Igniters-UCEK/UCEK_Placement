@@ -22,19 +22,6 @@ export const DEMO_USERS: User[] = [
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'
   },
   {
-    id: 'usr_mentor_1',
-    name: 'Devika Suresh',
-    email: 'devika.s@ucek.ac.in',
-    role: 'mentor',
-    year: 'Alumni (2025)',
-    branch: 'CSE',
-    domain: 'Software Engineering',
-    readinessScore: 95,
-    company: 'Google',
-    bio: 'Software Engineer @ Google. Placed via campus drives. Happy to guide juniors in DSA, System Design, & Resume reviews!',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200'
-  },
-  {
     id: 'usr_admin_1',
     name: 'Dr. Suresh Kumar',
     email: 'placement.cell@ucek.ac.in',

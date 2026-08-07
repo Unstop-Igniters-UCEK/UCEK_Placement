@@ -21,6 +21,7 @@ import {
   INITIAL_RECENT_SCORES,
   INITIAL_RESUME_DATA
 } from '../data/mockData';
+import { loginApi, registerApi, getMeApi, logoutApi, demoLoginApi } from '../lib/api';
 
 export type Theme = 'dark' | 'light';
 
@@ -51,12 +52,13 @@ interface AppContextType {
 
   // Actions
   switchDemoRole: (role: UserRole) => void;
-  loginUser: (email: string) => boolean;
-  signupUser: (newUser: Omit<User, 'id' | 'readinessScore'>) => void;
+  loginUser: (email: string, password?: string, role?: string) => Promise<boolean>;
+  signupUser: (newUser: Omit<User, 'id' | 'readinessScore'> & { password?: string; adminSecurityCode?: string }) => Promise<boolean>;
   logoutUser: () => void;
   toggleMilestone: (domainId: string, moduleId: string, milestoneId: string) => void;
   saveTestResult: (result: Omit<TestResult, 'id' | 'date'>) => void;
   addQuestionToBank: (newQ: Omit<Question, 'id'>) => void;
+  publishTest: (test: Omit<MockTest, 'id' | 'questions' | 'passPercentage'>) => void;
   addMentorshipLog: (topic: string, feedback: string, actionItems: string[]) => void;
   requestMentorship: (mentorId: string) => void;
   updateUserRoleInAdmin: (userId: string, newRole: UserRole) => void;
@@ -79,6 +81,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     document.documentElement.setAttribute('data-theme', 'dark');
     document.documentElement.classList.add('dark');
     document.documentElement.classList.remove('light');
+  }, []);
+
+  // Restore user session from backend on mount if access token exists
+  useEffect(() => {
+    const token = localStorage.getItem('ucek_access_token');
+    if (token && !user) {
+      getMeApi()
+        .then(data => {
+          if (data.user) {
+            setUser({
+              id: data.user.id,
+              name: data.user.name,
+              email: data.user.email,
+              role: (data.user.role as UserRole) || 'mentee',
+              year: data.user.year || '4th Year',
+              branch: data.user.branch || 'CSE',
+              domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+              readinessScore: data.user.readinessScore ?? 75,
+              avatar: data.user.avatar,
+              bio: data.user.bio,
+            });
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to restore backend session:', err);
+          localStorage.removeItem('ucek_access_token');
+        });
+    }
   }, []);
 
   const toggleTheme = () => {
@@ -132,49 +162,95 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [roadmaps, recentScores]);
 
-  const switchDemoRole = (role: UserRole) => {
-    const targetUser = allUsers.find(u => u.role === role) || DEMO_USERS.find(u => u.role === role);
-    if (targetUser) {
-      setUser(targetUser);
+  const switchDemoRole = async (role: UserRole) => {
+    try {
+      const data = await demoLoginApi(role);
+      if (data.accessToken) {
+        localStorage.setItem('ucek_access_token', data.accessToken);
+      }
+      const mappedUser: User = {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        role: (data.user.role as UserRole) || role,
+        year: data.user.year || '4th Year',
+        branch: data.user.branch || 'CSE',
+        domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+        readinessScore: data.user.readinessScore ?? 80,
+        avatar: data.user.avatar,
+        bio: data.user.bio,
+      };
+      setUser(mappedUser);
+      setAuthModalOpen(false);
+      setActiveTab(mappedUser.role === 'admin' ? 'admin' : 'dashboard');
+    } catch {
+      // Fallback for offline demo role selection
+      const targetUser = allUsers.find(u => u.role === role) || DEMO_USERS.find(u => u.role === role);
+      if (targetUser) {
+        setUser(targetUser);
+        setAuthModalOpen(false);
+        setActiveTab(targetUser.role === 'admin' ? 'admin' : 'dashboard');
+      }
     }
   };
 
-  const loginUser = (email: string): boolean => {
-    const found = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (found) {
-      setUser(found);
-      setAuthModalOpen(false);
-      return true;
+  const loginUser = async (email: string, password?: string, role?: string): Promise<boolean> => {
+    const data = await loginApi({ email, password: password || '', role });
+    if (data.accessToken) {
+      localStorage.setItem('ucek_access_token', data.accessToken);
     }
-    // Dynamic login fallback for demo
-    const createdUser: User = {
-      id: `usr_${Date.now()}`,
-      name: email.split('@')[0].toUpperCase(),
-      email,
-      role: 'mentee',
-      year: '4th Year',
-      branch: 'CSE',
-      domain: 'Software Engineering',
-      readinessScore: 72
+    const mappedUser: User = {
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+      role: (data.user.role as UserRole) || 'mentee',
+      year: data.user.year || '4th Year',
+      branch: data.user.branch || 'CSE',
+      domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+      readinessScore: data.user.readinessScore ?? 75,
+      avatar: data.user.avatar,
+      bio: data.user.bio,
     };
-    setAllUsers(prev => [...prev, createdUser]);
-    setUser(createdUser);
+    setUser(mappedUser);
     setAuthModalOpen(false);
+    setActiveTab(mappedUser.role === 'admin' ? 'admin' : 'dashboard');
     return true;
   };
 
-  const signupUser = (newUser: Omit<User, 'id' | 'readinessScore'>) => {
-    const created: User = {
-      ...newUser,
-      id: `usr_${Date.now()}`,
-      readinessScore: 65
+  const signupUser = async (newUser: Omit<User, 'id' | 'readinessScore'> & { password?: string; adminSecurityCode?: string }): Promise<boolean> => {
+    const data = await registerApi({
+      name: newUser.name,
+      email: newUser.email,
+      password: newUser.password || '',
+      role: newUser.role || 'mentee',
+      year: newUser.year || '4th Year',
+      branch: newUser.branch || 'CSE',
+      domainInterest: newUser.domain || 'Software Engineering',
+      adminSecurityCode: newUser.adminSecurityCode
+    });
+    if (data.accessToken) {
+      localStorage.setItem('ucek_access_token', data.accessToken);
+    }
+    const mappedUser: User = {
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+      role: (data.user.role as UserRole) || 'mentee',
+      year: data.user.year || '4th Year',
+      branch: data.user.branch || 'CSE',
+      domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+      readinessScore: data.user.readinessScore ?? 65,
+      avatar: data.user.avatar,
+      bio: data.user.bio,
     };
-    setAllUsers(prev => [...prev, created]);
-    setUser(created);
+    setUser(mappedUser);
     setAuthModalOpen(false);
+    setActiveTab(mappedUser.role === 'admin' ? 'admin' : 'dashboard');
+    return true;
   };
 
   const logoutUser = () => {
+    logoutApi().catch(() => {});
     setUser(null);
     setActiveTab('dashboard');
   };
@@ -229,6 +305,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       });
     });
+  };
+
+  const publishTest = (test: Omit<MockTest, 'id' | 'questions' | 'passPercentage'>) => {
+    const newTest: MockTest = {
+      ...test,
+      id: `custom_${Date.now()}`,
+      questions: [],
+      passPercentage: 70,
+    };
+    setMockTests(prev => [newTest, ...prev]);
   };
 
   const addMentorshipLog = (topic: string, feedback: string, actionItems: string[]) => {
@@ -300,6 +386,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleMilestone,
         saveTestResult,
         addQuestionToBank,
+        publishTest,
         addMentorshipLog,
         requestMentorship,
         updateUserRoleInAdmin

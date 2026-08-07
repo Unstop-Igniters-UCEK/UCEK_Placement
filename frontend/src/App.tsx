@@ -9,6 +9,7 @@ import { MockTests } from './pages/MockTests';
 import { HRInterviewSimulator } from './pages/HRInterviewSimulator';
 import { Mentorship } from './pages/Mentorship';
 import { AdminPanel } from './pages/AdminPanel';
+import { AuthModal } from './components/AuthModal';
 import Grainient from './components/Grainient';
 import ClickSpark from './components/ClickSpark';
 import DotGrid from './components/DotGrid';
@@ -78,9 +79,10 @@ export function App() {
         style={{ scaleX }}
       />
 
+      <AuthModal />
       <div className="min-h-screen bg-[var(--bg-body)] text-[var(--text-primary)] flex flex-col font-sans overflow-x-hidden relative">
-        {/* Persistent Transparent Header */}
-        <Header />
+        {/* Persistent Transparent Header — hidden on admin view (sidebar handles nav) */}
+        {activeTab !== 'admin' && <Header />}
 
         {/* Main Content Area */}
         {!user ? (
@@ -153,7 +155,9 @@ export function App() {
 
 
 
-            <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 lg:p-8 relative z-10">
+            <main className={`flex-1 w-full mx-auto relative z-10 ${
+              activeTab === 'admin' ? 'max-w-none p-0' : 'max-w-[1600px] p-4 sm:p-6 lg:p-8'
+            }`}>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}

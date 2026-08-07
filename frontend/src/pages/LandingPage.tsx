@@ -2,22 +2,24 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
 import Grainient from '../components/Grainient';
+import { CustomSelect } from '../components/CustomSelect';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogIn, UserPlus, X, Sparkles, AlertCircle, ArrowLeft } from 'lucide-react';
+import { LogIn, UserPlus, X, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
-  const { loginUser, signupUser, switchDemoRole } = useApp();
+  const { loginUser, signupUser, setAuthModalOpen, setAuthModalMode } = useApp();
 
   // Auth panel open mode ('login' | 'signup' | null)
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
 
   // Form state
-  const [email, setEmail] = useState('admin@ucek.edu');
-  const [password, setPassword] = useState('••••••••');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [branch, setBranch] = useState('CSE');
   const [year, setYear] = useState('4th Year');
   const [selectedRole, setSelectedRole] = useState<UserRole>('mentee');
+  const [adminPasscode, setAdminPasscode] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleOpenLogin = () => {
@@ -35,45 +37,55 @@ export const LandingPage: React.FC = () => {
     setErrorMsg(null);
   };
 
-  const handleDemoRoleSelect = (role: UserRole) => {
+  const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
-    switchDemoRole(role);
-    if (role === 'mentee') {
-      setEmail('anand@ucek.ac.in');
-    } else if (role === 'mentor') {
-      setEmail('devika@google.com');
-    } else {
-      setEmail('admin@ucek.ac.in');
-    }
+    setErrorMsg(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail) {
+      setErrorMsg('Please enter a valid email address.');
+      return;
+    }
+
     if (authMode === 'login') {
-      if (!email.trim()) {
-        setErrorMsg('Please enter your college email.');
-        return;
+      try {
+        await loginUser(cleanEmail, password, selectedRole);
+      } catch (err: any) {
+        setErrorMsg(err.message || 'Login failed. Check your credentials.');
       }
-      loginUser(email);
     } else if (authMode === 'signup') {
       if (!fullName.trim()) {
         setErrorMsg('Please enter your Full Name.');
         return;
       }
-      if (!email.trim()) {
-        setErrorMsg('Please enter a valid email address.');
+      if (password.length < 6) {
+        setErrorMsg('Password must be at least 6 characters long.');
         return;
       }
-      signupUser({
-        name: fullName,
-        email,
-        role: selectedRole,
-        branch,
-        year,
-        domain: 'Software Engineering'
-      });
+      if (selectedRole === 'admin' && !adminPasscode.trim()) {
+        setErrorMsg('Please enter the secret Admin Security Passcode.');
+        return;
+      }
+      try {
+        await signupUser({
+          name: fullName,
+          email: cleanEmail,
+          password,
+          role: selectedRole,
+          branch,
+          year,
+          domain: 'Software Engineering',
+          adminSecurityCode: selectedRole === 'admin' ? adminPasscode : undefined
+        });
+      } catch (err: any) {
+        setErrorMsg(err.message || 'Registration failed.');
+      }
     }
   };
 
@@ -246,21 +258,23 @@ export const LandingPage: React.FC = () => {
                 {/* Form Header */}
                 <div className="space-y-1">
                   <h3 className="text-xl font-bold text-white tracking-tight font-sans">
-                    {authMode === 'login' ? 'Sign In to Portal' : 'Create Student Account'}
+                    {authMode === 'login'
+                      ? selectedRole === 'admin' ? 'Admin Sign In' : 'Student Sign In'
+                      : selectedRole === 'admin' ? 'Create Admin Account' : 'Create Student Account'}
                   </h3>
                   <p className="text-xs text-zinc-400 font-sans">
                     {authMode === 'login'
-                      ? 'Enter your institutional credentials or choose a demo persona below.'
-                      : 'Register your UCEK student profile to access placement preparation tools.'}
+                      ? 'Enter your institutional credentials below to access your portal.'
+                      : 'Register your account profile to access placement preparation tools.'}
                   </p>
                 </div>
 
-                {/* Demo Role Selector Bar - PERSONA BUTTONS ONLY (LABEL REMOVED) */}
+                {/* Role Selector Bar (Changes form role, does NOT auto-login) */}
                 <div className="pt-1">
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => handleDemoRoleSelect('mentee')}
+                      onClick={() => handleRoleSelect('mentee')}
                       className={`py-2 px-3 rounded-full text-xs font-semibold border transition-all text-center cursor-pointer ${
                         selectedRole === 'mentee'
                           ? 'bg-white text-black border-white font-bold shadow-md'
@@ -271,25 +285,14 @@ export const LandingPage: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDemoRoleSelect('mentor')}
-                      className={`py-2 px-3 rounded-full text-xs font-semibold border transition-all text-center cursor-pointer ${
-                        selectedRole === 'mentor'
-                          ? 'bg-white text-black border-white font-bold shadow-md'
-                          : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10'
-                      }`}
-                    >
-                      Mentor
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDemoRoleSelect('admin')}
+                      onClick={() => handleRoleSelect('admin')}
                       className={`py-2 px-3 rounded-full text-xs font-semibold border transition-all text-center cursor-pointer ${
                         selectedRole === 'admin'
                           ? 'bg-white text-black border-white font-bold shadow-md'
                           : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10'
                       }`}
                     >
-                      Officer
+                      Admin
                     </button>
                   </div>
                 </div>
@@ -314,23 +317,23 @@ export const LandingPage: React.FC = () => {
                         type="text"
                         value={fullName}
                         onChange={e => setFullName(e.target.value)}
-                        placeholder="e.g. Anand Nair"
+                        placeholder={selectedRole === 'admin' ? 'Administrator Name' : 'e.g. Anand Nair'}
                         className="w-full px-4 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans"
                         required
                       />
                     </div>
                   )}
 
-                  {/* College Email Input */}
+                  {/* Email Input */}
                   <div className="space-y-1">
                     <label className="block text-xs font-semibold text-zinc-300">
-                      College Email <span className="text-zinc-500 font-normal">(@ucek.ac.in)</span>
+                      Email Address
                     </label>
                     <input
                       type="email"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
-                      placeholder="student@ucek.ac.in"
+                      placeholder="student@gmail.com or official email"
                       className="w-full px-4 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans"
                       required
                     />
@@ -341,34 +344,59 @@ export const LandingPage: React.FC = () => {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="block text-xs font-semibold text-zinc-300">Branch</label>
-                        <select
+                        <CustomSelect
                           value={branch}
-                          onChange={e => setBranch(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-full bg-[#18181c] border border-white/15 text-white text-xs focus:outline-none focus:border-white transition-all font-sans"
-                        >
-                          <option value="CSE">CSE</option>
-                          <option value="ECE">ECE</option>
-                          <option value="EEE">EEE</option>
-                          <option value="IT">IT</option>
-                        </select>
+                          onChange={setBranch}
+                          options={['CSE', 'ECE', 'EEE', 'IT', 'Mechanical']}
+                        />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-xs font-semibold text-zinc-300">Year</label>
-                        <select
+                        <label className="block text-xs font-semibold text-zinc-300">Year / Designation</label>
+                        <CustomSelect
                           value={year}
-                          onChange={e => setYear(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-full bg-[#18181c] border border-white/15 text-white text-xs focus:outline-none focus:border-white transition-all font-sans"
-                        >
-                          <option value="3rd Year">3rd Year</option>
-                          <option value="4th Year">4th Year</option>
-                        </select>
+                          onChange={setYear}
+                          options={
+                            selectedRole === 'admin'
+                              ? ['Faculty Admin', 'Placement Cell Officer']
+                              : ['1st Year', '2nd Year', '3rd Year', '4th Year']
+                          }
+                        />
                       </div>
+                    </div>
+                  )}
+
+                  {/* Admin Passcode Input */}
+                  {authMode === 'signup' && selectedRole === 'admin' && (
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-zinc-300">Admin Security Passcode</label>
+                      <input
+                        type="password"
+                        value={adminPasscode}
+                        onChange={e => setAdminPasscode(e.target.value)}
+                        placeholder="Enter secret faculty passcode"
+                        className="w-full px-4 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans"
+                        required
+                      />
                     </div>
                   )}
 
                   {/* Password Input */}
                   <div className="space-y-1">
-                    <label className="block text-xs font-semibold text-zinc-300">Password</label>
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-zinc-300">Password</label>
+                      {authMode === 'login' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAuthModalMode('forgot');
+                            setAuthModalOpen(true);
+                          }}
+                          className="text-[11px] text-zinc-400 font-semibold hover:text-white hover:underline cursor-pointer"
+                        >
+                          Forgot Password?
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="password"
                       value={password}
@@ -385,7 +413,7 @@ export const LandingPage: React.FC = () => {
                     className="btn-primary w-full py-3 text-xs font-bold rounded-full shadow-md hover:scale-[1.02] transition-transform cursor-pointer mt-2"
                     style={{ fontFamily: 'Poppins, sans-serif' }}
                   >
-                    {authMode === 'login' ? 'Sign In to Portal' : 'Register Account'}
+                    {authMode === 'login' ? `Sign In as ${selectedRole === 'admin' ? 'Admin' : 'Student'}` : `Register ${selectedRole === 'admin' ? 'Admin' : 'Student'} Account`}
                   </button>
 
                   {/* Toggle Link Mode */}
