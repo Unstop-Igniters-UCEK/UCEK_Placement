@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X, LogIn, UserPlus, KeyRound, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export const AuthModal: React.FC = () => {
@@ -34,8 +35,6 @@ export const AuthModal: React.FC = () => {
   // Error / Success state
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  if (!authModalOpen) return null;
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,13 +93,28 @@ export const AuthModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/70 font-sans">
-      <div className="relative w-full max-w-sm bg-white border border-zinc-200 rounded-2xl shadow-xl overflow-hidden">
+    <AnimatePresence>
+      {authModalOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md font-sans"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 8 }}
+            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+            style={{ transformOrigin: 'center' }}
+            className="relative w-full max-w-sm bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden text-[var(--text-primary)]"
+          >
         
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 bg-zinc-50">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-subtle)]">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-[#09090b] text-xs font-sans">
+            <span className="font-bold text-[var(--text-primary)] text-xs font-sans">
               {authModalMode === 'login' && 'Student Sign In'}
               {authModalMode === 'signup' && 'Register Account'}
               {authModalMode === 'forgot' && 'Reset Password'}
@@ -108,7 +122,7 @@ export const AuthModal: React.FC = () => {
           </div>
           <button
             onClick={() => setAuthModalOpen(false)}
-            className="p-1 rounded-full text-zinc-400 hover:text-[#09090b] hover:bg-zinc-200 transition-colors"
+            className="p-1 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -373,7 +387,9 @@ export const AuthModal: React.FC = () => {
             </form>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

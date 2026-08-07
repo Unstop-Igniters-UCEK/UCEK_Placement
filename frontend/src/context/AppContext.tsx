@@ -22,6 +22,8 @@ import {
   INITIAL_RESUME_DATA
 } from '../data/mockData';
 
+export type Theme = 'dark' | 'light';
+
 interface AppContextType {
   user: User | null;
   activeTab: string;
@@ -30,6 +32,11 @@ interface AppContextType {
   setAuthModalOpen: (open: boolean) => void;
   authModalMode: 'login' | 'signup' | 'forgot';
   setAuthModalMode: (mode: 'login' | 'signup' | 'forgot') => void;
+  
+  // Theme System
+  theme: Theme;
+  toggleTheme: () => void;
+  setTheme: (theme: Theme) => void;
   
   // Data
   roadmaps: DomainRoadmap[];
@@ -64,6 +71,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot'>('login');
 
+  // Fixed Dark Theme System (Light mode removed entirely per user directive)
+  const [theme] = useState<Theme>('dark');
+
+  useEffect(() => {
+    localStorage.setItem('ucek-theme', 'dark');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.classList.add('dark');
+    document.documentElement.classList.remove('light');
+  }, []);
+
+  const toggleTheme = () => {
+    // No-op: Light mode removed
+  };
+
+  const setTheme = () => {
+    // No-op: Light mode removed
+  };
+
   const [roadmaps, setRoadmaps] = useState<DomainRoadmap[]>(INITIAL_ROADMAPS);
   const [mockTests, setMockTests] = useState<MockTest[]>(MOCK_TESTS);
   const [recentScores, setRecentScores] = useState<TestResult[]>(INITIAL_RECENT_SCORES);
@@ -71,6 +96,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [interviewQuestions] = useState<InterviewQuestion[]>(INTERVIEW_QUESTIONS);
   const [mentors] = useState<SeniorMentor[]>(SENIOR_MENTORS);
   const [resumeData, setResumeData] = useState<ResumeData>(INITIAL_RESUME_DATA);
+
+
 
   // Recalculate user readiness score based on milestone completion and test scores
   useEffect(() => {
@@ -254,6 +281,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setAuthModalOpen,
         authModalMode,
         setAuthModalMode,
+        theme,
+        toggleTheme,
+        setTheme,
         roadmaps,
         mockTests,
         recentScores,

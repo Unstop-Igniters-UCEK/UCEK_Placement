@@ -10,7 +10,10 @@
   position: relative;
   border-radius: var(--border-radius);
   isolation: isolate;
+  /* GPU layer: keeps card on its own compositor tile, avoids full-page repaints */
   transform: translate3d(0, 0, 0.01px);
+  /* CSS containment: repaints inside the card don't affect sibling layout */
+  contain: layout style;
   display: grid;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: var(--card-bg, #08080a);
@@ -29,6 +32,8 @@
   border-radius: inherit;
   transition: opacity 0.25s ease-out;
   z-index: -1;
+  /* Promote glow pseudo-elements to GPU composite layer */
+  will-change: opacity, mask-image;
 }
 
 .border-glow-card:not(:hover):not(.sweep-active)::before,

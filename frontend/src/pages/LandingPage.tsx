@@ -147,18 +147,18 @@ export const LandingPage: React.FC = () => {
               style={{ fontFamily: "'Syne', -apple-system, sans-serif" }}
             >
               <motion.span
-                initial={{ opacity: 0, y: 24, scale: 0.96 }}
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1], delay: 0.05 }}
                 className="inline-block whitespace-nowrap"
               >
                 Placements?
               </motion.span>
 
               <motion.span
-                initial={{ opacity: 0, y: 24, scale: 0.96 }}
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1], delay: 0.8 }}
+                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1], delay: 0.12 }}
                 className="inline-block whitespace-nowrap"
               >
                 We got you!
@@ -167,9 +167,9 @@ export const LandingPage: React.FC = () => {
 
             {/* Subheadings & Description */}
             <motion.div
-              initial={{ opacity: 0, y: 24 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 1.4 }}
+              transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1], delay: 0.18 }}
               className="space-y-4"
             >
               <h2 className={`font-bold text-white uppercase tracking-wider font-mono opacity-95 drop-shadow-sm ${
@@ -197,9 +197,9 @@ export const LandingPage: React.FC = () => {
             {/* Hero CTA Buttons - Hidden when Auth Panel is Open */}
             {!authMode && (
               <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.96 }}
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 2.2 }}
+                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1], delay: 0.24 }}
                 className="pt-2 flex flex-wrap items-center justify-center gap-4 pointer-events-auto"
               >
                 <button

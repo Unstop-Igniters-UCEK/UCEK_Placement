@@ -1,32 +1,64 @@
-# React + TypeScript + Vite
+# UCEK — Unstop Igniters Club Placement Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A full-stack monorepo for the UCEK placement prep platform.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 📁 Project Structure
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+UCEK/
+├── frontend/          # React + TypeScript + Vite frontend app
+│   ├── src/           # App source code (components, pages, context)
+│   ├── public/        # Static assets
+│   ├── index.html     # HTML entry point
+│   ├── package.json   # Frontend dependencies
+│   ├── vite.config.ts # Vite configuration
+│   └── tsconfig*.json # TypeScript configuration
+│
+├── backend/           # (Coming soon) Node.js / API backend
+│
+├── .agents/           # AI agent skills & configuration
+├── .git/              # Git repository
+├── .gitignore         # Gitignore rules
+├── mcp.json           # MCP server configuration (21st.dev, annnimate)
+├── skills-lock.json   # Installed skills lockfile
+├── PRODUCT.md         # Product specification
+└── README.md          # This file
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+---
+
+## 🚀 Getting Started
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev       # Start dev server at http://localhost:5173
+npm run build     # Production build
+```
+
+### Backend *(coming soon)*
+
+```bash
+cd backend
+# setup instructions TBD
+```
+
+---
+
+## 🛠 Tech Stack
+
+**Frontend**
+- React 18 + TypeScript
+- Vite 8 (build tool)
+- Tailwind CSS v4
+- Framer Motion (animations)
+- Lenis (smooth scroll)
+- OGL / WebGL (Grainient shader backgrounds)
+
+**AI Agent Tooling**
+- `.agents/skills/` — Custom skill definitions (ui-ux-pro-max, animate, design, etc.)
+- `mcp.json` — MCP servers (21st.dev UI components, annnimate motion)
