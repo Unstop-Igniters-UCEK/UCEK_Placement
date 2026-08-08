@@ -4,13 +4,17 @@ import { UserRole } from '../types';
 import Grainient from '../components/Grainient';
 import { CustomSelect } from '../components/CustomSelect';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogIn, UserPlus, X, AlertCircle, ArrowLeft } from 'lucide-react';
+import { LogIn, UserPlus, X, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
   const { loginUser, signupUser, setAuthModalOpen, setAuthModalMode } = useApp();
 
   // Auth panel open mode ('login' | 'signup' | null)
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
+
+  // Password visibility states
+  const [showAdminPasscode, setShowAdminPasscode] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Form state
   const [email, setEmail] = useState('');
@@ -369,14 +373,26 @@ export const LandingPage: React.FC = () => {
                   {authMode === 'signup' && selectedRole === 'admin' && (
                     <div className="space-y-1">
                       <label className="block text-xs font-semibold text-zinc-300">Admin Security Passcode</label>
-                      <input
-                        type="password"
-                        value={adminPasscode}
-                        onChange={e => setAdminPasscode(e.target.value)}
-                        placeholder="Enter secret faculty passcode"
-                        className="w-full px-4 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans"
-                        required
-                      />
+                      <div className="relative">
+                        <input
+                          type={showAdminPasscode ? "text" : "password"}
+                          value={adminPasscode}
+                          onChange={e => setAdminPasscode(e.target.value)}
+                          placeholder="Enter secret faculty passcode"
+                          className="w-full pl-4 pr-10 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowAdminPasscode(!showAdminPasscode)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
+                          title={showAdminPasscode ? "Hide passcode" : "Show passcode"}
+                          aria-label={showAdminPasscode ? "Hide passcode" : "Show passcode"}
+                          tabIndex={-1}
+                        >
+                          {showAdminPasscode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -397,14 +413,26 @@ export const LandingPage: React.FC = () => {
                         </button>
                       )}
                     </div>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full px-4 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full pl-4 pr-10 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
+                        title={showPassword ? "Hide password" : "Show password"}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Primary Submit Button */}
