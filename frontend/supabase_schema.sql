@@ -69,3 +69,27 @@ CREATE TABLE IF NOT EXISTS public.mentorships (
     check_in_logs JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- 3. HR Speech Practice & Analytics Tables
+CREATE TABLE IF NOT EXISTS public.speech_evaluations (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    question_text TEXT NOT NULL,
+    wpm INT NOT NULL DEFAULT 130,
+    confidence_score INT NOT NULL DEFAULT 80,
+    star_aligned BOOLEAN DEFAULT TRUE,
+    filler_count INT DEFAULT 0,
+    overall_rating FLOAT NOT NULL DEFAULT 8.0,
+    feedback_json JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.hr_practice_questions (
+    id TEXT PRIMARY KEY,
+    company_tag TEXT DEFAULT 'TCS',
+    question_text TEXT NOT NULL,
+    category TEXT DEFAULT 'Behavioral',
+    is_featured BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+

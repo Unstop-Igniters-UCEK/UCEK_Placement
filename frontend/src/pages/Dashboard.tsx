@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, Variants } from 'framer-motion';
+import { getSpeechAnalyticsApi, SpeechAnalyticsResponse } from '../lib/api';
 import {
   Award,
   ArrowRight,
@@ -29,6 +30,27 @@ export const Dashboard: React.FC = () => {
     setAuthModalOpen,
     setAuthModalMode
   } = useApp();
+
+  const [speechAnalytics, setSpeechAnalytics] = useState<SpeechAnalyticsResponse>({
+    wpm: 135,
+    confidenceScore: 92,
+    starFramework: 'Aligned',
+    fillerCount: '0 Detects',
+    totalEvaluations: 0,
+    featuredPrompts: [
+      "Tell me about a technical project challenge at UCEK and how you solved it.",
+      "Why do you want to join our core engineering team?"
+    ]
+  });
+
+  useEffect(() => {
+    if (user) {
+      getSpeechAnalyticsApi().then(data => {
+        setSpeechAnalytics(data);
+      }).catch(() => {});
+    }
+  }, [user]);
+
 
   if (!user) {
     return (
@@ -335,19 +357,19 @@ export const Dashboard: React.FC = () => {
               <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-zinc-950/80 border border-zinc-800/80 text-xs">
                 <div>
                   <span className="text-[10px] text-zinc-400 block font-medium">Speech Pace</span>
-                  <span className="font-bold text-white text-sm">135 WPM</span>
+                  <span className="font-bold text-white text-sm">{speechAnalytics.wpm} WPM</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-zinc-400 block font-medium">Confidence</span>
-                  <span className="font-bold text-emerald-400 text-sm">92%</span>
+                  <span className="font-bold text-emerald-400 text-sm">{speechAnalytics.confidenceScore}%</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-zinc-400 block font-medium">STAR Framework</span>
-                  <span className="font-bold text-orange-400 text-sm">Aligned</span>
+                  <span className="font-bold text-orange-400 text-sm">{speechAnalytics.starFramework}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-zinc-400 block font-medium">Filler Count</span>
-                  <span className="font-bold text-zinc-200 text-sm">0 Detects</span>
+                  <span className="font-bold text-zinc-200 text-sm">{speechAnalytics.fillerCount}</span>
                 </div>
               </div>
 
@@ -355,15 +377,15 @@ export const Dashboard: React.FC = () => {
               <div className="space-y-2 pt-1">
                 <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block">Featured Practice Prompts</span>
                 <div className="space-y-2 text-xs">
-                  <div className="p-3 rounded-xl bg-zinc-950/50 border border-zinc-800/60 text-zinc-300">
-                    "Tell me about a technical project challenge at UCEK and how you solved it."
-                  </div>
-                  <div className="p-3 rounded-xl bg-zinc-950/50 border border-zinc-800/60 text-zinc-300">
-                    "Why do you want to join our core engineering team?"
-                  </div>
+                  {speechAnalytics.featuredPrompts.map((promptText, idx) => (
+                    <div key={idx} className="p-3 rounded-xl bg-zinc-950/50 border border-zinc-800/60 text-zinc-300">
+                      "{promptText}"
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
+
 
             <div className="pt-4 border-t border-zinc-800/80">
               <button

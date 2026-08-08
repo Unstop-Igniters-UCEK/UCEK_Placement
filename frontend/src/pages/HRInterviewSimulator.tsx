@@ -293,8 +293,8 @@ export const HRInterviewSimulator: React.FC = () => {
                     setApiError(null);
                   }}
                   className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${selectedQuestion.id === q.id
-                      ? 'bg-cyan-950/30 border-cyan-800/60 text-white font-semibold'
-                      : 'bg-zinc-950/60 border-zinc-800/80 text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-cyan-950/30 border-cyan-800/60 text-white font-semibold'
+                    : 'bg-zinc-950/60 border-zinc-800/80 text-zinc-400 hover:text-zinc-200'
                     }`}
                 >
                   <p className="line-clamp-1">{q.questionText}</p>
@@ -309,7 +309,7 @@ export const HRInterviewSimulator: React.FC = () => {
           {analyzing ? (
             <div className="py-24 text-center space-y-3">
               <Loader2 className="w-10 h-10 text-orange-400 mx-auto animate-spin" />
-              <p className="text-xs font-semibold text-zinc-400 font-mono">Gemini AI is evaluating your response…</p>
+              <p className="text-xs font-semibold text-zinc-400 font-mono">Evaluating Your Response... Please Wait!</p>
             </div>
           ) : !feedback ? (
             <div className="py-24 text-center space-y-2">
