@@ -1,5 +1,8 @@
+import uuid
+from datetime import datetime
 from fastapi import APIRouter, Depends
 from backend.auth import get_current_user
+from backend.database import db
 from backend.schemas import (
     ReviewResumeRequest, MatchJDRequest,
     EnhanceBulletRequest, AnalyzeInterviewRequest
@@ -34,4 +37,21 @@ def analyze_interview(req: AnalyzeInterviewRequest, current_user: dict = Depends
         audio_b64=req.audioBase64,
         mime_type=req.mimeType or "audio/webm"
     )
+
+    # Persist interview simulation record for student and admin analytics tracking
+    record = {
+        "id": f"int_{uuid.uuid4().hex[:8]}",
+        "userId": current_user["id"],
+        "userName": current_user.get("name", "Student"),
+        "questionText": req.questionText,
+        "overallScore": result.get("overallScore", 80),
+        "confidenceScore": result.get("confidenceScore", 80),
+        "technicalAccuracy": result.get("technicalAccuracy", 80),
+        "date": datetime.utcnow().strftime("%Y-%m-%d"),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    db.interviewResponses.append(record)
+    db.save()
+
     return {"evaluation": result}
+

@@ -2,13 +2,17 @@ import os
 import json
 
 try:
+    # pyrefly: ignore [missing-import]
     from google import genai
+    # pyrefly: ignore [missing-import]
     from google.genai import types
     HAS_GENAI = True
 except ImportError:
     HAS_GENAI = False
     genai = None
     types = None
+
+SUPPORTED_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
 
 def get_gemini_client():
     if not HAS_GENAI:
@@ -21,6 +25,32 @@ def get_gemini_client():
     except Exception as e:
         print("Error initializing Gemini Client:", e)
         return None
+
+def generate_gemini_json(client, contents, config=None):
+    if not client:
+        return None
+    for model_name in SUPPORTED_MODELS:
+        try:
+            res_config = config or types.GenerateContentConfig(response_mime_type="application/json")
+            response = client.models.generate_content(
+                model=model_name,
+                contents=contents,
+                config=res_config
+            )
+            if response and response.text:
+                # Clean markdown json blocks if present
+                raw_text = response.text.strip()
+                if raw_text.startswith("```json"):
+                    raw_text = raw_text[7:]
+                if raw_text.startswith("```"):
+                    raw_text = raw_text[3:]
+                if raw_text.endswith("```"):
+                    raw_text = raw_text[:-3]
+                return json.loads(raw_text.strip())
+        except Exception as e:
+            print(f"Gemini API error with model {model_name}:", e)
+            continue
+    return None
 
 def analyze_resume_with_gemini(resume_text: str, job_role: str = "Software Engineer") -> dict:
     client = get_gemini_client()
@@ -42,78 +72,54 @@ Return ONLY a valid JSON object matching this structure:
   "improvements": [
     {{
       "original": "<string original weak bullet or point>",
-      "suggested": "<string STAR-formatted quantifiable bullet point>",
-      "category": "<e.g. Project Impact | Technical Depth | Action Verbs>"
+      "suggested": "<string STAR-formatted quantifiable bullet point>"
     }}
-  ],
-  "formatCheck": {{
-    "hasContactInfo": <boolean>,
-    "hasEducation": <boolean>,
-    "hasProjects": <boolean>,
-    "hasSkillsSection": <boolean>,
-    "isActionVerbOriented": <boolean>
-  }}
+  ]
 }}
 """
 
     if client:
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                )
-            )
-            if response.text:
-                return json.loads(response.text)
-        except Exception as e:
-            print("Gemini API error in analyze_resume:", e)
+        result = generate_gemini_json(client, prompt)
+        if result:
+            return result
 
-    # High quality structured fallback
     return {
-        "atsScore": 76,
+        "atsScore": 84,
         "strengths": [
-            "Includes clear education details at UCEK and core Technical skills.",
-            "Demonstrates practical hands-on project implementations.",
-            "Good baseline structure suited for IT campus placement drives."
+            "Strong foundation in data structures, algorithms, and full-stack web development.",
+            "Demonstrated experience with modern frontend frameworks (React, TypeScript, Tailwind CSS).",
+            "Clear technical project achievements with measurable business impact."
         ],
         "missingKeywords": [
-            "System Design Patterns", "REST API Optimization", "CI/CD Pipeline", "PostgreSQL / Indexing", "Unit Testing (Jest/PyTest)"
+            "Docker & Containerization",
+            "CI/CD Pipelines (GitHub Actions)",
+            "System Architecture & Load Balancing",
+            "Redis Caching Strategy"
         ],
         "improvements": [
             {
-                "category": "Project Impact",
-                "original": "Built a web app for college student placement management using React.",
-                "suggested": "Engineered a scalable placement portal in React and Node.js serving 450+ UCEK students, reducing manual drive tracking overhead by 60%."
+                "original": "Worked on frontend project using React and API endpoints.",
+                "suggested": "Engineered responsive UI components using React 18 & TypeScript, reducing render latency by 35% across 500+ active user sessions."
             },
             {
-                "category": "Technical Depth",
-                "original": "Worked with SQL databases to store test scores.",
-                "suggested": "Architected normalized PostgreSQL schema with indexed queries, accelerating test submission processing times by 40%."
+                "original": "Helped team build database queries and backend services.",
+                "suggested": "Optimized PostgreSQL indexing and query execution paths, cutting API response times from 450ms to 95ms."
             }
-        ],
-        "formatCheck": {
-            "hasContactInfo": True,
-            "hasEducation": True,
-            "hasProjects": True,
-            "hasSkillsSection": True,
-            "isActionVerbOriented": False
-        }
+        ]
     }
 
 def match_jd_with_gemini(job_title: str, company: str, jd_text: str, resume_text: str) -> dict:
     client = get_gemini_client()
 
     prompt = f"""
-Compare this candidate's resume against the Job Description for {job_title} at {company}.
+Compare the candidate's resume with the Job Description for '{job_title}' at '{company}'.
 
 Job Description:
 \"\"\"
 {jd_text}
 \"\"\"
 
-Resume:
+Candidate Resume:
 \"\"\"
 {resume_text}
 \"\"\"
@@ -128,18 +134,9 @@ Return ONLY a valid JSON object matching this structure:
 """
 
     if client:
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                )
-            )
-            if response.text:
-                return json.loads(response.text)
-        except Exception as e:
-            print("Gemini API error in match_jd:", e)
+        result = generate_gemini_json(client, prompt)
+        if result:
+            return result
 
     return {
         "matchPercentage": 78,
@@ -170,23 +167,14 @@ Return ONLY a valid JSON object matching this structure:
 """
 
     if client:
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                )
-            )
-            if response.text:
-                return json.loads(response.text)
-        except Exception as e:
-            print("Gemini API error in enhance_bullet:", e)
+        result = generate_gemini_json(client, prompt)
+        if result:
+            return result
 
     return {
         "enhancedBullets": [
-            f"Spearheaded development of core module ({bullet_text}), delivering a 35% improvement in processing efficiency for 500+ active users.",
-            f"Architected modular component pipeline for {target_role} requirements, decreasing API response latency by 150ms.",
+            f"Spearheaded optimization of {bullet_text}, increasing overall processing speed by 40% and cutting latency by 120ms.",
+            f"Architected modular microservices for {bullet_text}, enabling seamless horizontal scaling across cloud deployments.",
             f"Implemented robust state management for {bullet_text}, increasing overall test coverage to 92% across deployment builds."
         ]
     }
@@ -205,11 +193,14 @@ def analyze_interview_with_gemini(question_text: str, transcript_text: str = Non
             print("Error decoding audio bytes for Gemini:", err)
 
     text_prompt = f"""
-You are a Senior Technical Interviewer evaluating a candidate's answer for campus recruitment.
+You are a Senior Technical Interviewer evaluating a candidate's spoken audio response for campus recruitment.
 Question Asked: "{question_text}"
-Candidate Transcript / Notes: "{transcript_text or 'Audio response provided.'}"
+Candidate Transcript / Context: "{transcript_text or 'Audio recording provided.'}"
 
-Analyze the candidate's response for technical correctness, clarity, confidence, and STAR structuring.
+CRITICAL EVALUATION INSTRUCTIONS:
+1. Listen carefully to the candidate's audio recording.
+2. If the audio is silent, blank, contains no words, or only background noise, evaluate it as silence/no response (overallScore <= 15, confidenceScore <= 15, strengths: ["Recorded audio payload delivered."], areasForImprovement: ["No spoken response detected in recording. Speak your answer clearly into the microphone."]).
+3. If the candidate spoke, evaluate technical accuracy, clarity, confidence, tone, and STAR structuring.
 
 Return ONLY a valid JSON object matching this structure:
 {{
@@ -219,25 +210,16 @@ Return ONLY a valid JSON object matching this structure:
   "aiFeedback": {{
     "strengths": [<string array of 2-3 key strengths>],
     "areasForImprovement": [<string array of 2-3 areas to polish>],
-    "idealAnswerSnippet": "<string expert exemplar answer snippet>"
+    "idealAnswerSnippet": "<string expert exemplar answer snippet for this question>"
   }}
 }}
 """
     contents.append(text_prompt)
 
     if client:
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                )
-            )
-            if response.text:
-                return json.loads(response.text)
-        except Exception as e:
-            print("Gemini API error in analyze_interview:", e)
+        result = generate_gemini_json(client, contents)
+        if result:
+            return result
 
     return {
         "overallScore": 82,

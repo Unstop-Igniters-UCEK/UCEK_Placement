@@ -78,8 +78,8 @@ export const HRInterviewSimulator: React.FC = () => {
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/webm')
-        ? 'audio/webm'
-        : 'audio/ogg';
+          ? 'audio/webm'
+          : 'audio/ogg';
 
       const recorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = recorder;
@@ -239,8 +239,8 @@ export const HRInterviewSimulator: React.FC = () => {
                 {isRecording
                   ? 'Recording audio… Speak your answer clearly'
                   : analyzing
-                  ? 'Sending to Gemini AI for analysis…'
-                  : 'Click start to practice response'}
+                    ? 'Sending to Gemini AI for analysis…'
+                    : 'Click start to practice response'}
               </div>
             </div>
 
@@ -292,11 +292,10 @@ export const HRInterviewSimulator: React.FC = () => {
                     setFeedback(null);
                     setApiError(null);
                   }}
-                  className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${
-                    selectedQuestion.id === q.id
+                  className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${selectedQuestion.id === q.id
                       ? 'bg-cyan-950/30 border-cyan-800/60 text-white font-semibold'
                       : 'bg-zinc-950/60 border-zinc-800/80 text-zinc-400 hover:text-zinc-200'
-                  }`}
+                    }`}
                 >
                   <p className="line-clamp-1">{q.questionText}</p>
                 </div>
