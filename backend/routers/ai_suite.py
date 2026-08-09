@@ -79,7 +79,9 @@ def analyze_interview(req: AnalyzeInterviewRequest, current_user: dict = Depends
                 "created_at": datetime.utcnow().isoformat()
             }).execute()
         except Exception as e:
-            print("[Supabase speech_evaluations insert notice]:", e)
+            if "PGRST205" not in str(e):
+                print("[Supabase speech_evaluations insert notice]:", e)
+
 
     return {"evaluation": result}
 
@@ -97,7 +99,9 @@ def get_speech_analytics(current_user: dict = Depends(get_current_user)):
             if res.data:
                 evaluations = res.data
         except Exception as e:
-            print("[Supabase fetch speech_evaluations notice]:", e)
+            if "PGRST205" not in str(e):
+                print("[Supabase fetch speech_evaluations notice]:", e)
+
 
     # Fallback to db.interviewResponses
     if not evaluations:
