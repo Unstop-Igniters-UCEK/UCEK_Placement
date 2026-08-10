@@ -63,7 +63,7 @@ cd backend
 - `.agents/skills/` — Custom skill definitions (ui-ux-pro-max, animate, design, etc.)
 - `mcp.json` — MCP servers (21st.dev UI components, annnimate motion)
 
-  ## contributors
+  ## Contributors
   -Karthik S
   
   -Theertha S Nair
