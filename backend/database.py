@@ -181,17 +181,20 @@ class Database:
                 if ts_res.data and len(ts_res.data) > 0:
                     self.testScores = []
                     for s in ts_res.data:
+                        score_val = int(s.get("score", 0))
+                        total_val = int(s.get("total") or s.get("total_questions") or 10)
+                        pct_val = float(s.get("percentage") or ((score_val / total_val) * 100 if total_val > 0 else 0.0))
                         self.testScores.append({
                             "id": str(s.get("id")),
                             "userId": str(s.get("user_id")),
                             "testId": str(s.get("test_id")),
-                            "testTitle": str(s.get("test_title", "")),
-                            "category": str(s.get("category", "")),
-                            "score": int(s.get("score", 0)),
-                            "totalQuestions": int(s.get("total_questions", 0)),
-                            "timeTakenSeconds": int(s.get("time_taken_seconds", 0)),
-                            "status": str(s.get("status", "Completed")),
-                            "date": str(s.get("date", ""))
+                            "score": score_val,
+                            "total": total_val,
+                            "totalQuestions": total_val,
+                            "percentage": pct_val,
+                            "submittedAt": str(s.get("submitted_at") or s.get("date") or ""),
+                            "submitted_at": str(s.get("submitted_at") or s.get("date") or ""),
+                            "date": str(s.get("submitted_at") or s.get("date") or "")
                         })
                     print(f"[Supabase] Loaded {len(self.testScores)} test scores directly from Supabase test_scores table.")
             except Exception as e:
@@ -207,11 +210,13 @@ class Database:
                             "id": str(t.get("id")),
                             "title": str(t.get("title", "")),
                             "category": str(t.get("category", "")),
-                            "targetDomain": str(t.get("target_domain", "")),
-                            "durationMinutes": int(t.get("duration_minutes", 30)),
-                            "totalQuestions": int(t.get("total_questions", 10)),
-                            "passPercentage": int(t.get("pass_percentage", 70)),
-                            "questions": t.get("questions", [])
+                            "companyTag": str(t.get("company_tag") or t.get("companyTag") or "General Placement"),
+                            "company_tag": str(t.get("company_tag") or t.get("companyTag") or "General Placement"),
+                            "durationMinutes": int(t.get("duration_mins") or t.get("durationMinutes") or 30),
+                            "duration_mins": int(t.get("duration_mins") or t.get("durationMinutes") or 30),
+                            "passPercentage": int(t.get("pass_percentage") or t.get("passPercentage") or 70),
+                            "pass_percentage": int(t.get("pass_percentage") or t.get("passPercentage") or 70),
+                            "questions": t.get("question_ids") or t.get("questions") or []
                         })
                     print(f"[Supabase] Loaded {len(self.mockTests)} mock tests directly from Supabase mock_tests table.")
             except Exception as e:
@@ -344,17 +349,17 @@ class Database:
             # Sync to test_scores table
             try:
                 for score in self.testScores:
+                    score_val = int(score.get("score", 0))
+                    total_val = int(score.get("total") or score.get("totalQuestions") or 10)
+                    pct_val = float(score.get("percentage") or ((score_val / total_val) * 100 if total_val > 0 else 0.0))
                     supabase_client.table("test_scores").upsert({
                         "id": str(score.get("id")),
                         "user_id": str(score.get("userId")),
                         "test_id": str(score.get("testId")),
-                        "test_title": str(score.get("testTitle", "")),
-                        "category": str(score.get("category", "")),
-                        "score": int(score.get("score", 0)),
-                        "total_questions": int(score.get("totalQuestions", 0)),
-                        "time_taken_seconds": int(score.get("timeTakenSeconds", 0)),
-                        "status": str(score.get("status", "Completed")),
-                        "date": str(score.get("date", datetime.now().isoformat()))
+                        "score": score_val,
+                        "total": total_val,
+                        "percentage": round(pct_val, 2),
+                        "submitted_at": str(score.get("submittedAt") or score.get("submitted_at") or score.get("date") or datetime.now().isoformat())
                     }, on_conflict="id").execute()
             except Exception as e:
                 print("[Supabase test_scores table save notice]:", e)
@@ -366,11 +371,10 @@ class Database:
                         "id": str(test.get("id")),
                         "title": str(test.get("title", "")),
                         "category": str(test.get("category", "")),
-                        "target_domain": str(test.get("targetDomain", "")),
-                        "duration_minutes": int(test.get("durationMinutes", 30)),
-                        "total_questions": int(test.get("totalQuestions", 10)),
-                        "pass_percentage": int(test.get("passPercentage", 70)),
-                        "questions": test.get("questions", [])
+                        "company_tag": str(test.get("companyTag") or test.get("company_tag") or "General Placement"),
+                        "duration_mins": int(test.get("durationMinutes") or test.get("duration_mins") or 30),
+                        "pass_percentage": int(test.get("passPercentage") or test.get("pass_percentage") or 70),
+                        "question_ids": test.get("questions") or test.get("question_ids") or []
                     }, on_conflict="id").execute()
             except Exception as e:
                 print("[Supabase mock_tests table save notice]:", e)

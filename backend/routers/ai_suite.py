@@ -143,4 +143,25 @@ def get_speech_analytics(current_user: dict = Depends(get_current_user)):
         "featuredPrompts": featured_prompts
     }
 
+@router.get("/admin/speech-evaluations")
+def get_all_speech_evaluations(current_user: dict = Depends(get_current_user)):
+    """Fetch college-wide speech evaluations across all students for Admin Dashboard analytics."""
+    from backend.database import supabase_client
+    evaluations = []
+    if supabase_client:
+        try:
+            res = supabase_client.table("speech_evaluations").select("*").order("created_at", desc=True).limit(100).execute()
+            if res.data:
+                evaluations = res.data
+        except Exception as e:
+            print("[Supabase fetch all speech_evaluations error]:", e)
+
+    if not evaluations:
+        evaluations = getattr(db, "interviewResponses", [])
+
+    return {
+        "count": len(evaluations),
+        "evaluations": evaluations
+    }
+
 

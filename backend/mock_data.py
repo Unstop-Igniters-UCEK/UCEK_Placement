@@ -2,7 +2,66 @@
 
 INITIAL_QUESTIONS = []
 
-INITIAL_MOCK_TESTS = []
+INITIAL_MOCK_TESTS = [
+  {
+    "id": "tcs_ninja_drive",
+    "title": "TCS Ninja & Digital National Drive Mock 2026",
+    "category": "Company Drive",
+    "companyTag": "TCS",
+    "company_tag": "TCS",
+    "durationMinutes": 30,
+    "duration_mins": 30,
+    "passPercentage": 70,
+    "pass_percentage": 70,
+    "totalQuestions": 5,
+    "questions": [
+      {
+        "id": "q1",
+        "title": "A train 150m long passes a telegraph post in 12 seconds. What is the speed of the train in km/hr?",
+        "options": ["45 km/hr", "50 km/hr", "36 km/hr", "40 km/hr"],
+        "correctOption": 0
+      },
+      {
+        "id": "q2",
+        "title": "Which data structure is primarily used to implement Recursion in programming languages?",
+        "options": ["Queue", "Call Stack", "Min-Heap", "Graph"],
+        "correctOption": 1
+      },
+      {
+        "id": "q3",
+        "title": "Select the antonym for the word 'BENEVOLENT':",
+        "options": ["Malevolent", "Generous", "Altruistic", "Friendly"],
+        "correctOption": 0
+      }
+    ]
+  },
+  {
+    "id": "infosys_nqt",
+    "title": "Infosys Specialist Programmer Diagnostic Exam",
+    "category": "Company Drive",
+    "companyTag": "Infosys",
+    "company_tag": "Infosys",
+    "durationMinutes": 25,
+    "duration_mins": 25,
+    "passPercentage": 75,
+    "pass_percentage": 75,
+    "totalQuestions": 4,
+    "questions": [
+      {
+        "id": "iq1",
+        "title": "Find the next number in the series: 3, 5, 9, 17, 33, ?",
+        "options": ["65", "49", "64", "55"],
+        "correctOption": 0
+      },
+      {
+        "id": "iq2",
+        "title": "In Time Complexity analysis, what does Big-Omega (Ω) notation denote?",
+        "options": ["Best Case", "Worst Case", "Average Case", "Upper Bound"],
+        "correctOption": 0
+      }
+    ]
+  }
+]
 
 INITIAL_INTERVIEW_QUESTIONS = [
   {
