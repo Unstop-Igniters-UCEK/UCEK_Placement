@@ -3,14 +3,14 @@
 
 @layer base {
   :root, [data-theme="dark"] {
-    /* SHADCNSPACE DARK THEME PALETTE */
-    --bg-body: #09090b;
-    --bg-surface: #121215;
-    --bg-card: #121215;
-    --bg-subtle: #18181c;
+    /* TASKHUB SLATE DARK THEME PALETTE */
+    --bg-body: #1b1e1f;
+    --bg-surface: #1b1e1f;
+    --bg-card: #222627;
+    --bg-subtle: #2a2e2f;
 
     --border-color: rgba(255, 255, 255, 0.08);
-    --border-dark: rgba(255, 255, 255, 0.15);
+    --border-dark: #333738;
 
     --accent-primary: #F97316;
     --accent-hover: #EA580C;
@@ -19,26 +19,26 @@
     --btn-primary-text: #000000;
     --btn-primary-hover: #e4e4e7;
 
-    --btn-sec-bg: rgba(24, 24, 30, 0.9);
+    --btn-sec-bg: #2a2e2f;
     --btn-sec-text: #f4f4f5;
-    --btn-sec-border: rgba(255, 255, 255, 0.12);
-    --btn-sec-hover: rgba(39, 39, 45, 0.95);
+    --btn-sec-border: rgba(255, 255, 255, 0.1);
+    --btn-sec-hover: #323637;
 
-    --badge-bg: rgba(24, 24, 30, 0.9);
+    --badge-bg: #2a2e2f;
     --badge-text: #f4f4f5;
-    --badge-border: rgba(255, 255, 255, 0.12);
+    --badge-border: rgba(255, 255, 255, 0.1);
 
     --text-primary: #ffffff;
     --text-secondary: #a1a1aa;
     --text-muted: #71717a;
 
-    --header-bg: rgba(9, 9, 11, 0.85);
+    --header-bg: #1b1e1f;
     --header-border: rgba(255, 255, 255, 0.08);
-    --popover-bg: #121215;
+    --popover-bg: #222627;
     --pill-bg: #ffffff;
     --pill-text: #000000;
 
-    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
 
     /* TYPOGRAPHY STACK */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -66,7 +66,7 @@
   }
 
   html, body {
-    background-color: var(--bg-body);
+    background-color: #1b1e1f !important;
     color: var(--text-primary);
     font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, sans-serif;
     min-height: 100vh;
@@ -105,37 +105,33 @@
   border-radius: 4px;
 }
 
-/* SHADCNSPACE THEME CARD STYLING */
-.mono-card {
-  background: #121215;
+/* TASKHUB DARK SLATE CARD STYLING */
+.mono-card, .u21-glowing-card {
+  background: #222627;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   color: var(--text-primary);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-  transition: border-color 0.2s var(--ease-out), background-color 0.2s ease, transform 0.2s var(--ease-out), box-shadow 0.2s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  transition: border-color 0.2s var(--ease-out), background-color 0.2s ease, transform 0.2s var(--ease-out);
   transform: translateZ(0);
 }
 
-.mono-card-subtle {
-  background: #18181c;
+.mono-card-subtle, .u21-glass-card {
+  background: #2a2e2f;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
 }
 
-.mono-card-accent {
-  background: #141418;
-  border: 1px solid rgba(249, 115, 22, 0.25);
+.mono-card-accent, .u21-accent-card {
+  background: #222627;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 12px;
 }
 
-.mono-card-hover {
-  transition: transform 180ms var(--ease-out), border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
-}
-
-.mono-card-hover:hover {
+.mono-card-hover:hover, .u21-glowing-card:hover {
   cursor: pointer;
   border-color: rgba(255, 255, 255, 0.2);
-  background: #16161a;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  background: #262a2b;
   transform: translateY(-2px);
 }
 
@@ -143,8 +139,8 @@
   transform: scale(0.988);
 }
 
-/* Badges */
-.mono-badge {
+/* Taskhub Badges */
+.mono-badge, .u21-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -154,7 +150,7 @@
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  background: rgba(255, 255, 255, 0.06);
+  background: #2a2e2f;
   color: var(--badge-text);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -204,7 +200,7 @@
   font-size: 0.85rem;
   padding: 10px 22px;
   border-radius: 9999px !important;
-  background: rgba(255, 255, 255, 0.05);
+  background: #2a2e2f;
   color: #f4f4f5;
   border: 1px solid rgba(255, 255, 255, 0.12);
   cursor: pointer;
@@ -215,7 +211,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: #323637;
     border-color: rgba(255, 255, 255, 0.25);
     transform: translateY(-1px);
   }
