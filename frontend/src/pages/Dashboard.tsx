@@ -65,7 +65,7 @@ export const Dashboard: React.FC = () => {
     return (
       <div className="mono-card p-8 text-center max-w-md mx-auto space-y-6 my-20 font-sans shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/10 blur-[60px] rounded-full pointer-events-none" />
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-500/5 border border-orange-500/30 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
+        <div className="w-14 h-14 rounded-md bg-gradient-to-br from-orange-500/20 to-orange-500/5 border border-orange-500/30 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
           <GraduationCap className="w-7 h-7" />
         </div>
         <div className="space-y-2 relative z-10">
@@ -125,12 +125,13 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  // Hardware-accelerated Framer Motion entrance variants (Emil Kowalski audit 002)
   const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 12 },
+    hidden: { opacity: 0, y: 12, willChange: 'transform, opacity' },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] }
+      transition: { duration: 0.24, ease: [0.23, 1, 0.32, 1] }
     }
   };
 
@@ -149,10 +150,6 @@ export const Dashboard: React.FC = () => {
           
           {/* EXECUTIVE HERO COMMAND CENTER PANEL */}
           <motion.div variants={itemVariants} className="mono-card p-6 sm:p-8 relative overflow-hidden group">
-            {/* Background Glow Orbs */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/12 blur-[100px] rounded-full pointer-events-none group-hover:bg-orange-500/18 transition-all duration-700" />
-            <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-amber-500/5 blur-[80px] rounded-full pointer-events-none" />
-
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
               
               {/* Profile Brief & Target Info */}
@@ -198,14 +195,14 @@ export const Dashboard: React.FC = () => {
                   <div className="flex items-center gap-2 text-xs">
                     <button
                       onClick={() => setActiveTab('resumes')}
-                      className="px-3 py-1.5 rounded-md bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-md bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
                     >
                       <FileCheck className="w-3.5 h-3.5 text-orange-400" />
                       ATS Scan
                     </button>
                     <button
                       onClick={() => setActiveTab('tests')}
-                      className="px-3 py-1.5 rounded-md bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-md bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
                     >
                       <Zap className="w-3.5 h-3.5 text-orange-400" />
                       Quick Test
@@ -215,13 +212,13 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* READINESS INDEX MULTI-METRIC RADIAL HUB */}
-              <div className="shrink-0 flex flex-col items-center justify-center p-5 bg-gradient-to-b from-zinc-950/90 to-zinc-900/80 border border-zinc-800/90 rounded-lg w-full sm:w-44 space-y-3 shadow-2xl relative">
+              <div className="shrink-0 flex flex-col items-center justify-center p-5 bg-black/60 border border-white/15 rounded-lg w-full sm:w-44 space-y-3 relative">
                 <div className="absolute top-2 right-2">
                   <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
                 </div>
                 
                 <div className="relative w-32 h-32 flex items-center justify-center">
-                  {/* Outer Glowing Ring */}
+                  {/* Outer Glowing Ring with custom token easing curve (Emil Kowalski audit 003) */}
                   <svg className="w-full h-full transform -rotate-90 filter drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.06)" strokeWidth="8" fill="transparent" />
                     <circle
@@ -234,7 +231,7 @@ export const Dashboard: React.FC = () => {
                       strokeDasharray={263.8}
                       strokeDashoffset={263.8 - (263.8 * score) / 100}
                       strokeLinecap="round"
-                      className="transition-all duration-1000 ease-out"
+                      style={{ transition: 'stroke-dashoffset 850ms cubic-bezier(0.23, 1, 0.32, 1)' }}
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
@@ -378,7 +375,7 @@ export const Dashboard: React.FC = () => {
 
           {/* RECENT MOCK DRIVE PERFORMANCES TABLE */}
           <motion.div variants={itemVariants} className="mono-card p-6 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <CheckSquare className="w-4 h-4 text-orange-400" />
@@ -387,14 +384,14 @@ export const Dashboard: React.FC = () => {
                 <p className="text-xs text-zinc-400">Review past assessment analytics and company cut-off clearances</p>
               </div>
 
-              {/* FILTER TABS & CTA */}
-              <div className="flex items-center gap-2 flex-wrap">
+              {/* FILTER TABS & CTA INLINE ON THE RIGHT */}
+              <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
                 <div className="flex items-center bg-zinc-950/80 p-1 rounded-lg border border-zinc-800/80 text-xs">
                   {(['all', 'Company Drive', 'Aptitude', 'Technical'] as const).map(tab => (
                     <button
                       key={tab}
                       onClick={() => setDriveFilter(tab)}
-                      className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer ${
+                      className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer active:scale-[0.97] ${
                         driveFilter === tab
                           ? 'bg-zinc-800 text-white shadow-sm font-semibold'
                           : 'text-zinc-400 hover:text-zinc-200'
@@ -407,7 +404,7 @@ export const Dashboard: React.FC = () => {
 
                 <button
                   onClick={() => setActiveTab('tests')}
-                  className="btn-primary py-2 px-4 text-xs font-bold rounded-full cursor-pointer flex items-center gap-1.5"
+                  className="btn-primary py-2 px-4 text-xs font-bold rounded-full cursor-pointer flex items-center gap-1.5 shrink-0 shadow-md"
                 >
                   <Zap className="w-3.5 h-3.5 fill-black" />
                   Take New Drive
@@ -484,7 +481,7 @@ export const Dashboard: React.FC = () => {
                         <td className="p-4 pr-5 text-right">
                           <button
                             onClick={() => setActiveTab('tests')}
-                            className="px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-medium text-zinc-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1"
+                            className="px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-medium text-zinc-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 active:scale-[0.97]"
                           >
                             Review
                             <ChevronRight className="w-3 h-3" />
@@ -497,28 +494,6 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
           </motion.div>
-          
-          {/* UPCOMING CAMPUS DRIVE DEADLINES BANNER */}
-          <motion.div variants={itemVariants} className="mono-card p-5 bg-gradient-to-r from-orange-500/10 via-zinc-900/90 to-zinc-900/90 border-orange-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-md bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0 border border-orange-500/40">
-                <Calendar className="w-5 h-5" />
-              </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-white text-sm font-heading">Upcoming Drive: Accenture National Tech Round</h4>
-                  <span className="mono-badge text-orange-400 border-orange-500/30">Registration Closes in 2 Days</span>
-                </div>
-                <p className="text-xs text-zinc-400">Target cut-off: 75% Aptitude + STAR HR interview clearance.</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setActiveTab('tests')}
-              className="btn-secondary text-xs px-4 py-2 shrink-0"
-            >
-              Verify Eligibility
-            </button>
-          </motion.div>
 
         </div>
 
@@ -526,10 +501,7 @@ export const Dashboard: React.FC = () => {
         <div className="lg:col-span-4 h-full flex flex-col space-y-6">
           
           {/* HR SPEECH SIMULATOR MODULE */}
-          <motion.div variants={itemVariants} className="mono-card p-6 sm:p-7 flex-1 flex flex-col justify-between space-y-6 h-full relative overflow-hidden border-orange-500/20">
-            {/* Ambient Background Shimmer */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 blur-[80px] rounded-full pointer-events-none" />
-
+          <motion.div variants={itemVariants} className="mono-card p-6 sm:p-7 flex-1 flex flex-col justify-between space-y-6 h-full relative overflow-hidden">
             <div className="space-y-6 relative z-10">
               
               {/* Voice Engine Header */}
@@ -544,7 +516,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Animated Waveform Visualizer */}
+                {/* Animated Waveform Visualizer (Hardware-accelerated scaleY) */}
                 <div className="flex items-end gap-1 h-6 px-2 py-1 bg-zinc-950/80 rounded-md border border-zinc-800">
                   <span className="w-1 bg-orange-500 rounded-full animate-wave-1" />
                   <span className="w-1 bg-orange-400 rounded-full animate-wave-2" />
@@ -604,7 +576,7 @@ export const Dashboard: React.FC = () => {
                   {speechAnalytics.featuredPrompts.map((promptText, idx) => (
                     <div
                       key={idx}
-                      className="p-3.5 rounded-md bg-zinc-950/60 border border-zinc-800/70 text-zinc-200 hover:border-orange-500/40 transition-all cursor-pointer group flex items-start gap-2.5"
+                      className="p-3.5 rounded-md bg-zinc-950/60 border border-zinc-800/70 text-zinc-200 hover:border-orange-500/40 transition-all cursor-pointer group flex items-start gap-2.5 active:scale-[0.98]"
                     >
                       <div className="w-5 h-5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
                         <Play className="w-2.5 h-2.5 fill-orange-400" />
@@ -630,43 +602,6 @@ export const Dashboard: React.FC = () => {
               </button>
             </div>
 
-          </motion.div>
-
-          {/* ALUMNI MENTOR CONNECTOR SIDEBAR CARD */}
-          <motion.div variants={itemVariants} className="mono-card p-5 space-y-3 bg-gradient-to-b from-zinc-900/90 to-zinc-950/90 border-zinc-800/90">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-orange-400" />
-                <h3 className="font-bold text-sm text-white font-heading">Alumni Mentorship</h3>
-              </div>
-              <span className="mono-badge text-emerald-400 border-emerald-500/30">Active Match</span>
-            </div>
-
-            {mentorshipPair ? (
-              <div className="p-3 rounded-md bg-zinc-950/70 border border-zinc-800/70 text-xs flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-white block">{mentorshipPair.mentorName}</span>
-                  <span className="text-[10px] text-zinc-400">{mentorshipPair.mentorRole} • {mentorshipPair.mentorCompany}</span>
-                </div>
-                <button
-                  onClick={() => setActiveTab('mentorship')}
-                  className="text-xs text-orange-400 font-semibold hover:underline"
-                >
-                  Chat
-                </button>
-              </div>
-            ) : (
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Connect with verified UCEK alumni at Google, TCS, and Accenture for mock interviews.
-              </p>
-            )}
-
-            <button
-              onClick={() => setActiveTab('mentorship')}
-              className="btn-secondary w-full py-2 text-xs font-semibold"
-            >
-              Book Mentor Mock Round
-            </button>
           </motion.div>
 
         </div>

@@ -10,7 +10,7 @@ import { HRInterviewSimulator } from './pages/HRInterviewSimulator';
 import { Mentorship } from './pages/Mentorship';
 import { AdminPanel } from './pages/AdminPanel';
 import { AuthModal } from './components/AuthModal';
-import Grainient from './components/Grainient';
+import ShapeGrid from './components/ShapeGrid';
 import ClickSpark from './components/ClickSpark';
 import DotGrid from './components/DotGrid';
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
@@ -91,34 +91,20 @@ export function App() {
           </main>
         ) : (
           <>
-            {/* Dashboard Background Grainient Layer (exact screenshot settings) */}
+            {/* Dashboard Background ShapeGrid Layer */}
             <div
-              className="fixed inset-0 z-0 pointer-events-none opacity-80 overflow-hidden transform-gpu"
+              className="fixed inset-0 z-0 opacity-100 overflow-hidden transform-gpu pointer-events-none"
               style={{ transform: 'translateZ(0)' }}
             >
-              <Grainient
-                color1="#000000"
-                color2="#f97316"
-                color3="#000000"
-                timeSpeed={0}
-                colorBalance={0.05}
-                warpStrength={2.15}
-                warpFrequency={5}
-                warpSpeed={2.3}
-                warpAmplitude={48}
-                blendAngle={60}
-                blendSoftness={0.09}
-                rotationAmount={560}
-                noiseScale={2}
-                grainAmount={0.1}
-                grainScale={0.6}
-                grainAnimated={false}
-                contrast={1.5}
-                gamma={1.3}
-                saturation={1}
-                centerX={0}
-                centerY={-0.18}
-                zoom={0.95}
+              <ShapeGrid 
+                speed={0.1}
+                size={51}
+                direction="right"
+                borderColor="rgba(255, 255, 255, 0.12)"
+                hoverColor="#F97316"
+                hoverFillColor="#F97316"
+                shape="triangle"
+                hoverTrailAmount={0}
               />
             </div>
 
