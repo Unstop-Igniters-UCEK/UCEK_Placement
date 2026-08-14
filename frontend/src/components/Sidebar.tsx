@@ -74,7 +74,7 @@ export const Sidebar: React.FC = () => {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -280, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-              className="fixed left-0 top-0 h-screen h-dvh max-h-screen w-64 bg-[#1b1e1f] border-r border-[#2d3132] flex flex-col justify-between p-4 z-40 select-none shadow-2xl overflow-y-auto no-scrollbar transform-gpu"
+              className="fixed left-0 top-0 h-screen h-dvh max-h-screen w-64 bg-[#000000] border-r border-[#2d3132] flex flex-col justify-between p-4 z-40 select-none shadow-2xl overflow-y-auto no-scrollbar transform-gpu"
             >
               {/* TOP SECTION: Logo icon on left + Close button placed to the right side of the logo */}
               <div className="shrink-0 pt-1 pb-3 px-1 flex items-center justify-between gap-3 border-b border-[#2d3132] mb-2">
@@ -130,10 +130,10 @@ export const Sidebar: React.FC = () => {
               </nav>
 
               {/* BOTTOM SECTION: User Logo/Profile & Red Rounded Logout Button */}
-              <div className="shrink-0 pt-3 border-t border-[#2d3132] space-y-2.5">
+              <div className="shrink-0 pt-3 border-t border-[#1f1f1f] space-y-2.5">
                 {/* User Info Tile */}
-                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#2a2e2f] border border-white/10">
-                  <div className="w-9 h-9 rounded-full bg-[#1b1e1f] border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#141414] border border-white/10">
+                  <div className="w-9 h-9 rounded-full bg-[#000000] border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
                     {user.avatar ? (
                       <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                     ) : (

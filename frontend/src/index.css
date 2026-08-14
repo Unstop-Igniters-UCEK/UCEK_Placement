@@ -3,14 +3,14 @@
 
 @layer base {
   :root, [data-theme="dark"] {
-    /* TASKHUB SLATE DARK THEME PALETTE */
-    --bg-body: #1b1e1f;
-    --bg-surface: #1b1e1f;
-    --bg-card: #222627;
-    --bg-subtle: #2a2e2f;
+    /* TASKHUB SLATE OLED BLACK THEME PALETTE */
+    --bg-body: #000000;
+    --bg-surface: #000000;
+    --bg-card: #0d0d0d;
+    --bg-subtle: #141414;
 
     --border-color: rgba(255, 255, 255, 0.08);
-    --border-dark: #333738;
+    --border-dark: #1f1f1f;
 
     --accent-primary: #F97316;
     --accent-hover: #EA580C;
@@ -19,12 +19,12 @@
     --btn-primary-text: #000000;
     --btn-primary-hover: #e4e4e7;
 
-    --btn-sec-bg: #2a2e2f;
+    --btn-sec-bg: #141414;
     --btn-sec-text: #f4f4f5;
     --btn-sec-border: rgba(255, 255, 255, 0.1);
-    --btn-sec-hover: #323637;
+    --btn-sec-hover: #1f1f1f;
 
-    --badge-bg: #2a2e2f;
+    --badge-bg: #141414;
     --badge-text: #f4f4f5;
     --badge-border: rgba(255, 255, 255, 0.1);
 
@@ -32,13 +32,13 @@
     --text-secondary: #a1a1aa;
     --text-muted: #71717a;
 
-    --header-bg: #1b1e1f;
+    --header-bg: #000000;
     --header-border: rgba(255, 255, 255, 0.08);
-    --popover-bg: #222627;
+    --popover-bg: #0d0d0d;
     --pill-bg: #ffffff;
     --pill-text: #000000;
 
-    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 
     /* TYPOGRAPHY STACK */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -66,7 +66,7 @@
   }
 
   html, body {
-    background-color: #1b1e1f !important;
+    background-color: #000000 !important;
     color: var(--text-primary);
     font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, sans-serif;
     min-height: 100vh;
@@ -126,7 +126,7 @@
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #f97316;
   border-radius: 9999px;
-  border: 2px solid #1b1e1f;
+  border: 2px solid #000000;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {

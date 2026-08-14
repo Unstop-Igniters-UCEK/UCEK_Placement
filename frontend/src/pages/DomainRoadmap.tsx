@@ -100,8 +100,13 @@ export const DomainRoadmap: React.FC = () => {
 
   // Automatically trigger Domain Selection Popup on first-time visit if user has not confirmed domain
   useEffect(() => {
-    if (user && !user.hasSelectedDomain) {
-      setIsSelectModalOpen(true);
+    if (user) {
+      const localConfirmed = localStorage.getItem(`ucek_domain_confirmed_${user.id}`) === 'true';
+      if (!user.hasSelectedDomain && !localConfirmed) {
+        setIsSelectModalOpen(true);
+      } else {
+        setIsSelectModalOpen(false);
+      }
     }
   }, [user]);
 
@@ -129,6 +134,9 @@ export const DomainRoadmap: React.FC = () => {
     setIsSaving(true);
     try {
       await updateUserDomain(pendingDomain.name);
+      if (user) {
+        localStorage.setItem(`ucek_domain_confirmed_${user.id}`, 'true');
+      }
       setPendingDomain(null);
       setIsSelectModalOpen(false);
     } catch (e) {
@@ -309,10 +317,10 @@ export const DomainRoadmap: React.FC = () => {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 10 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="relative w-full max-w-3xl max-h-[85vh] flex flex-col bg-[#1b1e1f] border border-white/15 rounded-3xl shadow-2xl text-white my-auto overflow-hidden"
+              className="relative w-full max-w-3xl max-h-[85vh] flex flex-col bg-[#000000] border border-white/15 rounded-3xl shadow-2xl text-white my-auto overflow-hidden"
             >
               {/* FIXED PINNED HEADER */}
-              <div className="shrink-0 p-5 sm:p-6 border-b border-white/10 bg-[#1b1e1f] relative text-center space-y-1.5 z-20">
+              <div className="shrink-0 p-5 sm:p-6 border-b border-white/10 bg-[#000000] relative text-center space-y-1.5 z-20">
                 {/* Close button if user already has a domain selected */}
                 {user?.hasSelectedDomain && (
                   <button

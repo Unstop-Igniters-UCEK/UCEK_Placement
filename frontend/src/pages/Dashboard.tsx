@@ -358,7 +358,7 @@ export const Dashboard: React.FC = () => {
                       onClick={() => setDriveFilter(tab)}
                       className={`px-3.5 py-1.5 rounded-full font-medium transition-all cursor-pointer active:scale-[0.97] ${
                         driveFilter === tab
-                          ? 'bg-[#1b1e1f] text-white shadow-sm font-semibold border border-white/10'
+                          ? 'bg-[#000000] text-white shadow-sm font-semibold border border-white/10'
                           : 'text-zinc-400 hover:text-zinc-200'
                       }`}
                     >
@@ -378,7 +378,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {filteredScores.length === 0 ? (
-              <div className="py-12 text-center space-y-3 bg-[#2a2e2f] border border-white/10 rounded-lg">
+              <div className="py-12 text-center space-y-3 bg-[#141414] border border-white/10 rounded-lg">
                 <Activity className="w-9 h-9 text-zinc-600 mx-auto" />
                 <p className="text-xs font-semibold text-zinc-400">No mock test sessions found for this filter.</p>
                 <button
@@ -389,10 +389,10 @@ export const Dashboard: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto border border-white/10 rounded-lg bg-[#222627] shadow-inner">
+              <div className="overflow-x-auto border border-white/10 rounded-lg bg-[#0d0d0d] shadow-inner">
                 <table className="w-full text-left border-collapse font-sans">
                   <thead>
-                    <tr className="bg-[#1b1e1f] border-b border-white/10 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                    <tr className="bg-[#000000] border-b border-white/10 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
                       <th className="p-4 pl-5">Drive Title</th>
                       <th className="p-4">Category</th>
                       <th className="p-4">Score</th>
@@ -403,9 +403,9 @@ export const Dashboard: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-white/10 text-xs text-white">
                     {filteredScores.map(res => (
-                      <tr key={res.id} className="hover:bg-[#2a2e2f] transition-colors group">
+                      <tr key={res.id} className="hover:bg-[#141414] transition-colors group">
                         <td className="p-4 pl-5 font-bold text-white flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-[#1b1e1f] border border-white/10 text-orange-400 flex items-center justify-center shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-[#000000] border border-white/10 text-orange-400 flex items-center justify-center shrink-0">
                             <Briefcase className="w-4 h-4" />
                           </div>
                           <div>
@@ -414,7 +414,7 @@ export const Dashboard: React.FC = () => {
                           </div>
                         </td>
                         <td className="p-4">
-                          <span className="mono-badge rounded-full px-3 py-1 bg-[#2a2e2f] border border-white/10 text-zinc-200 text-[11px] font-medium">
+                          <span className="mono-badge rounded-full px-3 py-1 bg-[#141414] border border-white/10 text-zinc-200 text-[11px] font-medium">
                             {res.category}
                           </span>
                         </td>
@@ -423,7 +423,7 @@ export const Dashboard: React.FC = () => {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-16 bg-[#1b1e1f] rounded-full h-1.5 overflow-hidden border border-white/10">
+                            <div className="w-16 bg-[#000000] rounded-full h-1.5 overflow-hidden border border-white/10">
                               <div
                                 className="bg-orange-500 h-full rounded-full"
                                 style={{ width: `${res.accuracy}%` }}
@@ -487,29 +487,29 @@ export const Dashboard: React.FC = () => {
 
               {/* LIVE ANALYTICS METRICS 3 METRICS GRID */}
               <div className="grid grid-cols-3 gap-2.5 text-xs">
-                <div className="p-3 rounded-lg bg-[#2a2e2f] border border-white/10 space-y-1 hover:border-white/20 transition-all">
+                <div className="p-3 rounded-lg bg-[#141414] border border-white/10 space-y-1 hover:border-white/20 transition-all">
                   <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Pace</span>
                   <div className="flex items-baseline justify-between">
                     <span className="font-extrabold text-white text-sm sm:text-base">{speechAnalytics.wpm}</span>
                     <span className="text-[9px] text-emerald-400 font-semibold hidden sm:inline">120-150</span>
                   </div>
-                  <div className="w-full bg-[#1b1e1f] rounded-full h-1 overflow-hidden">
+                  <div className="w-full bg-[#000000] rounded-full h-1 overflow-hidden">
                     <div className="bg-emerald-400 h-full rounded-full" style={{ width: '78%' }} />
                   </div>
                 </div>
 
-                <div className="p-3 rounded-lg bg-[#2a2e2f] border border-white/10 space-y-1 hover:border-white/20 transition-all">
+                <div className="p-3 rounded-lg bg-[#141414] border border-white/10 space-y-1 hover:border-white/20 transition-all">
                   <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Confidence</span>
                   <div className="flex items-baseline justify-between">
                     <span className="font-extrabold text-emerald-400 text-sm sm:text-base">{speechAnalytics.confidenceScore}%</span>
                     <span className="text-[9px] text-zinc-400 font-mono hidden sm:inline">High</span>
                   </div>
-                  <div className="w-full bg-[#1b1e1f] rounded-full h-1 overflow-hidden">
+                  <div className="w-full bg-[#000000] rounded-full h-1 overflow-hidden">
                     <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${speechAnalytics.confidenceScore}%` }} />
                   </div>
                 </div>
 
-                <div className="p-3 rounded-lg bg-[#2a2e2f] border border-white/10 space-y-1 hover:border-white/20 transition-all">
+                <div className="p-3 rounded-lg bg-[#141414] border border-white/10 space-y-1 hover:border-white/20 transition-all">
                   <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Fillers</span>
                   <span className="font-bold text-zinc-200 text-xs sm:text-sm block">{speechAnalytics.fillerCount}</span>
                   <span className="text-[9px] text-emerald-400 block font-medium">Optimal</span>

@@ -3,7 +3,7 @@ import React from 'react';
 export const OrangeBlackGradient: React.FC = () => {
   return (
     <div
-      className="fixed inset-0 z-0 pointer-events-none w-full h-full bg-[#1b1e1f]"
+      className="fixed inset-0 z-0 pointer-events-none w-full h-full bg-[#000000]"
     />
   );
 };
