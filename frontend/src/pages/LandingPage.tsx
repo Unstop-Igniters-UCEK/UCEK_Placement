@@ -229,10 +229,10 @@ export const LandingPage: React.FC = () => {
 
                 <button
                   onClick={handleOpenSignup}
-                  className="btn-secondary text-xs px-8 py-3.5 rounded-sm font-bold shadow-xs hover:scale-105 transition-transform cursor-pointer"
+                  className="text-xs px-8 py-3.5 rounded-full font-bold text-white bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/25 hover:border-white/40 shadow-lg hover:shadow-[0_0_24px_rgba(255,255,255,0.18)] transition-all duration-200 cursor-pointer flex items-center gap-2 active:scale-[0.97]"
                   style={{ fontFamily: 'Poppins, sans-serif' }}
                 >
-                  <UserPlus className="w-4 h-4 text-[var(--btn-sec-text)]" />
+                  <UserPlus className="w-4 h-4 text-white" />
                   <span>Create Account</span>
                 </button>
               </motion.div>
