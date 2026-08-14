@@ -144,8 +144,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px;
-  border-radius: 8px;
+  padding: 3px 12px;
+  border-radius: 9999px !important;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.7rem;
   font-weight: 600;

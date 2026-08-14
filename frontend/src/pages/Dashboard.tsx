@@ -146,76 +146,54 @@ export const Dashboard: React.FC = () => {
         {/* LEFT COLUMN: HERO COMMAND CENTER + 3 PILLARS + HISTORY TABLE (8 COLUMNS) */}
         <div className="lg:col-span-8 space-y-6">
           
-          {/* EXECUTIVE HERO COMMAND CENTER PANEL */}
-          <motion.div variants={itemVariants} className="mono-card p-6 sm:p-8 relative overflow-hidden group">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
+          {/* EXECUTIVE HERO COMMAND CENTER (NAKED HEADER) */}
+          <motion.div variants={itemVariants} className="py-1 relative">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
               
               {/* Profile Brief & Target Info */}
-              <div className="space-y-4 flex-1">
+              <div className="space-y-3 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="mono-badge">
                     <GraduationCap className="w-3.5 h-3.5 text-orange-400" />
                     Batch {user.year} • {user.branch}
                   </span>
-
-                  {score >= 80 ? (
-                    <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-semibold text-emerald-400 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      Tier 1 Placement Ready
-                    </span>
-                  ) : (
-                    <span className="px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-[11px] font-semibold text-orange-400 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-orange-400 status-pulse-orange" />
-                      Readiness In Progress
-                    </span>
-                  )}
                 </div>
 
                 <div>
-                  <span className="text-xs font-semibold text-zinc-400 tracking-wide uppercase">Welcome back,</span>
+                  <span className="text-xs font-semibold text-zinc-400 tracking-wide">Welcome Back,</span>
                   <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-heading mt-0.5 flex items-center gap-3">
                     {user.name}
                   </h1>
+                  
+                  {/* MOTIVATIONAL QUOTE */}
+                  <p className="text-xs sm:text-sm text-zinc-300/90 leading-relaxed font-normal max-w-xl md:max-w-2xl tracking-normal italic border-l-2 border-orange-500/70 pl-3.5 my-2.5">
+                    “Success in campus placement isn’t about perfection—it’s about relentless consistency. Every roadmap milestone cleared, ATS keyword optimized, and mock drive completed brings you one step closer to securing your dream engineering role.”
+                  </p>
                 </div>
 
-                <p className="text-xs text-zinc-300 leading-relaxed max-w-xl">
-                  Tracking readiness for <strong className="text-white font-bold underline decoration-orange-500/50 underline-offset-4">{user.domain}</strong>. Complete roadmaps, refine STAR bullets, and practice AI HR speech simulations to maximize placement offers.
-                </p>
+                {/* Target Drive, Domain Badge & Quick Action Links */}
+                <div className="pt-1 flex flex-wrap items-center gap-2.5">
+                  <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300">
+                    <Layers className="w-4 h-4 text-orange-400 shrink-0" />
+                    <span>Domain:</span>
+                    <strong className="text-white font-semibold">{user.domain}</strong>
+                  </div>
 
-                {/* Target Drive Badge & Quick Action Links */}
-                <div className="pt-2 flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300">
+                  <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300">
                     <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
                     <span>Target Drive:</span>
                     <strong className="text-white font-semibold">TCS Ninja & Digital 2026</strong>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs">
-                    <button
-                      onClick={() => setActiveTab('resumes')}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
-                    >
-                      <FileCheck className="w-3.5 h-3.5 text-orange-400" />
-                      ATS Scan
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('tests')}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
-                    >
-                      <Zap className="w-3.5 h-3.5 text-orange-400" />
-                      Quick Test
-                    </button>
                   </div>
                 </div>
               </div>
 
               {/* READINESS INDEX MULTI-METRIC RADIAL HUB */}
-              <div className="shrink-0 flex flex-col items-center justify-center p-5 bg-[#2a2e2f] border border-white/10 rounded-xl w-full sm:w-44 space-y-3 relative">
+              <div className="shrink-0 flex flex-col items-center justify-center p-4 bg-[#2a2e2f] border border-white/10 rounded-2xl w-full sm:w-44 space-y-2.5 relative">
                 <div className="absolute top-2 right-2">
                   <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
                 </div>
                 
-                <div className="relative w-32 h-32 flex items-center justify-center">
+                <div className="relative w-28 h-28 flex items-center justify-center">
                   <svg className="w-full h-full transform -rotate-90 filter drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.06)" strokeWidth="8" fill="transparent" />
                     <circle
@@ -232,11 +210,10 @@ export const Dashboard: React.FC = () => {
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-3xl font-black text-white font-heading tracking-tight">{score}%</span>
+                    <span className="text-2xl font-black text-white font-heading tracking-tight">{score}%</span>
                     <span className="text-[9px] font-bold uppercase tracking-wider text-orange-400">READINESS</span>
                   </div>
                 </div>
-
                 {/* Sub-breakdown Mini Stats */}
                 <div className="w-full grid grid-cols-3 gap-1 pt-1 border-t border-white/10 text-[10px] text-center">
                   <div>
@@ -258,35 +235,32 @@ export const Dashboard: React.FC = () => {
           </motion.div>
 
           {/* 3 PREPARATION BENTO PILLARS */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             
             {/* PILLAR 1: DOMAIN ROADMAP */}
             <motion.div
               variants={itemVariants}
               onClick={() => setActiveTab('roadmap')}
-              className="mono-card p-5 space-y-4 cursor-pointer mono-card-hover group relative overflow-hidden"
+              className="mono-card p-3.5 space-y-2.5 cursor-pointer mono-card-hover group relative overflow-hidden"
             >
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/25 text-orange-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
-                  <BookOpen className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                  <BookOpen className="w-4 h-4 text-white" />
                 </div>
-                <span className="mono-badge text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
+                <span className="mono-badge rounded-full text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
                   {domainPct}% Done
                 </span>
               </div>
 
               <div>
-                <h3 className="font-bold text-white text-base font-heading group-hover:text-orange-400 transition-colors flex items-center justify-between">
+                <h3 className="font-bold text-white text-sm sm:text-base font-heading group-hover:text-orange-400 transition-colors flex items-center justify-between">
                   Domain Roadmap
                   <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:translate-x-1 transition-transform" />
                 </h3>
-                <p className="text-xs text-zinc-400 leading-relaxed mt-1">
-                  {doneTopics} of {totalTopics} milestones cleared in Software Engineering.
-                </p>
               </div>
 
-              <div className="space-y-1.5 pt-1">
-                <div className="w-full bg-zinc-900/90 rounded-full h-2 overflow-hidden p-0.5 border border-white/10">
+              <div className="space-y-1 pt-0.5">
+                <div className="w-full bg-zinc-900/90 rounded-full h-1.5 overflow-hidden p-0.5 border border-white/10">
                   <div
                     className="bg-gradient-to-r from-orange-600 to-amber-500 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
                     style={{ width: `${domainPct}%` }}
@@ -300,29 +274,26 @@ export const Dashboard: React.FC = () => {
             <motion.div
               variants={itemVariants}
               onClick={() => setActiveTab('resumes')}
-              className="mono-card p-5 space-y-4 cursor-pointer mono-card-hover group relative overflow-hidden"
+              className="mono-card p-3.5 space-y-2.5 cursor-pointer mono-card-hover group relative overflow-hidden"
             >
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/25 text-orange-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
-                  <FileCheck className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                  <FileCheck className="w-4 h-4 text-white" />
                 </div>
-                <span className="mono-badge text-emerald-400 bg-emerald-500/10 border-emerald-500/20 font-bold">
+                <span className="mono-badge rounded-full text-emerald-400 bg-emerald-500/10 border-emerald-500/20 font-bold">
                   82% ATS Match
                 </span>
               </div>
 
               <div>
-                <h3 className="font-bold text-white text-base font-heading group-hover:text-orange-400 transition-colors flex items-center justify-between">
+                <h3 className="font-bold text-white text-sm sm:text-base font-heading group-hover:text-orange-400 transition-colors flex items-center justify-between">
                   AI Resume Suite
                   <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:translate-x-1 transition-transform" />
                 </h3>
-                <p className="text-xs text-zinc-400 leading-relaxed mt-1">
-                  STAR Bullet generator & missing keyword detector.
-                </p>
               </div>
 
-              <div className="space-y-1.5 pt-1">
-                <div className="w-full bg-zinc-900/90 rounded-full h-2 overflow-hidden p-0.5 border border-white/10">
+              <div className="space-y-1 pt-0.5">
+                <div className="w-full bg-zinc-900/90 rounded-full h-1.5 overflow-hidden p-0.5 border border-white/10">
                   <div
                     className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(16,185,129,0.4)]"
                     style={{ width: '82%' }}
@@ -336,29 +307,26 @@ export const Dashboard: React.FC = () => {
             <motion.div
               variants={itemVariants}
               onClick={() => setActiveTab('tests')}
-              className="mono-card p-5 space-y-4 cursor-pointer mono-card-hover group relative overflow-hidden"
+              className="mono-card p-3.5 space-y-2.5 cursor-pointer mono-card-hover group relative overflow-hidden"
             >
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/25 text-orange-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
-                  <CheckSquare className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                  <CheckSquare className="w-4 h-4 text-white" />
                 </div>
-                <span className="mono-badge text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
+                <span className="mono-badge rounded-full text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
                   {testsPassed}/{testsTaken} Cleared
                 </span>
               </div>
 
               <div>
-                <h3 className="font-bold text-white text-base font-heading group-hover:text-orange-400 transition-colors flex items-center justify-between">
+                <h3 className="font-bold text-white text-sm sm:text-base font-heading group-hover:text-orange-400 transition-colors flex items-center justify-between">
                   Mock Drive Practice
                   <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:translate-x-1 transition-transform" />
                 </h3>
-                <p className="text-xs text-zinc-400 leading-relaxed mt-1">
-                  Timed company tests & aptitude assessment rounds.
-                </p>
               </div>
 
-              <div className="space-y-1.5 pt-1">
-                <div className="w-full bg-zinc-900/90 rounded-full h-2 overflow-hidden p-0.5 border border-white/10">
+              <div className="space-y-1 pt-0.5">
+                <div className="w-full bg-zinc-900/90 rounded-full h-1.5 overflow-hidden p-0.5 border border-white/10">
                   <div
                     className="bg-gradient-to-r from-orange-500 to-amber-400 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(249,115,22,0.4)]"
                     style={{ width: `${testsTaken > 0 ? (testsPassed/testsTaken)*100 : 80}%` }}
@@ -383,14 +351,14 @@ export const Dashboard: React.FC = () => {
 
               {/* FILTER TABS & CTA INLINE ON THE RIGHT */}
               <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
-                <div className="flex items-center bg-[#2a2e2f] p-1 rounded-lg border border-white/10 text-xs">
+                <div className="flex items-center bg-[#2a2e2f] p-1 rounded-full border border-white/10 text-xs">
                   {(['all', 'Company Drive', 'Aptitude', 'Technical'] as const).map(tab => (
                     <button
                       key={tab}
                       onClick={() => setDriveFilter(tab)}
-                      className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer active:scale-[0.97] ${
+                      className={`px-3.5 py-1.5 rounded-full font-medium transition-all cursor-pointer active:scale-[0.97] ${
                         driveFilter === tab
-                          ? 'bg-[#1b1e1f] text-white shadow-sm font-semibold'
+                          ? 'bg-[#1b1e1f] text-white shadow-sm font-semibold border border-white/10'
                           : 'text-zinc-400 hover:text-zinc-200'
                       }`}
                     >
@@ -437,7 +405,7 @@ export const Dashboard: React.FC = () => {
                     {filteredScores.map(res => (
                       <tr key={res.id} className="hover:bg-[#2a2e2f] transition-colors group">
                         <td className="p-4 pl-5 font-bold text-white flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-[#1b1e1f] border border-white/10 text-orange-400 flex items-center justify-center shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-[#1b1e1f] border border-white/10 text-orange-400 flex items-center justify-center shrink-0">
                             <Briefcase className="w-4 h-4" />
                           </div>
                           <div>
@@ -446,7 +414,7 @@ export const Dashboard: React.FC = () => {
                           </div>
                         </td>
                         <td className="p-4">
-                          <span className="mono-badge">
+                          <span className="mono-badge rounded-full px-3 py-1 bg-[#2a2e2f] border border-white/10 text-zinc-200 text-[11px] font-medium">
                             {res.category}
                           </span>
                         </td>
@@ -466,11 +434,11 @@ export const Dashboard: React.FC = () => {
                         </td>
                         <td className="p-4">
                           {res.passed ? (
-                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold inline-flex items-center gap-1">
+                            <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold inline-flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3" /> PASSED
                             </span>
                           ) : (
-                            <span className="px-2.5 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[11px] font-bold inline-flex items-center gap-1">
+                            <span className="px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[11px] font-bold inline-flex items-center gap-1">
                               <RotateCcw className="w-3 h-3" /> RETRY
                             </span>
                           )}
@@ -478,7 +446,7 @@ export const Dashboard: React.FC = () => {
                         <td className="p-4 pr-5 text-right">
                           <button
                             onClick={() => setActiveTab('tests')}
-                            className="px-3 py-1.5 rounded-lg bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-[11px] font-medium text-zinc-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 active:scale-[0.97]"
+                            className="px-3.5 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-[11px] font-medium text-zinc-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 active:scale-[0.97]"
                           >
                             Review
                             <ChevronRight className="w-3 h-3" />
@@ -495,30 +463,21 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* RIGHT COLUMN: PRO AI HR SPEECH SIMULATOR SIDEBAR CONSOLE (4 COLUMNS) */}
-        <div className="lg:col-span-4 h-full flex flex-col space-y-6">
+        <div className="lg:col-span-4 space-y-6">
           
           {/* HR SPEECH SIMULATOR MODULE */}
-          <motion.div variants={itemVariants} className="mono-card p-6 sm:p-7 flex-1 flex flex-col justify-between space-y-6 h-full relative overflow-hidden">
-            <div className="space-y-6 relative z-10">
+          <motion.div variants={itemVariants} className="mono-card p-5 sm:p-6 space-y-5 relative overflow-hidden">
+            <div className="space-y-5 relative z-10">
               
               {/* Voice Engine Header */}
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-orange-500/15 border border-orange-500/30 text-orange-400 flex items-center justify-center shadow-inner">
-                    <Mic className="w-4.5 h-4.5" />
+                  <div className="w-9 h-9 rounded-lg bg-white/10 border border-white/20 text-white flex items-center justify-center shadow-inner">
+                    <Mic className="w-4.5 h-4.5 text-white" />
                   </div>
                   <div>
                     <h2 className="font-bold text-base text-white font-heading">HR Speech Simulator</h2>
-                    <span className="text-[10px] text-zinc-400 font-mono">Real-time Audio Fluency Engine</span>
                   </div>
-                </div>
-
-                {/* Animated Waveform Visualizer (Hardware-accelerated scaleY) */}
-                <div className="flex items-end gap-1 h-6 px-2 py-1 bg-[#1b1e1f] rounded-lg border border-white/10">
-                  <span className="w-1 bg-orange-500 rounded-full animate-wave-1" />
-                  <span className="w-1 bg-orange-400 rounded-full animate-wave-2" />
-                  <span className="w-1 bg-amber-400 rounded-full animate-wave-3" />
-                  <span className="w-1 bg-orange-500 rounded-full animate-wave-4" />
                 </div>
               </div>
 
@@ -526,40 +485,34 @@ export const Dashboard: React.FC = () => {
                 Practice behavioral & STAR framework questions with real-time speech pace, confidence level, and filler word detection.
               </p>
 
-              {/* LIVE ANALYTICS METRICS 2x2 GRID */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3.5 rounded-lg bg-[#2a2e2f] border border-white/10 space-y-1 hover:border-white/20 transition-all">
-                  <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Speech Pace</span>
+              {/* LIVE ANALYTICS METRICS 3 METRICS GRID */}
+              <div className="grid grid-cols-3 gap-2.5 text-xs">
+                <div className="p-3 rounded-lg bg-[#2a2e2f] border border-white/10 space-y-1 hover:border-white/20 transition-all">
+                  <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Pace</span>
                   <div className="flex items-baseline justify-between">
-                    <span className="font-extrabold text-white text-base">{speechAnalytics.wpm}</span>
-                    <span className="text-[10px] text-emerald-400 font-semibold">120-150 Ideal</span>
+                    <span className="font-extrabold text-white text-sm sm:text-base">{speechAnalytics.wpm}</span>
+                    <span className="text-[9px] text-emerald-400 font-semibold hidden sm:inline">120-150</span>
                   </div>
                   <div className="w-full bg-[#1b1e1f] rounded-full h-1 overflow-hidden">
                     <div className="bg-emerald-400 h-full rounded-full" style={{ width: '78%' }} />
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-[#2a2e2f] border border-white/10 space-y-1 hover:border-white/20 transition-all">
+                <div className="p-3 rounded-lg bg-[#2a2e2f] border border-white/10 space-y-1 hover:border-white/20 transition-all">
                   <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Confidence</span>
                   <div className="flex items-baseline justify-between">
-                    <span className="font-extrabold text-emerald-400 text-base">{speechAnalytics.confidenceScore}%</span>
-                    <span className="text-[10px] text-zinc-400 font-mono">High</span>
+                    <span className="font-extrabold text-emerald-400 text-sm sm:text-base">{speechAnalytics.confidenceScore}%</span>
+                    <span className="text-[9px] text-zinc-400 font-mono hidden sm:inline">High</span>
                   </div>
                   <div className="w-full bg-[#1b1e1f] rounded-full h-1 overflow-hidden">
                     <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${speechAnalytics.confidenceScore}%` }} />
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-lg bg-[#2a2e2f] border border-white/10 space-y-1 hover:border-white/20 transition-all">
-                  <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">STAR Alignment</span>
-                  <span className="font-bold text-orange-400 text-sm block">{speechAnalytics.starFramework}</span>
-                  <span className="text-[10px] text-zinc-400 block">Situation & Action Detected</span>
-                </div>
-
-                <div className="p-3.5 rounded-lg bg-[#2a2e2f] border border-white/10 space-y-1 hover:border-white/20 transition-all">
-                  <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Filler Count</span>
-                  <span className="font-bold text-zinc-200 text-sm block">{speechAnalytics.fillerCount}</span>
-                  <span className="text-[10px] text-emerald-400 block font-medium">Optimal Clarity</span>
+                <div className="p-3 rounded-lg bg-[#2a2e2f] border border-white/10 space-y-1 hover:border-white/20 transition-all">
+                  <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Fillers</span>
+                  <span className="font-bold text-zinc-200 text-xs sm:text-sm block">{speechAnalytics.fillerCount}</span>
+                  <span className="text-[9px] text-emerald-400 block font-medium">Optimal</span>
                 </div>
               </div>
 
@@ -567,7 +520,7 @@ export const Dashboard: React.FC = () => {
               <div className="space-y-2.5 pt-1">
                 <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
                   <span>Featured Practice Prompts</span>
-                  <span className="text-orange-400 font-mono">AI Recommended</span>
+                  <span className="text-orange-400 font-mono font-semibold">RECOMMENDED</span>
                 </div>
                 <div className="space-y-2 text-xs">
                   {speechAnalytics.featuredPrompts.map((promptText, idx) => (
@@ -588,14 +541,14 @@ export const Dashboard: React.FC = () => {
 
             </div>
 
-            {/* LAUNCH SPEECH SIMULATOR ACTION BUTTON */}
-            <div className="pt-4 border-t border-white/10 relative z-10">
+            {/* START PRACTICE ACTION BUTTON */}
+            <div className="pt-3 border-t border-white/10 relative z-10">
               <button
                 onClick={() => setActiveTab('interview')}
-                className="btn-primary w-full py-3.5 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
                 <Mic className="w-4 h-4 text-black animate-pulse" />
-                <span>Launch Speech Simulator</span>
+                <span>Start Practice</span>
               </button>
             </div>
 

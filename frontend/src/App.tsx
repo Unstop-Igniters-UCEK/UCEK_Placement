@@ -133,12 +133,12 @@ export function App() {
           </>
         )}
 
-        {/* Glassmorphic Footer */}
+        {/* Footer */}
         <motion.footer
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-          className={`w-full backdrop-blur-md bg-black/40 border-t border-white/10 py-4 text-xs font-mono transition-all duration-300 relative z-20 ${
+          className={`w-full bg-[#1b1e1f] border-t border-white/10 py-4 text-xs font-mono transition-all duration-300 relative z-20 ${
             user && sidebarOpen ? 'pl-0 lg:pl-64' : 'pl-0'
           }`}
         >
