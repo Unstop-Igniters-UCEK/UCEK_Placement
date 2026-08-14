@@ -91,6 +91,7 @@ class Database:
         self.interviewResponses: List[Dict[str, Any]] = []
         self.mentorships: List[Dict[str, Any]] = []
         self.userRoadmaps: List[Dict[str, Any]] = []
+        self.hrPracticeQuestions: List[Dict[str, Any]] = INITIAL_INTERVIEW_QUESTIONS
         self.revokedTokens: List[str] = []
         self.resetTokens: Dict[str, Any] = {}
         self.otp_store: Dict[str, Dict[str, Any]] = {}
@@ -174,6 +175,107 @@ class Database:
             except Exception as e:
                 print("[Supabase user_roadmaps table load notice]:", e)
 
+            # 4. Sync directly from Supabase relational test_scores table
+            try:
+                ts_res = supabase_client.table("test_scores").select("*").execute()
+                if ts_res.data and len(ts_res.data) > 0:
+                    self.testScores = []
+                    for s in ts_res.data:
+                        self.testScores.append({
+                            "id": str(s.get("id")),
+                            "userId": str(s.get("user_id")),
+                            "testId": str(s.get("test_id")),
+                            "testTitle": str(s.get("test_title", "")),
+                            "category": str(s.get("category", "")),
+                            "score": int(s.get("score", 0)),
+                            "totalQuestions": int(s.get("total_questions", 0)),
+                            "timeTakenSeconds": int(s.get("time_taken_seconds", 0)),
+                            "status": str(s.get("status", "Completed")),
+                            "date": str(s.get("date", ""))
+                        })
+                    print(f"[Supabase] Loaded {len(self.testScores)} test scores directly from Supabase test_scores table.")
+            except Exception as e:
+                print("[Supabase test_scores table load notice]:", e)
+
+            # 5. Sync directly from Supabase relational mock_tests table
+            try:
+                mt_res = supabase_client.table("mock_tests").select("*").execute()
+                if mt_res.data and len(mt_res.data) > 0:
+                    self.mockTests = []
+                    for t in mt_res.data:
+                        self.mockTests.append({
+                            "id": str(t.get("id")),
+                            "title": str(t.get("title", "")),
+                            "category": str(t.get("category", "")),
+                            "targetDomain": str(t.get("target_domain", "")),
+                            "durationMinutes": int(t.get("duration_minutes", 30)),
+                            "totalQuestions": int(t.get("total_questions", 10)),
+                            "passPercentage": int(t.get("pass_percentage", 70)),
+                            "questions": t.get("questions", [])
+                        })
+                    print(f"[Supabase] Loaded {len(self.mockTests)} mock tests directly from Supabase mock_tests table.")
+            except Exception as e:
+                print("[Supabase mock_tests table load notice]:", e)
+
+            # 6. Sync directly from Supabase relational mentorships table
+            try:
+                m_res = supabase_client.table("mentorships").select("*").execute()
+                if m_res.data and len(m_res.data) > 0:
+                    self.mentorships = []
+                    for m in m_res.data:
+                        self.mentorships.append({
+                            "id": str(m.get("id")),
+                            "mentorId": str(m.get("mentor_id")),
+                            "mentorName": str(m.get("mentor_name")),
+                            "menteeId": str(m.get("mentee_id")),
+                            "menteeName": str(m.get("mentee_name")),
+                            "status": str(m.get("status", "Active")),
+                            "nextMeetingDate": str(m.get("next_meeting_date", "")),
+                            "logs": m.get("logs", [])
+                        })
+                    print(f"[Supabase] Loaded {len(self.mentorships)} mentorship pairs directly from Supabase mentorships table.")
+            except Exception as e:
+                print("[Supabase mentorships table load notice]:", e)
+
+            # 7. Sync directly from Supabase relational resumes table
+            try:
+                r_res = supabase_client.table("resumes").select("*").execute()
+                if r_res.data and len(r_res.data) > 0:
+                    self.resumes = []
+                    for r in r_res.data:
+                        self.resumes.append({
+                            "id": str(r.get("id")),
+                            "userId": str(r.get("user_id")),
+                            "fileName": str(r.get("file_name", "")),
+                            "fileUrl": str(r.get("file_url", "")),
+                            "parsedSkills": r.get("parsed_skills", []),
+                            "atsScore": int(r.get("ats_score", 0)),
+                            "uploadedAt": str(r.get("uploaded_at", ""))
+                        })
+                    print(f"[Supabase] Loaded {len(self.resumes)} resumes directly from Supabase resumes table.")
+            except Exception as e:
+                print("[Supabase resumes table load notice]:", e)
+
+            # 8. Sync directly from Supabase relational hr_practice_questions table
+            try:
+                hr_res = supabase_client.table("hr_practice_questions").select("*").execute()
+                if hr_res.data and len(hr_res.data) > 0:
+                    self.hrPracticeQuestions = []
+                    for q in hr_res.data:
+                        self.hrPracticeQuestions.append({
+                            "id": str(q.get("id")),
+                            "companyTag": str(q.get("company_tag", "General HR")),
+                            "company_tag": str(q.get("company_tag", "General HR")),
+                            "questionText": str(q.get("question_text") or q.get("question") or ""),
+                            "question": str(q.get("question_text") or q.get("question") or ""),
+                            "category": str(q.get("category", "HR")),
+                            "isFeatured": bool(q.get("is_featured", True)),
+                            "createdAt": str(q.get("created_at", ""))
+                        })
+                    print(f"[Supabase] Loaded {len(self.hrPracticeQuestions)} practice questions directly from Supabase hr_practice_questions table.")
+            except Exception as e:
+                print("[Supabase hr_practice_questions table load notice]:", e)
+
         self._seed_default_users()
         self.save()
 
@@ -190,6 +292,7 @@ class Database:
             "interviewResponses": self.interviewResponses,
             "mentorships": self.mentorships,
             "userRoadmaps": self.userRoadmaps,
+            "hrPracticeQuestions": self.hrPracticeQuestions,
             "revokedTokens": self.revokedTokens,
             "resetTokens": self.resetTokens
         }
@@ -237,6 +340,85 @@ class Database:
                     }, on_conflict="id").execute()
             except Exception as e:
                 print("[Supabase user_roadmaps table save notice]:", e)
+
+            # Sync to test_scores table
+            try:
+                for score in self.testScores:
+                    supabase_client.table("test_scores").upsert({
+                        "id": str(score.get("id")),
+                        "user_id": str(score.get("userId")),
+                        "test_id": str(score.get("testId")),
+                        "test_title": str(score.get("testTitle", "")),
+                        "category": str(score.get("category", "")),
+                        "score": int(score.get("score", 0)),
+                        "total_questions": int(score.get("totalQuestions", 0)),
+                        "time_taken_seconds": int(score.get("timeTakenSeconds", 0)),
+                        "status": str(score.get("status", "Completed")),
+                        "date": str(score.get("date", datetime.now().isoformat()))
+                    }, on_conflict="id").execute()
+            except Exception as e:
+                print("[Supabase test_scores table save notice]:", e)
+
+            # Sync to mock_tests table
+            try:
+                for test in self.mockTests:
+                    supabase_client.table("mock_tests").upsert({
+                        "id": str(test.get("id")),
+                        "title": str(test.get("title", "")),
+                        "category": str(test.get("category", "")),
+                        "target_domain": str(test.get("targetDomain", "")),
+                        "duration_minutes": int(test.get("durationMinutes", 30)),
+                        "total_questions": int(test.get("totalQuestions", 10)),
+                        "pass_percentage": int(test.get("passPercentage", 70)),
+                        "questions": test.get("questions", [])
+                    }, on_conflict="id").execute()
+            except Exception as e:
+                print("[Supabase mock_tests table save notice]:", e)
+
+            # Sync to mentorships table
+            try:
+                for m in self.mentorships:
+                    supabase_client.table("mentorships").upsert({
+                        "id": str(m.get("id")),
+                        "mentor_id": str(m.get("mentorId")),
+                        "mentor_name": str(m.get("mentorName")),
+                        "mentee_id": str(m.get("menteeId")),
+                        "mentee_name": str(m.get("menteeName")),
+                        "status": str(m.get("status", "Active")),
+                        "next_meeting_date": str(m.get("nextMeetingDate", "")),
+                        "logs": m.get("logs", [])
+                    }, on_conflict="id").execute()
+            except Exception as e:
+                print("[Supabase mentorships table save notice]:", e)
+
+            # Sync to resumes table
+            try:
+                for r in self.resumes:
+                    supabase_client.table("resumes").upsert({
+                        "id": str(r.get("id")),
+                        "user_id": str(r.get("userId")),
+                        "file_name": str(r.get("fileName", "")),
+                        "file_url": str(r.get("fileUrl", "")),
+                        "parsed_skills": r.get("parsedSkills", []),
+                        "ats_score": int(r.get("atsScore", 0)),
+                        "uploaded_at": str(r.get("uploadedAt", datetime.now().isoformat()))
+                    }, on_conflict="id").execute()
+            except Exception as e:
+                print("[Supabase resumes table save notice]:", e)
+
+            # Sync to hr_practice_questions table
+            try:
+                for q in self.hrPracticeQuestions:
+                    supabase_client.table("hr_practice_questions").upsert({
+                        "id": str(q.get("id")),
+                        "company_tag": str(q.get("companyTag") or q.get("company_tag") or "General HR"),
+                        "question_text": str(q.get("questionText") or q.get("question") or ""),
+                        "category": str(q.get("category", "HR")),
+                        "is_featured": bool(q.get("isFeatured") if q.get("isFeatured") is not None else q.get("is_featured", True)),
+                        "created_at": str(q.get("createdAt") or q.get("created_at") or datetime.now().isoformat())
+                    }, on_conflict="id").execute()
+            except Exception as e:
+                print("[Supabase hr_practice_questions table save notice]:", e)
 
     def update_user_password(self, email: str, new_password_hash: str) -> bool:
         clean_email = email.strip().lower()
