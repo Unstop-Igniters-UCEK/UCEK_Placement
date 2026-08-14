@@ -74,10 +74,10 @@ export const Sidebar: React.FC = () => {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -280, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-              className="fixed left-0 top-0 h-screen h-dvh max-h-screen w-64 bg-zinc-950/95 border-r border-white/10 flex flex-col justify-between p-4 z-40 select-none shadow-2xl backdrop-blur-xl overflow-y-auto no-scrollbar transform-gpu"
+              className="fixed left-0 top-0 h-screen h-dvh max-h-screen w-64 bg-[#09090b] border-r border-zinc-800/80 flex flex-col justify-between p-4 z-40 select-none shadow-2xl overflow-y-auto no-scrollbar transform-gpu"
             >
               {/* TOP SECTION: Logo icon on left + Close button placed to the right side of the logo */}
-              <div className="shrink-0 pt-1 pb-3 px-1 flex items-center justify-between gap-3 border-b border-white/10 mb-2">
+              <div className="shrink-0 pt-1 pb-3 px-1 flex items-center justify-between gap-3 border-b border-zinc-800/80 mb-2">
                 <div
                   onClick={() => setActiveTab('dashboard')}
                   className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-bold shadow-md cursor-pointer hover:scale-105 transition-transform shrink-0"
@@ -92,7 +92,7 @@ export const Sidebar: React.FC = () => {
                 {/* Close Button on the right side of the logo */}
                 <button
                   onClick={() => setSidebarOpen(false)}
-                  className="w-8 h-8 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-white/15 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0"
+                  className="w-8 h-8 rounded-full bg-[#18181c] hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0"
                   title="Close Sidebar"
                 >
                   <X className="w-4 h-4" />
@@ -112,7 +112,7 @@ export const Sidebar: React.FC = () => {
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-xs font-bold relative whitespace-nowrap cursor-pointer transition-all active:scale-[0.97] ${
                         isActive
                           ? 'text-black font-extrabold bg-white shadow-md'
-                          : 'text-zinc-400 hover:text-white hover:bg-white/10 font-semibold'
+                          : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50 font-semibold'
                       }`}
                     >
                       {isActive && (
@@ -130,9 +130,9 @@ export const Sidebar: React.FC = () => {
               </nav>
 
               {/* BOTTOM SECTION: User Logo/Profile & Red Rounded Logout Button */}
-              <div className="shrink-0 pt-3 border-t border-white/10 space-y-2.5">
+              <div className="shrink-0 pt-3 border-t border-zinc-800/80 space-y-2.5">
                 {/* User Info Tile */}
-                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-900/80 border border-white/10">
+                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#18181c] border border-zinc-800/80">
                   <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden shrink-0">
                     {user.avatar ? (
                       <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
@@ -146,7 +146,7 @@ export const Sidebar: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Red Rounded Logout Button */}
+                {/* Red Rounded Logout Button (Preserved) */}
                 <button
                   onClick={logoutUser}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg transition-all cursor-pointer active:scale-[0.97]"

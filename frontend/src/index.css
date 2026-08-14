@@ -3,14 +3,14 @@
 
 @layer base {
   :root, [data-theme="dark"] {
-    /* UCEK IGNITE DARK TECH THEME (SINGLE ACCENT LOCK: WARM ORANGE #F97316) */
-    --bg-body: #030305;
-    --bg-surface: #0a0a0e;
-    --bg-card: rgba(13, 13, 18, 0.82);
-    --bg-subtle: #14141a;
+    /* SHADCNSPACE DARK THEME PALETTE */
+    --bg-body: #09090b;
+    --bg-surface: #121215;
+    --bg-card: #121215;
+    --bg-subtle: #18181c;
 
-    --border-color: rgba(255, 255, 255, 0.12);
-    --border-dark: rgba(255, 255, 255, 0.22);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-dark: rgba(255, 255, 255, 0.15);
 
     --accent-primary: #F97316;
     --accent-hover: #EA580C;
@@ -32,13 +32,13 @@
     --text-secondary: #a1a1aa;
     --text-muted: #71717a;
 
-    --header-bg: rgba(3, 3, 5, 0.85);
-    --header-border: rgba(255, 255, 255, 0.12);
-    --popover-bg: rgba(18, 18, 24, 0.96);
+    --header-bg: rgba(9, 9, 11, 0.85);
+    --header-border: rgba(255, 255, 255, 0.08);
+    --popover-bg: #121215;
     --pill-bg: #ffffff;
     --pill-text: #000000;
 
-    --card-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 
     /* TYPOGRAPHY STACK */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -49,7 +49,7 @@
 
     --radius-sm: 4px;
     --radius-md: 8px;
-    --radius-lg: 10px;
+    --radius-lg: 12px;
 
     /* EASING & TIMING TOKENS */
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -105,29 +105,26 @@
   border-radius: 4px;
 }
 
-/* Premium Pro Bento Card Styling (Clean, High-Contrast, Zero-Lag) */
+/* SHADCNSPACE THEME CARD STYLING */
 .mono-card {
-  background: rgba(13, 13, 18, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-top: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 10px;
+  background: #121215;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   color: var(--text-primary);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
   transition: border-color 0.2s var(--ease-out), background-color 0.2s ease, transform 0.2s var(--ease-out), box-shadow 0.2s ease;
   transform: translateZ(0);
 }
 
 .mono-card-subtle {
-  background: rgba(18, 18, 25, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  background: #18181c;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
 }
 
 .mono-card-accent {
-  background: rgba(20, 20, 28, 0.85);
+  background: #141418;
   border: 1px solid rgba(249, 115, 22, 0.25);
-  border-top: 1px solid rgba(249, 115, 22, 0.4);
 }
 
 .mono-card-hover {
@@ -136,9 +133,9 @@
 
 .mono-card-hover:hover {
   cursor: pointer;
-  border-color: rgba(249, 115, 22, 0.4);
-  background: rgba(18, 18, 25, 0.92);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 16px rgba(249, 115, 22, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: #16161a;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
   transform: translateY(-2px);
 }
 
@@ -159,10 +156,10 @@
   letter-spacing: 0.02em;
   background: rgba(255, 255, 255, 0.06);
   color: var(--badge-text);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* BUTTONS - HIGH CRAFT & SHIMMER */
+/* BUTTONS - HIGH CRAFT & SHIMMER (KEPT AS IS) */
 .btn-primary {
   display: inline-flex;
   align-items: center;

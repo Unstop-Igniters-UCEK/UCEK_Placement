@@ -184,7 +184,7 @@ export const Dashboard: React.FC = () => {
 
                 {/* Target Drive Badge & Quick Action Links */}
                 <div className="pt-2 flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/70 border border-white/12 text-xs text-zinc-300">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#18181c] border border-zinc-800/80 text-xs text-zinc-300">
                     <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
                     <span>Target Drive:</span>
                     <strong className="text-white font-semibold">TCS Ninja & Digital 2026</strong>
@@ -193,14 +193,14 @@ export const Dashboard: React.FC = () => {
                   <div className="flex items-center gap-2 text-xs">
                     <button
                       onClick={() => setActiveTab('resumes')}
-                      className="px-3.5 py-1.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-white/12 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
+                      className="px-3.5 py-1.5 rounded-lg bg-[#18181c] hover:bg-zinc-800 border border-zinc-800/80 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
                     >
                       <FileCheck className="w-3.5 h-3.5 text-orange-400" />
                       ATS Scan
                     </button>
                     <button
                       onClick={() => setActiveTab('tests')}
-                      className="px-3.5 py-1.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-white/12 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
+                      className="px-3.5 py-1.5 rounded-lg bg-[#18181c] hover:bg-zinc-800 border border-zinc-800/80 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
                     >
                       <Zap className="w-3.5 h-3.5 text-orange-400" />
                       Quick Test
@@ -210,7 +210,7 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* READINESS INDEX MULTI-METRIC RADIAL HUB */}
-              <div className="shrink-0 flex flex-col items-center justify-center p-5 bg-zinc-900/60 border border-white/12 rounded-lg w-full sm:w-44 space-y-3 relative">
+              <div className="shrink-0 flex flex-col items-center justify-center p-5 bg-[#18181c] border border-zinc-800/80 rounded-xl w-full sm:w-44 space-y-3 relative">
                 <div className="absolute top-2 right-2">
                   <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
                 </div>
@@ -238,7 +238,7 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Sub-breakdown Mini Stats */}
-                <div className="w-full grid grid-cols-3 gap-1 pt-1 border-t border-white/10 text-[10px] text-center">
+                <div className="w-full grid grid-cols-3 gap-1 pt-1 border-t border-zinc-800/80 text-[10px] text-center">
                   <div>
                     <span className="text-zinc-400 block font-medium">Apt</span>
                     <span className="font-bold text-white">85%</span>
