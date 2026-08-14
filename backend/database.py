@@ -155,7 +155,27 @@ class Database:
             except Exception as e:
                 print("[Supabase users table load notice]:", e)
 
+            # 3. Sync directly from Supabase relational user_roadmaps table
+            try:
+                rm_res = supabase_client.table("user_roadmaps").select("*").execute()
+                if rm_res.data and len(rm_res.data) > 0:
+                    self.userRoadmaps = []
+                    for r in rm_res.data:
+                        mapped_rm = {
+                            "id": str(r.get("id")),
+                            "userId": str(r.get("user_id")),
+                            "domain": str(r.get("domain")),
+                            "overallProgress": int(r.get("overall_progress", 0)),
+                            "modules": r.get("modules", []),
+                            "lastUpdated": str(r.get("last_updated", ""))
+                        }
+                        self.userRoadmaps.append(mapped_rm)
+                    print(f"[Supabase] Loaded {len(self.userRoadmaps)} roadmaps directly from Supabase user_roadmaps table.")
+            except Exception as e:
+                print("[Supabase user_roadmaps table load notice]:", e)
+
         self._seed_default_users()
+        self.save()
 
     def save(self):
         # Direct Supabase database sync (no local file creation)
@@ -204,6 +224,19 @@ class Database:
                     }, on_conflict="email").execute()
             except Exception as e:
                 print("[Supabase users table save notice]:", e)
+
+            try:
+                for rm in self.userRoadmaps:
+                    supabase_client.table("user_roadmaps").upsert({
+                        "id": str(rm.get("id")),
+                        "user_id": str(rm.get("userId")),
+                        "domain": str(rm.get("domain")),
+                        "overall_progress": int(rm.get("overallProgress", 0)),
+                        "modules": rm.get("modules", []),
+                        "last_updated": rm.get("lastUpdated") or datetime.now().isoformat()
+                    }, on_conflict="id").execute()
+            except Exception as e:
+                print("[Supabase user_roadmaps table save notice]:", e)
 
     def update_user_password(self, email: str, new_password_hash: str) -> bool:
         clean_email = email.strip().lower()
