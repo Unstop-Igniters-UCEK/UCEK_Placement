@@ -163,19 +163,19 @@ export const LandingPage: React.FC = () => {
               style={{ fontFamily: "'Syne', -apple-system, sans-serif" }}
             >
               <motion.span
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1], delay: 0.05 }}
-                className="inline-block whitespace-nowrap"
+                initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
+                className="inline-block whitespace-nowrap transform-gpu"
               >
                 Placements?
               </motion.span>
 
               <motion.span
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1], delay: 0.12 }}
-                className="inline-block whitespace-nowrap"
+                initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.45 }}
+                className="inline-block whitespace-nowrap transform-gpu"
               >
                 We got you!
               </motion.span>
@@ -183,10 +183,10 @@ export const LandingPage: React.FC = () => {
 
             {/* Subheadings & Description */}
             <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1], delay: 0.18 }}
-              className="space-y-4"
+              initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.75 }}
+              className="space-y-4 transform-gpu"
             >
               <h2 className={`font-bold text-white uppercase tracking-wider font-mono opacity-95 drop-shadow-sm ${
                 authMode ? 'text-base sm:text-lg' : 'text-lg sm:text-2xl'
@@ -213,10 +213,10 @@ export const LandingPage: React.FC = () => {
             {/* Hero CTA Buttons - Hidden when Auth Panel is Open */}
             {!authMode && (
               <motion.div
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1], delay: 0.24 }}
-                className="pt-2 flex flex-wrap items-center justify-center gap-4 pointer-events-auto"
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 1.05 }}
+                className="pt-2 flex flex-wrap items-center justify-center gap-4 pointer-events-auto transform-gpu"
               >
                 <button
                   onClick={handleOpenLogin}
