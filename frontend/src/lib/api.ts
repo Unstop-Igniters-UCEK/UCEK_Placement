@@ -57,11 +57,37 @@ export interface AuthResponse {
     branch: string;
     domainInterest?: string;
     domain?: string;
+    hasSelectedDomain?: boolean;
     readinessScore?: number;
     avatar?: string;
     bio?: string;
   };
   accessToken: string;
+}
+
+export async function updateProfileApi(payload: {
+  name?: string;
+  year?: string;
+  branch?: string;
+  domainInterest?: string;
+  hasSelectedDomain?: boolean;
+  bio?: string;
+  linkedInUrl?: string;
+  githubUrl?: string;
+}): Promise<AuthResponse['user']> {
+  const res = await fetch(`${BASE_URL}/api/user/profile`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to update profile (${res.status})`));
+  }
+
+  const data = await res.json();
+  return data.user;
 }
 
 function parseErrorMessage(err: any, fallback: string): string {

@@ -92,8 +92,8 @@
 
 /* Micro Scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -101,8 +101,41 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+}
+
+/* Prominent Grabbable Custom Scrollbar for Modals */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 9999px;
+  margin: 8px 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #f97316;
+  border-radius: 9999px;
+  border: 2px solid #1b1e1f;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #ea580c;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #f97316 rgba(0, 0, 0, 0.35);
 }
 
 /* TASKHUB DARK SLATE CARD STYLING */

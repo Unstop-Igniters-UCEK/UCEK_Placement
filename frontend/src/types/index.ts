@@ -8,6 +8,7 @@ export interface User {
   year: string;
   branch: string;
   domain: string;
+  hasSelectedDomain?: boolean;
   readinessScore: number;
   avatar?: string;
   company?: string; // For placed mentors

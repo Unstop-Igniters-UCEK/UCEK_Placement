@@ -108,6 +108,7 @@ def register(request: Request, req: RegisterRequest, response: Response):
         "year": new_user["year"],
         "branch": new_user["branch"],
         "domainInterest": new_user["domainInterest"],
+        "hasSelectedDomain": new_user.get("hasSelectedDomain", False),
         "isVerified": new_user["isVerified"],
         "readinessScore": new_user["readinessScore"]
     }
@@ -166,6 +167,7 @@ def login(request: Request, req: LoginRequest, response: Response):
         "year": user["year"],
         "branch": user["branch"],
         "domainInterest": user["domainInterest"],
+        "hasSelectedDomain": user.get("hasSelectedDomain", False),
         "isVerified": user.get("isVerified", True),
         "readinessScore": user.get("readinessScore", 60),
         "bio": user.get("bio"),
@@ -216,6 +218,7 @@ def demo_login(req: DemoLoginRequest, response: Response):
         "year": user["year"],
         "branch": user["branch"],
         "domainInterest": user["domainInterest"],
+        "hasSelectedDomain": user.get("hasSelectedDomain", False),
         "isVerified": user.get("isVerified", True),
         "readinessScore": user.get("readinessScore", 75),
         "bio": user.get("bio"),
@@ -274,6 +277,7 @@ def get_me(current_user: dict = Depends(get_current_user)):
         "year": current_user["year"],
         "branch": current_user["branch"],
         "domainInterest": current_user["domainInterest"],
+        "hasSelectedDomain": current_user.get("hasSelectedDomain", False),
         "isVerified": current_user.get("isVerified", True),
         "readinessScore": current_user.get("readinessScore", 75),
         "bio": current_user.get("bio"),

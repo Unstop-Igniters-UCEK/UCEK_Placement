@@ -51,6 +51,7 @@ class ProfileUpdateRequest(BaseModel):
     year: Optional[str] = None
     branch: Optional[str] = None
     domainInterest: Optional[str] = None
+    hasSelectedDomain: Optional[bool] = None
     bio: Optional[str] = None
     linkedInUrl: Optional[str] = None
     githubUrl: Optional[str] = None

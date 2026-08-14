@@ -21,7 +21,7 @@ import {
   INITIAL_RECENT_SCORES,
   INITIAL_RESUME_DATA
 } from '../data/mockData';
-import { loginApi, registerApi, getMeApi, logoutApi, demoLoginApi } from '../lib/api';
+import { loginApi, registerApi, getMeApi, logoutApi, demoLoginApi, updateProfileApi } from '../lib/api';
 
 export type Theme = 'dark' | 'light';
 
@@ -57,6 +57,7 @@ interface AppContextType {
   switchDemoRole: (role: UserRole) => void;
   loginUser: (email: string, password?: string, role?: string) => Promise<boolean>;
   signupUser: (newUser: Omit<User, 'id' | 'readinessScore'> & { password?: string; adminSecurityCode?: string }) => Promise<boolean>;
+  updateUserDomain: (domainName: string) => Promise<boolean>;
   logoutUser: () => void;
   toggleMilestone: (domainId: string, moduleId: string, milestoneId: string) => void;
   saveTestResult: (result: Omit<TestResult, 'id' | 'date'>) => void;
@@ -103,6 +104,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               year: data.user.year || '4th Year',
               branch: data.user.branch || 'CSE',
               domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+              hasSelectedDomain: data.user.hasSelectedDomain ?? false,
               readinessScore: data.user.readinessScore ?? 75,
               avatar: data.user.avatar,
               bio: data.user.bio,
@@ -181,6 +183,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         year: data.user.year || '4th Year',
         branch: data.user.branch || 'CSE',
         domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+        hasSelectedDomain: data.user.hasSelectedDomain ?? false,
         readinessScore: data.user.readinessScore ?? 80,
         avatar: data.user.avatar,
         bio: data.user.bio,
@@ -212,6 +215,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       year: data.user.year || '4th Year',
       branch: data.user.branch || 'CSE',
       domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+      hasSelectedDomain: data.user.hasSelectedDomain ?? false,
       readinessScore: data.user.readinessScore ?? 75,
       avatar: data.user.avatar,
       bio: data.user.bio,
@@ -244,6 +248,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       year: data.user.year || '4th Year',
       branch: data.user.branch || 'CSE',
       domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+      hasSelectedDomain: data.user.hasSelectedDomain ?? false,
       readinessScore: data.user.readinessScore ?? 65,
       avatar: data.user.avatar,
       bio: data.user.bio,
@@ -252,6 +257,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAuthModalOpen(false);
     setActiveTab(mappedUser.role === 'admin' ? 'admin' : 'dashboard');
     return true;
+  };
+
+  const updateUserDomain = async (domainName: string): Promise<boolean> => {
+    try {
+      const updatedUser = await updateProfileApi({ domainInterest: domainName, hasSelectedDomain: true });
+      if (user) {
+        setUser(prev => prev ? {
+          ...prev,
+          domain: updatedUser.domainInterest || updatedUser.domain || domainName,
+          hasSelectedDomain: true
+        } : null);
+      }
+      return true;
+    } catch {
+      if (user) {
+        setUser(prev => prev ? { ...prev, domain: domainName, hasSelectedDomain: true } : null);
+      }
+      return true;
+    }
   };
 
   const logoutUser = () => {
@@ -390,6 +414,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         switchDemoRole,
         loginUser,
         signupUser,
+        updateUserDomain,
         logoutUser,
         toggleMilestone,
         saveTestResult,

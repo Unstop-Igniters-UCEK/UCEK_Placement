@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from backend.database import db
 from backend.auth import get_current_user
@@ -62,10 +63,29 @@ def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_c
     if req.name is not None: user["name"] = req.name.strip()
     if req.year is not None: user["year"] = req.year
     if req.branch is not None: user["branch"] = req.branch
-    if req.domainInterest is not None: user["domainInterest"] = req.domainInterest
+    if req.hasSelectedDomain is not None: user["hasSelectedDomain"] = req.hasSelectedDomain
     if req.bio is not None: user["bio"] = req.bio
     if req.linkedInUrl is not None: user["linkedInUrl"] = req.linkedInUrl
     if req.githubUrl is not None: user["githubUrl"] = req.githubUrl
+
+    if req.domainInterest is not None:
+        user["domainInterest"] = req.domainInterest
+        user["hasSelectedDomain"] = True
+        user_map = next((r for r in db.userRoadmaps if r["userId"] == user["id"]), None)
+        if user_map:
+            user_map["domain"] = req.domainInterest
+            user_map["modules"] = DEFAULT_ROADMAPS.get(req.domainInterest, DEFAULT_ROADMAPS["Software Engineering"])
+            user_map["overallProgress"] = 0
+            user_map["lastUpdated"] = datetime.now().isoformat()
+        else:
+            db.userRoadmaps.append({
+                "id": f"map_{user['id']}",
+                "userId": user["id"],
+                "domain": req.domainInterest,
+                "overallProgress": 0,
+                "modules": DEFAULT_ROADMAPS.get(req.domainInterest, DEFAULT_ROADMAPS["Software Engineering"]),
+                "lastUpdated": datetime.now().isoformat()
+            })
 
     db.save()
 
@@ -77,6 +97,7 @@ def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_c
         "year": user["year"],
         "branch": user["branch"],
         "domainInterest": user["domainInterest"],
+        "hasSelectedDomain": user.get("hasSelectedDomain", False),
         "isVerified": user.get("isVerified", True),
         "readinessScore": user.get("readinessScore", 75),
         "bio": user.get("bio"),
