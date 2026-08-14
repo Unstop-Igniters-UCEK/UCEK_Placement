@@ -91,65 +91,34 @@ export function App() {
           </main>
         ) : (
           <>
-            {/* Top-Left Grainient Background Layer (Fading into center) */}
+            {/* Dashboard Background Grainient Layer (exact screenshot settings) */}
             <div
-              className="fixed top-0 left-0 w-[750px] sm:w-[900px] h-[750px] sm:h-[900px] z-0 pointer-events-none opacity-60 overflow-hidden transform-gpu [mask-image:radial-gradient(ellipse_at_top_left,black_25%,transparent_75%)]"
+              className="fixed inset-0 z-0 pointer-events-none opacity-80 overflow-hidden transform-gpu"
               style={{ transform: 'translateZ(0)' }}
             >
               <Grainient
                 color1="#000000"
-                color2="#000000"
-                color3="#f97316"
-                timeSpeed={0.2}
-                colorBalance={0}
-                warpStrength={1}
+                color2="#f97316"
+                color3="#000000"
+                timeSpeed={0}
+                colorBalance={0.05}
+                warpStrength={2.15}
                 warpFrequency={5}
-                warpSpeed={2}
-                warpAmplitude={50}
-                blendAngle={0}
-                blendSoftness={0.05}
-                rotationAmount={500}
+                warpSpeed={2.3}
+                warpAmplitude={48}
+                blendAngle={60}
+                blendSoftness={0.09}
+                rotationAmount={560}
                 noiseScale={2}
                 grainAmount={0.1}
-                grainScale={2}
+                grainScale={0.6}
                 grainAnimated={false}
                 contrast={1.5}
-                gamma={1}
+                gamma={1.3}
                 saturation={1}
-                centerX={-0.4}
-                centerY={-0.4}
-                zoom={0.9}
-              />
-            </div>
-
-            {/* Bottom-Right Grainient Background Layer (Fading into center) */}
-            <div
-              className="fixed bottom-0 right-0 w-[750px] sm:w-[900px] h-[750px] sm:h-[900px] z-0 pointer-events-none opacity-60 overflow-hidden transform-gpu [mask-image:radial-gradient(ellipse_at_bottom_right,black_25%,transparent_75%)]"
-              style={{ transform: 'translateZ(0)' }}
-            >
-              <Grainient
-                color1="#000000"
-                color2="#000000"
-                color3="#f97316"
-                timeSpeed={0.2}
-                colorBalance={0}
-                warpStrength={1}
-                warpFrequency={5}
-                warpSpeed={2}
-                warpAmplitude={50}
-                blendAngle={0}
-                blendSoftness={0.05}
-                rotationAmount={500}
-                noiseScale={2}
-                grainAmount={0.1}
-                grainScale={2}
-                grainAnimated={false}
-                contrast={1.5}
-                gamma={1}
-                saturation={1}
-                centerX={0.4}
-                centerY={0.4}
-                zoom={0.9}
+                centerX={0}
+                centerY={-0.18}
+                zoom={0.95}
               />
             </div>
 

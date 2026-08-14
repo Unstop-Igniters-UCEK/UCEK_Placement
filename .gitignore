@@ -93,6 +93,15 @@ playwright-report/
 playwright/.cache/
 
 
+# ── AI AGENTS & TOOL CACHES ───────────────────────────────────
+.codex/
+.agents/
+.impeccable/
+.data/
+plans/
+animation-plans/
+
+
 # ── EDITOR & IDE ────────────────────────────────────────────
 # VS Code (keep extensions.json for team consistency)
 .vscode/*
