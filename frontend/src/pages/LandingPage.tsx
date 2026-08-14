@@ -155,10 +155,10 @@ export const LandingPage: React.FC = () => {
 
             {/* Main Display Heading (INDEPENDENT SYNE FONT STYLING) */}
             <h1 
-              className={`font-extrabold tracking-tight text-white leading-[1.08] flex flex-wrap items-center gap-x-3 gap-y-2 drop-shadow-md ${
+              className={`font-extrabold tracking-tight text-white leading-[1.1] sm:leading-[1.08] flex flex-wrap items-center gap-x-3 gap-y-1 sm:gap-y-2 drop-shadow-md ${
                 authMode 
-                  ? 'text-3xl sm:text-4xl lg:text-5xl justify-start text-left' 
-                  : 'text-5xl sm:text-6xl lg:text-7xl justify-center text-center'
+                  ? 'text-2xl sm:text-4xl lg:text-5xl justify-start text-left' 
+                  : 'text-3xl xs:text-4xl sm:text-6xl lg:text-7xl justify-center text-center'
               }`}
               style={{ fontFamily: "'Syne', -apple-system, sans-serif" }}
             >
@@ -166,7 +166,7 @@ export const LandingPage: React.FC = () => {
                 initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
                 animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                 transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
-                className="inline-block whitespace-nowrap transform-gpu"
+                className="inline-block max-w-full sm:whitespace-nowrap transform-gpu"
               >
                 Placements?
               </motion.span>
@@ -175,7 +175,7 @@ export const LandingPage: React.FC = () => {
                 initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
                 animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                 transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.45 }}
-                className="inline-block whitespace-nowrap transform-gpu"
+                className="inline-block max-w-full sm:whitespace-nowrap transform-gpu"
               >
                 We got you!
               </motion.span>
