@@ -6,11 +6,11 @@
     /* UCEK IGNITE DARK TECH THEME (SINGLE ACCENT LOCK: WARM ORANGE #F97316) */
     --bg-body: #030305;
     --bg-surface: #0a0a0e;
-    --bg-card: rgba(12, 12, 16, 0.75);
+    --bg-card: rgba(13, 13, 18, 0.82);
     --bg-subtle: #14141a;
 
-    --border-color: rgba(255, 255, 255, 0.18);
-    --border-dark: rgba(255, 255, 255, 0.25);
+    --border-color: rgba(255, 255, 255, 0.12);
+    --border-dark: rgba(255, 255, 255, 0.22);
 
     --accent-primary: #F97316;
     --accent-hover: #EA580C;
@@ -21,24 +21,24 @@
 
     --btn-sec-bg: rgba(24, 24, 30, 0.9);
     --btn-sec-text: #f4f4f5;
-    --btn-sec-border: rgba(255, 255, 255, 0.18);
+    --btn-sec-border: rgba(255, 255, 255, 0.12);
     --btn-sec-hover: rgba(39, 39, 45, 0.95);
 
     --badge-bg: rgba(24, 24, 30, 0.9);
     --badge-text: #f4f4f5;
-    --badge-border: rgba(255, 255, 255, 0.18);
+    --badge-border: rgba(255, 255, 255, 0.12);
 
     --text-primary: #ffffff;
     --text-secondary: #a1a1aa;
     --text-muted: #71717a;
 
     --header-bg: rgba(3, 3, 5, 0.85);
-    --header-border: rgba(255, 255, 255, 0.18);
+    --header-border: rgba(255, 255, 255, 0.12);
     --popover-bg: rgba(18, 18, 24, 0.96);
     --pill-bg: #ffffff;
     --pill-text: #000000;
 
-    --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --card-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
 
     /* TYPOGRAPHY STACK */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -105,36 +105,40 @@
   border-radius: 4px;
 }
 
-/* Clean Transparent Card Styling with Simple White Border (No Blur Lag) */
+/* Premium Pro Bento Card Styling (Clean, High-Contrast, Zero-Lag) */
 .mono-card {
-  background: rgba(10, 10, 15, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(13, 13, 18, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 10px;
   color: var(--text-primary);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  transition: border-color 0.2s var(--ease-out), background-color 0.2s ease, transform 0.2s var(--ease-out);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: border-color 0.2s var(--ease-out), background-color 0.2s ease, transform 0.2s var(--ease-out), box-shadow 0.2s ease;
   transform: translateZ(0);
 }
 
 .mono-card-subtle {
-  background: rgba(14, 14, 20, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(18, 18, 25, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
 }
 
 .mono-card-accent {
-  background: rgba(20, 20, 26, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(20, 20, 28, 0.85);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-top: 1px solid rgba(249, 115, 22, 0.4);
 }
 
 .mono-card-hover {
-  transition: transform 160ms var(--ease-out), border-color 160ms ease, background-color 160ms ease;
+  transition: transform 180ms var(--ease-out), border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
 }
 
 .mono-card-hover:hover {
   cursor: pointer;
-  border-color: rgba(255, 255, 255, 0.35);
-  background: rgba(15, 15, 22, 0.85);
+  border-color: rgba(249, 115, 22, 0.4);
+  background: rgba(18, 18, 25, 0.92);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 16px rgba(249, 115, 22, 0.08);
   transform: translateY(-2px);
 }
 
@@ -155,7 +159,7 @@
   letter-spacing: 0.02em;
   background: rgba(255, 255, 255, 0.06);
   color: var(--badge-text);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* BUTTONS - HIGH CRAFT & SHIMMER */
@@ -205,7 +209,7 @@
   border-radius: 9999px !important;
   background: rgba(255, 255, 255, 0.05);
   color: #f4f4f5;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   cursor: pointer;
   transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
               background-color 160ms ease,
@@ -215,7 +219,7 @@
 @media (hover: hover) and (pointer: fine) {
   .btn-secondary:hover {
     background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.25);
     transform: translateY(-1px);
   }
 }

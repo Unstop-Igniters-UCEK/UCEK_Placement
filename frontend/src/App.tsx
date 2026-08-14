@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useApp } from './context/AppContext';
 import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
 import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './pages/Dashboard';
 import { DomainRoadmap } from './pages/DomainRoadmap';
@@ -17,7 +18,7 @@ import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motio
 import Lenis from 'lenis';
 
 export function App() {
-  const { activeTab, user } = useApp();
+  const { activeTab, user, sidebarOpen } = useApp();
   const lenisRef = useRef<Lenis | null>(null);
 
   // Manual scroll progress for the top progress bar (driven by Lenis events)
@@ -81,8 +82,11 @@ export function App() {
 
       <AuthModal />
       <div className="min-h-screen bg-[var(--bg-body)] text-[var(--text-primary)] flex flex-col font-sans overflow-x-hidden relative">
-        {/* Persistent Transparent Header — hidden on admin view (sidebar handles nav) */}
-        {activeTab !== 'admin' && <Header />}
+        {/* Header shown only on Landing Page / Unauthenticated */}
+        {!user && <Header />}
+
+        {/* Static Sidebar shown for Logged-In User */}
+        {user && <Sidebar />}
 
         {/* Main Content Area */}
         {!user ? (
@@ -93,7 +97,9 @@ export function App() {
           <>
             {/* Dashboard Background ShapeGrid Layer */}
             <div
-              className="fixed inset-0 z-0 opacity-100 overflow-hidden transform-gpu pointer-events-none"
+              className={`fixed inset-0 z-0 opacity-100 overflow-hidden transform-gpu pointer-events-none transition-all duration-300 ${
+                sidebarOpen ? 'pl-0 lg:pl-64' : 'pl-0'
+              }`}
               style={{ transform: 'translateZ(0)' }}
             >
               <ShapeGrid 
@@ -108,10 +114,10 @@ export function App() {
               />
             </div>
 
-
-
-            <main className={`flex-1 w-full mx-auto relative z-10 ${
-              activeTab === 'admin' ? 'max-w-none p-0' : 'max-w-[1600px] p-4 sm:p-6 lg:p-8'
+            <main className={`flex-1 w-full relative z-10 transition-all duration-300 ${
+              sidebarOpen ? 'pl-0 lg:pl-64' : 'pl-0'
+            } ${
+              activeTab === 'admin' ? 'p-0' : 'p-4 sm:p-6 lg:p-8'
             }`}>
               <AnimatePresence mode="wait">
                 <motion.div
@@ -120,7 +126,7 @@ export function App() {
                   animate={{ opacity: 1, transform: 'translateY(0px) scale(1)' }}
                   exit={{ opacity: 0, transform: 'translateY(-4px) scale(0.992)' }}
                   transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                  className="w-full transform-gpu"
+                  className="w-full transform-gpu max-w-[1600px] mx-auto"
                 >
                   {activeTab === 'dashboard' && <Dashboard />}
                   {activeTab === 'roadmap' && <DomainRoadmap />}
@@ -140,7 +146,9 @@ export function App() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-          className="w-full backdrop-blur-md bg-black/40 border-t border-white/10 py-4 text-xs font-mono transition-all relative z-20"
+          className={`w-full backdrop-blur-md bg-black/40 border-t border-white/10 py-4 text-xs font-mono transition-all duration-300 relative z-20 ${
+            user && sidebarOpen ? 'pl-0 lg:pl-64' : 'pl-0'
+          }`}
         >
           <div className="max-w-[1600px] mx-auto px-4 sm:px-6 text-center">
             <span className="font-bold text-zinc-300 tracking-[0.2em] uppercase text-[11px] font-mono">

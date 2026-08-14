@@ -64,8 +64,7 @@ export const Dashboard: React.FC = () => {
   if (!user) {
     return (
       <div className="mono-card p-8 text-center max-w-md mx-auto space-y-6 my-20 font-sans shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/10 blur-[60px] rounded-full pointer-events-none" />
-        <div className="w-14 h-14 rounded-md bg-gradient-to-br from-orange-500/20 to-orange-500/5 border border-orange-500/30 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
+        <div className="w-14 h-14 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
           <GraduationCap className="w-7 h-7" />
         </div>
         <div className="space-y-2 relative z-10">
@@ -125,7 +124,6 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  // Hardware-accelerated Framer Motion entrance variants (Emil Kowalski audit 002)
   const itemVariants: Variants = {
     hidden: { opacity: 0, y: 12, willChange: 'transform, opacity' },
     visible: {
@@ -161,12 +159,12 @@ export const Dashboard: React.FC = () => {
                   </span>
 
                   {score >= 80 ? (
-                    <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-semibold text-emerald-400 flex items-center gap-1.5 backdrop-blur-md">
+                    <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-semibold text-emerald-400 flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                       Tier 1 Placement Ready
                     </span>
                   ) : (
-                    <span className="px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-[11px] font-semibold text-orange-400 flex items-center gap-1.5 backdrop-blur-md">
+                    <span className="px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-[11px] font-semibold text-orange-400 flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-orange-400 status-pulse-orange" />
                       Readiness In Progress
                     </span>
@@ -186,7 +184,7 @@ export const Dashboard: React.FC = () => {
 
                 {/* Target Drive Badge & Quick Action Links */}
                 <div className="pt-2 flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-zinc-950/70 border border-zinc-800/80 text-xs text-zinc-300">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/70 border border-white/12 text-xs text-zinc-300">
                     <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
                     <span>Target Drive:</span>
                     <strong className="text-white font-semibold">TCS Ninja & Digital 2026</strong>
@@ -195,14 +193,14 @@ export const Dashboard: React.FC = () => {
                   <div className="flex items-center gap-2 text-xs">
                     <button
                       onClick={() => setActiveTab('resumes')}
-                      className="px-3 py-1.5 rounded-md bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
+                      className="px-3.5 py-1.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-white/12 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
                     >
                       <FileCheck className="w-3.5 h-3.5 text-orange-400" />
                       ATS Scan
                     </button>
                     <button
                       onClick={() => setActiveTab('tests')}
-                      className="px-3 py-1.5 rounded-md bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
+                      className="px-3.5 py-1.5 rounded-lg bg-zinc-900/90 hover:bg-zinc-800 border border-white/12 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97]"
                     >
                       <Zap className="w-3.5 h-3.5 text-orange-400" />
                       Quick Test
@@ -212,13 +210,12 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* READINESS INDEX MULTI-METRIC RADIAL HUB */}
-              <div className="shrink-0 flex flex-col items-center justify-center p-5 bg-black/60 border border-white/15 rounded-lg w-full sm:w-44 space-y-3 relative">
+              <div className="shrink-0 flex flex-col items-center justify-center p-5 bg-zinc-900/60 border border-white/12 rounded-lg w-full sm:w-44 space-y-3 relative">
                 <div className="absolute top-2 right-2">
                   <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
                 </div>
                 
                 <div className="relative w-32 h-32 flex items-center justify-center">
-                  {/* Outer Glowing Ring with custom token easing curve (Emil Kowalski audit 003) */}
                   <svg className="w-full h-full transform -rotate-90 filter drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.06)" strokeWidth="8" fill="transparent" />
                     <circle
@@ -241,7 +238,7 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Sub-breakdown Mini Stats */}
-                <div className="w-full grid grid-cols-3 gap-1 pt-1 border-t border-zinc-800/80 text-[10px] text-center">
+                <div className="w-full grid grid-cols-3 gap-1 pt-1 border-t border-white/10 text-[10px] text-center">
                   <div>
                     <span className="text-zinc-400 block font-medium">Apt</span>
                     <span className="font-bold text-white">85%</span>
@@ -270,7 +267,7 @@ export const Dashboard: React.FC = () => {
               className="mono-card p-5 space-y-4 cursor-pointer mono-card-hover group relative overflow-hidden"
             >
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-md bg-orange-500/10 border border-orange-500/25 text-orange-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/25 text-orange-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <span className="mono-badge text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
@@ -289,7 +286,7 @@ export const Dashboard: React.FC = () => {
               </div>
 
               <div className="space-y-1.5 pt-1">
-                <div className="w-full bg-zinc-900/90 rounded-full h-2 overflow-hidden p-0.5 border border-zinc-800">
+                <div className="w-full bg-zinc-900/90 rounded-full h-2 overflow-hidden p-0.5 border border-white/10">
                   <div
                     className="bg-gradient-to-r from-orange-600 to-amber-500 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
                     style={{ width: `${domainPct}%` }}
@@ -306,7 +303,7 @@ export const Dashboard: React.FC = () => {
               className="mono-card p-5 space-y-4 cursor-pointer mono-card-hover group relative overflow-hidden"
             >
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-md bg-orange-500/10 border border-orange-500/25 text-orange-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/25 text-orange-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
                   <FileCheck className="w-5 h-5" />
                 </div>
                 <span className="mono-badge text-emerald-400 bg-emerald-500/10 border-emerald-500/20 font-bold">
@@ -325,7 +322,7 @@ export const Dashboard: React.FC = () => {
               </div>
 
               <div className="space-y-1.5 pt-1">
-                <div className="w-full bg-zinc-900/90 rounded-full h-2 overflow-hidden p-0.5 border border-zinc-800">
+                <div className="w-full bg-zinc-900/90 rounded-full h-2 overflow-hidden p-0.5 border border-white/10">
                   <div
                     className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(16,185,129,0.4)]"
                     style={{ width: '82%' }}
@@ -342,7 +339,7 @@ export const Dashboard: React.FC = () => {
               className="mono-card p-5 space-y-4 cursor-pointer mono-card-hover group relative overflow-hidden"
             >
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-md bg-orange-500/10 border border-orange-500/25 text-orange-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/25 text-orange-400 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
                   <CheckSquare className="w-5 h-5" />
                 </div>
                 <span className="mono-badge text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
@@ -361,7 +358,7 @@ export const Dashboard: React.FC = () => {
               </div>
 
               <div className="space-y-1.5 pt-1">
-                <div className="w-full bg-zinc-900/90 rounded-full h-2 overflow-hidden p-0.5 border border-zinc-800">
+                <div className="w-full bg-zinc-900/90 rounded-full h-2 overflow-hidden p-0.5 border border-white/10">
                   <div
                     className="bg-gradient-to-r from-orange-500 to-amber-400 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(249,115,22,0.4)]"
                     style={{ width: `${testsTaken > 0 ? (testsPassed/testsTaken)*100 : 80}%` }}
@@ -375,7 +372,7 @@ export const Dashboard: React.FC = () => {
 
           {/* RECENT MOCK DRIVE PERFORMANCES TABLE */}
           <motion.div variants={itemVariants} className="mono-card p-6 space-y-5">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <CheckSquare className="w-4 h-4 text-orange-400" />
@@ -386,7 +383,7 @@ export const Dashboard: React.FC = () => {
 
               {/* FILTER TABS & CTA INLINE ON THE RIGHT */}
               <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
-                <div className="flex items-center bg-zinc-950/80 p-1 rounded-lg border border-zinc-800/80 text-xs">
+                <div className="flex items-center bg-zinc-900/80 p-1 rounded-lg border border-white/12 text-xs">
                   {(['all', 'Company Drive', 'Aptitude', 'Technical'] as const).map(tab => (
                     <button
                       key={tab}
@@ -413,7 +410,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {filteredScores.length === 0 ? (
-              <div className="py-12 text-center space-y-3 bg-zinc-950/40 border border-zinc-800/60 rounded-lg">
+              <div className="py-12 text-center space-y-3 bg-zinc-900/40 border border-white/10 rounded-lg">
                 <Activity className="w-9 h-9 text-zinc-600 mx-auto" />
                 <p className="text-xs font-semibold text-zinc-400">No mock test sessions found for this filter.</p>
                 <button
@@ -424,10 +421,10 @@ export const Dashboard: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto border border-zinc-800/80 rounded-lg bg-zinc-950/70 shadow-inner">
+              <div className="overflow-x-auto border border-white/12 rounded-lg bg-zinc-950/80 shadow-inner">
                 <table className="w-full text-left border-collapse font-sans">
                   <thead>
-                    <tr className="bg-zinc-900/90 border-b border-zinc-800/80 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                    <tr className="bg-zinc-900/90 border-b border-white/10 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
                       <th className="p-4 pl-5">Drive Title</th>
                       <th className="p-4">Category</th>
                       <th className="p-4">Score</th>
@@ -436,11 +433,11 @@ export const Dashboard: React.FC = () => {
                       <th className="p-4 pr-5 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-800/60 text-xs text-white">
+                  <tbody className="divide-y divide-white/10 text-xs text-white">
                     {filteredScores.map(res => (
-                      <tr key={res.id} className="hover:bg-zinc-900/50 transition-colors group">
+                      <tr key={res.id} className="hover:bg-zinc-900/60 transition-colors group">
                         <td className="p-4 pl-5 font-bold text-white flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-md bg-zinc-900 border border-zinc-800 text-orange-400 flex items-center justify-center shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-white/10 text-orange-400 flex items-center justify-center shrink-0">
                             <Briefcase className="w-4 h-4" />
                           </div>
                           <div>
@@ -458,7 +455,7 @@ export const Dashboard: React.FC = () => {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-16 bg-zinc-900 rounded-full h-1.5 overflow-hidden border border-zinc-800">
+                            <div className="w-16 bg-zinc-900 rounded-full h-1.5 overflow-hidden border border-white/10">
                               <div
                                 className="bg-orange-500 h-full rounded-full"
                                 style={{ width: `${res.accuracy}%` }}
@@ -481,7 +478,7 @@ export const Dashboard: React.FC = () => {
                         <td className="p-4 pr-5 text-right">
                           <button
                             onClick={() => setActiveTab('tests')}
-                            className="px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-medium text-zinc-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 active:scale-[0.97]"
+                            className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-white/12 text-[11px] font-medium text-zinc-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 active:scale-[0.97]"
                           >
                             Review
                             <ChevronRight className="w-3 h-3" />
@@ -505,9 +502,9 @@ export const Dashboard: React.FC = () => {
             <div className="space-y-6 relative z-10">
               
               {/* Voice Engine Header */}
-              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-md bg-orange-500/15 border border-orange-500/30 text-orange-400 flex items-center justify-center shadow-inner">
+                  <div className="w-9 h-9 rounded-lg bg-orange-500/15 border border-orange-500/30 text-orange-400 flex items-center justify-center shadow-inner">
                     <Mic className="w-4.5 h-4.5" />
                   </div>
                   <div>
@@ -517,7 +514,7 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Animated Waveform Visualizer (Hardware-accelerated scaleY) */}
-                <div className="flex items-end gap-1 h-6 px-2 py-1 bg-zinc-950/80 rounded-md border border-zinc-800">
+                <div className="flex items-end gap-1 h-6 px-2 py-1 bg-zinc-900/90 rounded-lg border border-white/12">
                   <span className="w-1 bg-orange-500 rounded-full animate-wave-1" />
                   <span className="w-1 bg-orange-400 rounded-full animate-wave-2" />
                   <span className="w-1 bg-amber-400 rounded-full animate-wave-3" />
@@ -531,7 +528,7 @@ export const Dashboard: React.FC = () => {
 
               {/* LIVE ANALYTICS METRICS 2x2 GRID */}
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3.5 rounded-md bg-zinc-950/80 border border-zinc-800/90 space-y-1 shadow-sm">
+                <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-white/10 space-y-1 hover:border-white/20 transition-all">
                   <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Speech Pace</span>
                   <div className="flex items-baseline justify-between">
                     <span className="font-extrabold text-white text-base">{speechAnalytics.wpm}</span>
@@ -542,7 +539,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-md bg-zinc-950/80 border border-zinc-800/90 space-y-1 shadow-sm">
+                <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-white/10 space-y-1 hover:border-white/20 transition-all">
                   <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Confidence</span>
                   <div className="flex items-baseline justify-between">
                     <span className="font-extrabold text-emerald-400 text-base">{speechAnalytics.confidenceScore}%</span>
@@ -553,13 +550,13 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-md bg-zinc-950/80 border border-zinc-800/90 space-y-1 shadow-sm">
+                <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-white/10 space-y-1 hover:border-white/20 transition-all">
                   <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">STAR Alignment</span>
                   <span className="font-bold text-orange-400 text-sm block">{speechAnalytics.starFramework}</span>
                   <span className="text-[10px] text-zinc-400 block">Situation & Action Detected</span>
                 </div>
 
-                <div className="p-3.5 rounded-md bg-zinc-950/80 border border-zinc-800/90 space-y-1 shadow-sm">
+                <div className="p-3.5 rounded-lg bg-zinc-900/60 border border-white/10 space-y-1 hover:border-white/20 transition-all">
                   <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Filler Count</span>
                   <span className="font-bold text-zinc-200 text-sm block">{speechAnalytics.fillerCount}</span>
                   <span className="text-[10px] text-emerald-400 block font-medium">Optimal Clarity</span>
@@ -576,7 +573,7 @@ export const Dashboard: React.FC = () => {
                   {speechAnalytics.featuredPrompts.map((promptText, idx) => (
                     <div
                       key={idx}
-                      className="p-3.5 rounded-md bg-zinc-950/60 border border-zinc-800/70 text-zinc-200 hover:border-orange-500/40 transition-all cursor-pointer group flex items-start gap-2.5 active:scale-[0.98]"
+                      className="p-3.5 rounded-lg bg-zinc-900/60 border border-white/10 text-zinc-200 hover:border-orange-500/40 transition-all cursor-pointer group flex items-start gap-2.5 active:scale-[0.98]"
                     >
                       <div className="w-5 h-5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
                         <Play className="w-2.5 h-2.5 fill-orange-400" />
@@ -592,7 +589,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* LAUNCH SPEECH SIMULATOR ACTION BUTTON */}
-            <div className="pt-4 border-t border-zinc-800/80 relative z-10">
+            <div className="pt-4 border-t border-white/10 relative z-10">
               <button
                 onClick={() => setActiveTab('interview')}
                 className="btn-primary w-full py-3.5 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"

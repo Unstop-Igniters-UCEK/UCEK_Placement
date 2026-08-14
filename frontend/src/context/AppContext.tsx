@@ -29,6 +29,9 @@ interface AppContextType {
   user: User | null;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+  toggleSidebar: () => void;
   authModalOpen: boolean;
   setAuthModalOpen: (open: boolean) => void;
   authModalMode: 'login' | 'signup' | 'forgot';
@@ -70,6 +73,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [user, setUser] = useState<User | null>(null); // Default to unauthenticated for landing page first load
   const [allUsers, setAllUsers] = useState<User[]>(DEMO_USERS);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const toggleSidebar = () => setSidebarOpen(prev => !prev);
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot'>('login');
 
@@ -363,6 +368,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         user,
         activeTab,
         setActiveTab,
+        sidebarOpen,
+        setSidebarOpen,
+        toggleSidebar,
         authModalOpen,
         setAuthModalOpen,
         authModalMode,
