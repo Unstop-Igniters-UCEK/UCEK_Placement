@@ -258,7 +258,7 @@ export const HRInterviewSimulator: React.FC = () => {
                 {isRecording
                   ? 'Recording audio… Speak your answer clearly'
                   : analyzing
-                    ? 'Sending to Gemini AI for speech & STAR evaluation…'
+                    ? 'Evaluating... Please Wait'
                     : 'Click start to practice your response'}
               </div>
             </div>
@@ -302,7 +302,7 @@ export const HRInterviewSimulator: React.FC = () => {
           {/* QUESTION SELECTOR */}
           <div className="space-y-3 pt-1">
             <h4 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">Select Question Prompt</h4>
-            <div className="space-y-2.5 max-h-52 overflow-y-auto no-scrollbar pr-1">
+            <div className="space-y-2.5 max-h-64 sm:max-h-72 overflow-y-auto custom-scrollbar pr-2 pb-3">
               {filteredQuestions.map(q => (
                 <div
                   key={q.id}
@@ -328,7 +328,7 @@ export const HRInterviewSimulator: React.FC = () => {
           {analyzing ? (
             <div className="py-24 text-center space-y-3">
               <Loader2 className="w-10 h-10 text-orange-400 mx-auto animate-spin" />
-              <p className="text-xs font-semibold text-zinc-400 font-mono">Evaluating Your Speech & Fluency… Please Wait!</p>
+              <p className="text-xs font-semibold text-zinc-400 font-mono">Evaluating... Please Wait</p>
             </div>
           ) : !feedback ? (
             <div className="py-24 text-center space-y-3">
@@ -342,7 +342,7 @@ export const HRInterviewSimulator: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-3 bg-[#000000] border border-white/10 p-4 rounded-2xl font-mono text-center shadow-inner">
+              <div className="grid grid-cols-2 gap-3 bg-[#000000] border border-white/10 p-4 rounded-2xl font-mono text-center shadow-inner">
                 <div>
                   <span className="text-[10px] text-zinc-400 uppercase tracking-wider block">Fluency Rating</span>
                   <span className="text-2xl font-extrabold text-white">{feedback.overallRating} <span className="text-xs text-zinc-500 font-normal">/ 10</span></span>
@@ -350,10 +350,6 @@ export const HRInterviewSimulator: React.FC = () => {
                 <div>
                   <span className="text-[10px] text-zinc-400 uppercase tracking-wider block">Pace (WPM)</span>
                   <span className="text-2xl font-extrabold text-cyan-400">{feedback.wpm}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block">Confidence</span>
-                  <span className="text-2xl font-extrabold text-emerald-400">{feedback.confidenceScore}%</span>
                 </div>
               </div>
 
