@@ -37,8 +37,8 @@ export const Mentorship: React.FC = () => {
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="p-8 sm:p-14 text-center relative overflow-hidden rounded-3xl border border-white/20 bg-black/40 backdrop-blur-md shadow-2xl space-y-6"
         >
-          {/* SEMI HEADING / EYEBROW BADGE */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs sm:text-sm font-extrabold uppercase tracking-widest font-heading drop-shadow-sm">
+          {/* SEMI HEADING / EYEBROW BADGE (TITLE CASE "Coming Soon!") */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs sm:text-sm font-extrabold normal-case font-heading drop-shadow-sm">
             <Sparkles className="w-4 h-4 text-orange-400" />
             <span>Coming Soon!</span>
           </div>
