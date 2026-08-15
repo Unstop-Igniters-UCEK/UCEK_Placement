@@ -1,48 +1,77 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { motion } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Sparkles } from 'lucide-react';
+import GradientBlinds from '../components/GradientBlinds';
 
 export const Mentorship: React.FC = () => {
   const { setActiveTab } = useApp();
 
   return (
-    <div className="min-h-[65vh] flex items-center justify-center p-4 font-sans max-w-4xl mx-auto transform-gpu">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="mono-card p-10 sm:p-14 text-center relative overflow-hidden w-full space-y-6"
-      >
-        {/* SUBTLE ORANGE GLOW BACKDROP */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-orange-500/15 blur-[110px] rounded-full pointer-events-none" />
+    <div className="min-h-[85vh] flex items-center justify-center py-6 px-2 sm:px-4 font-sans max-w-4xl mx-auto transform-gpu relative">
+      {/* FULL-SCREEN GRADIENT BLINDS WEBGL BACKGROUND (ALL ORANGE) */}
+      <div className="fixed inset-0 z-0 opacity-70 pointer-events-none overflow-hidden">
+        <GradientBlinds
+          gradientColors={['#F97316', '#EA580C', '#FF8C00']}
+          color1="#F97316"
+          color2="#F97316"
+          angle={20}
+          noise={0.5}
+          blindCount={16}
+          blindMinWidth={60}
+          spotlightRadius={0.5}
+          spotlightSoftness={1}
+          spotlightOpacity={1}
+          mouseDampening={0.15}
+          distortAmount={0}
+          shineDirection="left"
+          mixBlendMode="lighten"
+        />
+      </div>
 
-        <div className="relative z-10 space-y-6">
-          {/* STATIC HEADER TEXT */}
-          <div className="overflow-visible">
-            <h1 
-              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-normal pb-2 pt-1 px-2 text-orange-400 inline-block drop-shadow-sm whitespace-nowrap"
-              style={{ fontFamily: "'Syne', -apple-system, sans-serif" }}
-            >
-              Coming Soon!
-            </h1>
+      {/* SINGLE TRANSPARENT GLASSMORPHIC HERO CARD */}
+      <div className="relative z-10 w-full">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="p-8 sm:p-14 text-center relative overflow-hidden rounded-3xl border border-white/20 bg-black/40 backdrop-blur-md shadow-2xl space-y-6"
+        >
+          {/* SEMI HEADING / EYEBROW BADGE */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs sm:text-sm font-extrabold uppercase tracking-widest font-heading drop-shadow-sm">
+            <Sparkles className="w-4 h-4 text-orange-400" />
+            <span>Coming Soon!</span>
           </div>
 
-          <p className="text-sm sm:text-base text-zinc-400 max-w-lg mx-auto leading-relaxed font-sans">
-            Our 1-on-1 alumni mentorship matching platform is currently under active development. You'll soon be able to connect directly with senior UCEK alumni working at top tech companies.
-          </p>
+          {/* HEADING WITH YELLOW/ORANGE GRADIENT ON MENTORSHIP */}
+          <div className="space-y-3">
+            <h1
+              className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-tight font-heading drop-shadow-md"
+              style={{ fontFamily: "'Syne', -apple-system, sans-serif" }}
+            >
+              1-on-1 Alumni <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500 drop-shadow-sm">
+                Mentorship
+              </span>{' '}
+              Portal
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-200 leading-relaxed max-w-xl mx-auto font-sans drop-shadow-sm">
+              Our 1-on-1 alumni mentorship matching platform is currently under active development. You'll soon be able to connect directly with senior UCEK alumni working at top tech companies.
+            </p>
+          </div>
 
-          <div className="pt-2">
+          {/* ACTION BUTTON (WHITE PILL BUTTON) */}
+          <div className="flex items-center justify-center pt-2">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className="btn-primary py-3 px-8 text-xs font-bold rounded-full inline-flex items-center gap-2 cursor-pointer shadow-md hover:scale-105 transition-transform"
+              className="py-3 px-8 rounded-full bg-white hover:bg-zinc-100 text-xs font-extrabold text-black transition-all cursor-pointer inline-flex items-center gap-2 active:scale-[0.98] shadow-xl hover:scale-105"
             >
               <ArrowLeft className="w-4 h-4 text-black" />
               <span>Return to Dashboard</span>
             </button>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 };
