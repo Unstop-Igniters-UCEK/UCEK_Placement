@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File
 from backend.auth import get_current_user
 from backend.database import db
 from backend.schemas import (
@@ -9,10 +9,22 @@ from backend.schemas import (
 )
 from backend.ai import (
     analyze_resume_with_gemini, match_jd_with_gemini,
-    enhance_bullet_with_gemini, analyze_interview_with_gemini
+    enhance_bullet_with_gemini, analyze_interview_with_gemini,
+    extract_text_from_pdf_bytes
 )
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
+
+@router.post("/parse-pdf")
+async def parse_pdf(file: UploadFile = File(...)):
+    """Extract clean plain text from uploaded PDF file."""
+    try:
+        contents = await file.read()
+        extracted_text = extract_text_from_pdf_bytes(contents)
+        return {"text": extracted_text, "filename": file.filename}
+    except Exception as e:
+        print("[Parse PDF error]:", e)
+        return {"text": "", "error": str(e)}
 
 @router.post("/review-resume")
 def review_resume(req: ReviewResumeRequest, current_user: dict = Depends(get_current_user)):

@@ -84,8 +84,8 @@ class ReviewResumeRequest(BaseModel):
     jobRole: Optional[str] = "Software Engineer"
 
 class MatchJDRequest(BaseModel):
-    jobTitle: str
-    company: str
+    jobTitle: Optional[str] = "Software Engineer"
+    company: Optional[str] = "Target Employer"
     jdText: str
     resumeText: str
 

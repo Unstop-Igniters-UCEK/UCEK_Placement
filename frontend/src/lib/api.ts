@@ -332,3 +332,94 @@ export async function getHRQuestionsApi(companyTag: string = 'all'): Promise<Arr
   }
 }
 
+/**
+ * Perform AI ATS Resume Review using the Gemini backend.
+ */
+export async function reviewResumeApi(payload: {
+  resumeText: string;
+  jobRole?: string;
+}) {
+  const res = await fetch(`${BASE_URL}/api/ai/review-resume`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to review resume (${res.status})`));
+  }
+
+  const data = await res.json();
+  return data.review;
+}
+
+/**
+ * Match a candidate resume against a Job Description (JD) using Gemini AI.
+ */
+export async function matchJDApi(payload: {
+  jobTitle?: string;
+  company?: string;
+  jdText: string;
+  resumeText: string;
+}) {
+  const res = await fetch(`${BASE_URL}/api/ai/match-jd`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to match JD (${res.status})`));
+  }
+
+  const data = await res.json();
+  return data.match;
+}
+
+/**
+ * Enhance a resume bullet point using the STAR method via Gemini AI.
+ */
+export async function enhanceBulletApi(payload: {
+  bulletText: string;
+  targetRole?: string;
+}) {
+  const res = await fetch(`${BASE_URL}/api/ai/enhance-bullet`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to enhance bullet (${res.status})`));
+  }
+
+  return await res.json();
+}
+
+/**
+ * Parse an uploaded PDF file and return clean plain text from FastAPI backend.
+ */
+export async function parsePdfApi(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const token = localStorage.getItem('ucek_access_token');
+  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const res = await fetch(`${BASE_URL}/api/ai/parse-pdf`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to parse PDF (${res.status})`);
+  }
+
+  const data = await res.json();
+  return data.text || '';
+}
+

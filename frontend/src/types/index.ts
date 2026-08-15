@@ -187,12 +187,17 @@ export interface ResumeReviewResult {
   overallScore: number;
   atsScore: number;
   impactScore: number;
+  formattingScore?: number;
+  summary?: string;
+  strengths?: string[];
   missingKeywords: string[];
   bulletImprovements: {
     category: string;
     issue: string;
     original: string;
+    originalBullet?: string;
     revised: string;
+    revisedBullet?: string;
     suggestion: string;
   }[];
 }
@@ -202,7 +207,8 @@ export interface JDMatchResult {
   interviewChance: number;
   matchingSkills: string[];
   missingSkills: string[];
-  missingKeywords: string[];
-  suggestions: string[];
+  missingKeywords?: string[];
+  suggestions?: string[];
   tailoredBullets: string[];
+  summary?: string;
 }

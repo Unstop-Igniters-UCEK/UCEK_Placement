@@ -47,6 +47,8 @@ interface AppContextType {
   mockTests: MockTest[];
   recentScores: TestResult[];
   mentorshipPair: MentorshipPair | null;
+  selectedTargetDrive: string;
+  setSelectedTargetDrive: (driveLabel: string) => void;
   interviewQuestions: InterviewQuestion[];
   mentors: SeniorMentor[];
   resumeData: ResumeData;
@@ -78,6 +80,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toggleSidebar = () => setSidebarOpen(prev => !prev);
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot'>('login');
+
+  const [selectedTargetDrive, setSelectedTargetDriveState] = useState<string>(() => {
+    return localStorage.getItem('ucek_selected_target_drive') || 'TCS Ninja & Digital 2026';
+  });
+
+  const setSelectedTargetDrive = (driveLabel: string) => {
+    setSelectedTargetDriveState(driveLabel);
+    localStorage.setItem('ucek_selected_target_drive', driveLabel);
+  };
 
   // Fixed Dark Theme System (Light mode removed entirely per user directive)
   const [theme] = useState<Theme>('dark');
@@ -406,6 +417,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         mockTests,
         recentScores,
         mentorshipPair,
+        selectedTargetDrive,
+        setSelectedTargetDrive,
         interviewQuestions,
         mentors,
         resumeData,

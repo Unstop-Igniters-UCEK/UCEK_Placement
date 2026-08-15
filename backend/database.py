@@ -260,7 +260,10 @@ class Database:
                         })
                     print(f"[Supabase] Loaded {len(self.resumes)} resumes directly from Supabase resumes table.")
             except Exception as e:
-                print("[Supabase resumes table load notice]:", e)
+                if "PGRST205" in str(e) or "resumes" in str(e):
+                    print("[Supabase] Resumes table optional or in-memory fallback active.")
+                else:
+                    print("[Supabase resumes table load notice]:", e)
 
             # 8. Sync directly from Supabase relational hr_practice_questions table
             try:
@@ -328,7 +331,7 @@ class Database:
 
             try:
                 for u in self.users:
-                    supabase_client.table("users").upsert({
+                    user_payload = {
                         "id": str(u.get("id")),
                         "name": str(u.get("name", "")),
                         "email": str(u.get("email", "")),
@@ -344,7 +347,15 @@ class Database:
                         "linkedin_url": u.get("linkedInUrl") or u.get("linkedin_url"),
                         "github_url": u.get("githubUrl") or u.get("github_url"),
                         "created_at": u.get("createdAt") or datetime.now().isoformat()
-                    }, on_conflict="email").execute()
+                    }
+                    try:
+                        supabase_client.table("users").upsert(user_payload, on_conflict="email").execute()
+                    except Exception as err:
+                        if "has_selected_domain" in str(err) or "PGRST204" in str(err):
+                            user_payload.pop("has_selected_domain", None)
+                            supabase_client.table("users").upsert(user_payload, on_conflict="email").execute()
+                        else:
+                            raise err
             except Exception as e:
                 print("[Supabase users table save notice]:", e)
 

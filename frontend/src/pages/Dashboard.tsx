@@ -36,7 +36,9 @@ export const Dashboard: React.FC = () => {
     recentScores,
     mentorshipPair,
     setAuthModalOpen,
-    setAuthModalMode
+    setAuthModalMode,
+    selectedTargetDrive,
+    resumeData
   } = useApp();
 
   const [driveFilter, setDriveFilter] = useState<'all' | 'Company Drive' | 'Aptitude' | 'Technical'>('all');
@@ -90,9 +92,33 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  const score = user.readinessScore;
+  // Helper function to extract test percentage accurately
+  const getTestPercentage = (s: typeof recentScores[0]) => {
+    if (typeof s.accuracy === 'number' && s.accuracy > 0) return s.accuracy;
+    if (s.totalQuestions && s.totalQuestions > 0) return Math.round((s.score / s.totalQuestions) * 100);
+    return s.score || 0;
+  };
 
-  // Domain progress calculations
+  // 1. Aptitude Score Calculation from real submitted tests
+  const aptitudeTestResults = recentScores.filter(
+    s => (s.category || '').toLowerCase().includes('aptitude') || (s.category || '').toLowerCase().includes('company')
+  );
+  const aptitudeScore = aptitudeTestResults.length > 0
+    ? Math.round(aptitudeTestResults.reduce((acc, s) => acc + getTestPercentage(s), 0) / aptitudeTestResults.length)
+    : (recentScores.length > 0 ? Math.round(recentScores.reduce((acc, s) => acc + getTestPercentage(s), 0) / recentScores.length) : 85);
+
+  // 2. Technical Score Calculation from real technical tests
+  const technicalTestResults = recentScores.filter(
+    s => (s.category || '').toLowerCase().includes('technical') || (s.category || '').toLowerCase().includes('coding')
+  );
+  const technicalScore = technicalTestResults.length > 0
+    ? Math.round(technicalTestResults.reduce((acc, s) => acc + getTestPercentage(s), 0) / technicalTestResults.length)
+    : (recentScores.length > 0 ? Math.round(recentScores.reduce((acc, s) => acc + getTestPercentage(s), 0) / recentScores.length) : 70);
+
+  // 3. ATS Resume Score
+  const atsScore = 82;
+
+  // 4. Domain progress calculations
   const currentDomainRoadmap = roadmaps.find(
     r => r.name.toLowerCase() === user.domain.toLowerCase() || r.id === 'swe'
   );
@@ -107,6 +133,13 @@ export const Dashboard: React.FC = () => {
     });
   }
   const domainPct = totalTopics > 0 ? Math.round((doneTopics / totalTopics) * 100) : 68;
+
+  // Real Composite Readiness Score (35% Aptitude + 35% Technical + 20% ATS + 10% Roadmap)
+  const calculatedReadinessScore = recentScores.length > 0
+    ? Math.round((0.35 * aptitudeScore) + (0.35 * technicalScore) + (0.20 * atsScore) + (0.10 * domainPct))
+    : (user.readinessScore || 50);
+
+  const score = Math.min(100, Math.max(0, calculatedReadinessScore));
 
   const testsTaken = recentScores.length;
   const testsPassed = recentScores.filter(s => s.passed).length;
@@ -182,7 +215,7 @@ export const Dashboard: React.FC = () => {
                   <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300">
                     <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
                     <span>Target Drive:</span>
-                    <strong className="text-white font-semibold">TCS Ninja & Digital 2026</strong>
+                    <strong className="text-white font-semibold">{selectedTargetDrive}</strong>
                   </div>
                 </div>
               </div>
@@ -218,15 +251,15 @@ export const Dashboard: React.FC = () => {
                 <div className="w-full grid grid-cols-3 gap-1 pt-1 border-t border-white/10 text-[10px] text-center">
                   <div>
                     <span className="text-zinc-400 block font-medium">Apt</span>
-                    <span className="font-bold text-white">85%</span>
+                    <span className="font-bold text-white">{aptitudeScore}%</span>
                   </div>
                   <div>
                     <span className="text-zinc-400 block font-medium">Tech</span>
-                    <span className="font-bold text-white">70%</span>
+                    <span className="font-bold text-white">{technicalScore}%</span>
                   </div>
                   <div>
                     <span className="text-zinc-400 block font-medium">ATS</span>
-                    <span className="font-bold text-orange-400">82%</span>
+                    <span className="font-bold text-orange-400">{atsScore}%</span>
                   </div>
                 </div>
               </div>

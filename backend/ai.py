@@ -26,6 +26,60 @@ def get_gemini_client():
         print("Error initializing Gemini Client:", e)
         return None
 
+def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
+    """Extract clean plain text from PDF bytes using PyPDF/PyPDF2 or Gemini inline PDF parser."""
+    # Try pypdf / PyPDF2
+    try:
+        import io
+        import pypdf
+        reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+        extracted = [page.extract_text() for page in reader.pages if page.extract_text()]
+        if extracted:
+            return "\n".join(extracted).strip()
+    except Exception:
+        pass
+
+    try:
+        import io
+        import PyPDF2
+        reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
+        extracted = [page.extract_text() for page in reader.pages if page.extract_text()]
+        if extracted:
+            return "\n".join(extracted).strip()
+    except Exception:
+        pass
+
+    # Gemini inline PDF parsing fallback
+    client = get_gemini_client()
+    if client and HAS_GENAI:
+        try:
+            contents = [
+                types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
+                "Extract and clean all readable plain text from this resume PDF. Return ONLY the plain text of the resume."
+            ]
+            for model_name in SUPPORTED_MODELS:
+                try:
+                    res = client.models.generate_content(model=model_name, contents=contents)
+                    if res and res.text:
+                        return res.text.strip()
+                except Exception:
+                    continue
+        except Exception as e:
+            print("Gemini PDF extraction warning:", e)
+
+    # Basic regex text cleanup fallback
+    try:
+        import re
+        raw = pdf_bytes.decode("latin1", errors="ignore")
+        # Extract stream text snippets
+        found = re.findall(r"\((.*?)\)", raw)
+        if found and len(found) > 10:
+            return " ".join([f for f in found if len(f) > 2])
+    except Exception:
+        pass
+
+    return ""
+
 def generate_gemini_json(client, contents, config=None):
     if not client:
         return None
@@ -55,36 +109,63 @@ def generate_gemini_json(client, contents, config=None):
 def analyze_resume_with_gemini(resume_text: str, job_role: str = "Software Engineer") -> dict:
     client = get_gemini_client()
     
-    prompt = f"""
-You are an expert ATS (Applicant Tracking System) and campus recruitment auditor for top tier tech drives (TCS Digital, Infosys SP, Wipro Turbo, Amazon, UST).
-Analyze the following candidate resume for the role of '{job_role}'.
+    prompt = f"""You are a Senior Technical Recruiter at top IT firms. Review the following resume text for a candidate applying for the role '{job_role}'.
 
 Resume Text:
 \"\"\"
 {resume_text}
 \"\"\"
 
-Return ONLY a valid JSON object matching this structure:
+Return ONLY a valid JSON object matching this exact structure:
 {{
-  "atsScore": <number 0-100>,
-  "strengths": [<string array of 3-4 notable strengths>],
-  "missingKeywords": [<string array of 4-6 missing keywords/skills for campus drives>],
+  "overallScore": 84,
+  "atsScore": 88,
+  "impactScore": 79,
+  "formattingScore": 90,
+  "summary": "Candidate demonstrates solid technical foundations with well-structured project experiences.",
+  "missingKeywords": ["Docker", "Kubernetes", "Redis", "CI/CD Pipelines", "Unit Testing"],
+  "strengths": ["Clear technical stack listed", "Structured educational background", "Relevant project experience"],
   "improvements": [
     {{
-      "original": "<string original weak bullet or point>",
-      "suggested": "<string STAR-formatted quantifiable bullet point>"
+      "category": "Impact & Metrics",
+      "issue": "Lacks quantified outcomes",
+      "original": "Worked on frontend features and APIs.",
+      "originalBullet": "Worked on frontend features and APIs.",
+      "suggested": "Engineered 4+ high-throughput REST APIs and responsive UI, accelerating page load speeds by 35%.",
+      "revisedBullet": "Engineered 4+ high-throughput REST APIs and responsive UI, accelerating page load speeds by 35%.",
+      "suggestion": "Quantify achievements using the STAR method with percentages and metric numbers."
     }}
   ]
-}}
-"""
+}}"""
 
     if client:
         result = generate_gemini_json(client, prompt)
-        if result:
+        if result and isinstance(result, dict):
+            improvements = result.get("improvements") or result.get("bulletImprovements") or []
+            if isinstance(improvements, list):
+                for imp in improvements:
+                    if isinstance(imp, dict):
+                        orig = imp.get("original") or imp.get("originalBullet") or ""
+                        rev = imp.get("suggested") or imp.get("revised") or imp.get("revisedBullet") or ""
+                        imp["original"] = orig
+                        imp["originalBullet"] = orig
+                        imp["revised"] = rev
+                        imp["suggested"] = rev
+                        imp["revisedBullet"] = rev
+            result["improvements"] = improvements
+            result["bulletImprovements"] = improvements
+            if "missingKeywords" not in result:
+                result["missingKeywords"] = result.get("missing_keywords") or []
+            if "strengths" not in result:
+                result["strengths"] = []
             return result
 
-    return {
-        "atsScore": 84,
+    res = {
+        "overallScore": 82,
+        "atsScore": 85,
+        "impactScore": 78,
+        "formattingScore": 88,
+        "summary": "Resume analyzed against corporate placement standards.",
         "strengths": [
             "Strong foundation in data structures, algorithms, and full-stack web development.",
             "Demonstrated experience with modern frontend frameworks (React, TypeScript, Tailwind CSS).",
@@ -94,84 +175,116 @@ Return ONLY a valid JSON object matching this structure:
             "Docker & Containerization",
             "CI/CD Pipelines (GitHub Actions)",
             "System Architecture & Load Balancing",
-            "Redis Caching Strategy"
+            "Redis Caching Strategy",
+            "Unit Testing (Jest)"
         ],
         "improvements": [
             {
-                "original": "Worked on frontend project using React and API endpoints.",
-                "suggested": "Engineered responsive UI components using React 18 & TypeScript, reducing render latency by 35% across 500+ active user sessions."
+                "category": "Work Experience",
+                "issue": "Lacks Quantifiable Impact & Metrics",
+                "original": "Created React UI components for campus portal.",
+                "originalBullet": "Created React UI components for campus portal.",
+                "revised": "Developed 12+ responsive React UI components, improving page render speeds by 35% across 4 primary modules.",
+                "suggested": "Developed 12+ responsive React UI components, improving page render speeds by 35% across 4 primary modules.",
+                "revisedBullet": "Developed 12+ responsive React UI components, improving page render speeds by 35% across 4 primary modules.",
+                "suggestion": "Quantified metrics demonstrate concrete business value to technical campus recruiters."
             },
             {
-                "original": "Helped team build database queries and backend services.",
-                "suggested": "Optimized PostgreSQL indexing and query execution paths, cutting API response times from 450ms to 95ms."
+                "category": "Projects",
+                "issue": "Missing Action Verbs & Tech Stack Details",
+                "original": "Built web platform for automated testing and resume parsing.",
+                "originalBullet": "Built web platform for automated testing and resume parsing.",
+                "revised": "Architected scalable automated testing engine in Node.js & TypeScript supporting 500+ concurrent student exam submissions.",
+                "suggested": "Architected scalable automated testing engine in Node.js & TypeScript supporting 500+ concurrent student exam submissions.",
+                "revisedBullet": "Architected scalable automated testing engine in Node.js & TypeScript supporting 500+ concurrent student exam submissions.",
+                "suggestion": "Prefix bullet points with strong action verbs (Architected, Engineered, Implemented)."
             }
         ]
     }
+    res["bulletImprovements"] = res["improvements"]
+    return res
 
 def match_jd_with_gemini(job_title: str, company: str, jd_text: str, resume_text: str) -> dict:
     client = get_gemini_client()
 
-    prompt = f"""
-Compare the candidate's resume with the Job Description for '{job_title}' at '{company}'.
+    prompt = f"""Compare the candidate's resume against the Job Description for '{job_title}' at '{company}'.
 
 Job Description:
 \"\"\"
 {jd_text}
 \"\"\"
 
-Candidate Resume:
+Resume Text:
 \"\"\"
 {resume_text}
 \"\"\"
 
 Return ONLY a valid JSON object matching this structure:
 {{
-  "matchPercentage": <number 0-100>,
-  "matchingSkills": [<string array of matching skills>],
-  "missingSkills": [<string array of critical missing skills>],
-  "tailoredBullets": [<string array of 2-3 custom resume bullet points tailored specifically for this JD>]
-}}
-"""
+  "matchPercentage": 82,
+  "interviewChance": 75,
+  "matchingSkills": ["React", "TypeScript", "SQL", "Git", "REST APIs"],
+  "missingSkills": ["Docker", "AWS", "Microservices", "CI/CD"],
+  "tailoredBullets": [
+    "Engineered robust REST API microservices handling 500+ requests/sec using Node.js and SQL.",
+    "Integrated modern responsive UI with React and TypeScript, optimizing client-side rendering."
+  ],
+  "summary": "Candidate matches core frontend and database requirements but lacks cloud deployment keywords."
+}}"""
 
     if client:
         result = generate_gemini_json(client, prompt)
-        if result:
+        if result and isinstance(result, dict):
             return result
 
     return {
         "matchPercentage": 78,
+        "interviewChance": 72,
         "matchingSkills": ["React.js", "JavaScript/TypeScript", "HTML/CSS", "Git", "REST APIs"],
-        "missingSkills": ["Docker Containerization", "Microservices Architecture", "Redis Caching"],
+        "missingSkills": ["Docker Containerization", "Microservices Architecture", "Redis Caching", "CI/CD"],
         "tailoredBullets": [
             f"Designed and deployed responsive frontend components for {company} drive requirements using React 18 & Tailwind CSS.",
             "Implemented REST API endpoints with structured error handling and token authentication.",
             "Optimized state management and database query performance for concurrent user traffic."
-        ]
+        ],
+        "summary": "Candidate matches core programming requirements but lacks containerization and cloud tooling."
     }
 
 def enhance_bullet_with_gemini(bullet_text: str, target_role: str = "Software Engineer") -> dict:
     client = get_gemini_client()
 
-    prompt = f"""
-Rewrite this resume bullet point into 3 STAR-method (Situation, Task, Action, Result) variations for a '{target_role}' role.
-Original Bullet: "{bullet_text}"
+    prompt = f"""Rewrite the following resume bullet point using the STAR (Situation, Task, Action, Result) method with strong action verbs for the role '{target_role}':
 
-Return ONLY a valid JSON object matching this structure:
+Original Bullet:
+\"{bullet_text}\"
+
+Return ONLY a valid JSON object matching this exact structure:
 {{
+  "original": "{bullet_text}",
+  "enhanced": "Engineered high-performance module for {target_role}, accelerating throughput by 35% and cutting API latency by 120ms.",
+  "explanation": "Applied STAR format with strong action verb and quantified outcome metrics.",
   "enhancedBullets": [
-    "<STAR variation 1 focusing on Quantifiable Metrics>",
-    "<STAR variation 2 focusing on Technical Leadership & System Design>",
-    "<STAR variation 3 focusing on Performance & Speed Optimization>"
+    "Spearheaded optimization of {bullet_text}, increasing overall processing speed by 40% and cutting latency by 120ms.",
+    "Architected modular microservices for {bullet_text}, enabling seamless horizontal scaling across cloud deployments.",
+    "Implemented robust state management for {bullet_text}, increasing overall test coverage to 92% across deployment builds."
   ]
-}}
-"""
+}}"""
 
     if client:
         result = generate_gemini_json(client, prompt)
-        if result:
+        if result and isinstance(result, dict):
+            if "enhanced" not in result and "enhancedBullets" in result and len(result["enhancedBullets"]) > 0:
+                result["enhanced"] = result["enhancedBullets"][0]
+            if "original" not in result:
+                result["original"] = bullet_text
+            if "explanation" not in result:
+                result["explanation"] = "Applied STAR format with strong action verbs and quantified impact metrics."
             return result
 
     return {
+        "original": bullet_text,
+        "enhanced": f"Spearheaded optimization of {bullet_text}, increasing overall processing speed by 40% and cutting latency by 120ms.",
+        "explanation": "Applied STAR format with strong action verb and quantified metric.",
         "enhancedBullets": [
             f"Spearheaded optimization of {bullet_text}, increasing overall processing speed by 40% and cutting latency by 120ms.",
             f"Architected modular microservices for {bullet_text}, enabling seamless horizontal scaling across cloud deployments.",

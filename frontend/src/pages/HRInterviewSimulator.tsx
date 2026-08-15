@@ -26,7 +26,7 @@ const TARGET_DRIVES = [
 ];
 
 export const HRInterviewSimulator: React.FC = () => {
-  const { interviewQuestions, logoutUser, setActiveTab, setAuthModalOpen, setAuthModalMode } = useApp();
+  const { interviewQuestions, logoutUser, setActiveTab, setAuthModalOpen, setAuthModalMode, setSelectedTargetDrive } = useApp();
 
   const [selectedDrive, setSelectedDrive] = useState('all');
   const [driveDropdownOpen, setDriveDropdownOpen] = useState(false);
@@ -270,6 +270,7 @@ export const HRInterviewSimulator: React.FC = () => {
                         key={drive.id}
                         onClick={() => {
                           setSelectedDrive(drive.id);
+                          setSelectedTargetDrive(drive.label);
                           setDriveDropdownOpen(false);
                           setFeedback(null);
                           setApiError(null);
