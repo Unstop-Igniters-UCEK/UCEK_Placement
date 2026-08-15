@@ -777,8 +777,8 @@ export const AIResumeSuite: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* LEFT INPUT FORM EDITORS */}
-            <div className="lg:col-span-7 space-y-6">
+            {/* LEFT INPUT FORM EDITORS (Scrollable Container) */}
+            <div className="lg:col-span-7 space-y-6 h-[760px] max-h-[760px] overflow-y-auto pr-3.5 custom-scrollbar">
               {/* PERSONAL INFORMATION */}
               <div className="mono-card p-6 space-y-4">
                 <h3 className="font-bold text-xs text-orange-400 uppercase tracking-wider font-heading">Personal Header Information</h3>
@@ -874,11 +874,10 @@ export const AIResumeSuite: React.FC = () => {
                           const updated = resumeData.experience.filter(e => e.id !== exp.id);
                           setResumeData({ ...resumeData, experience: updated });
                         }}
-                        className="px-2.5 py-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shrink-0"
+                        className="w-9 h-9 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
                         title="Remove Experience Entry"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Remove</span>
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
 
@@ -920,12 +919,12 @@ export const AIResumeSuite: React.FC = () => {
                               type="button"
                               onClick={() => handleEnhanceBullet('experience', idx, bIdx, bullet)}
                               disabled={isEnhancing || !bullet.trim()}
-                              className="px-3 py-2.5 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                              className="px-4 py-2 rounded-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-50 hover:scale-105 shadow-sm"
                             >
                               {isEnhancing ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
                               ) : (
-                                <Wand2 className="w-3.5 h-3.5" />
+                                <Wand2 className="w-3.5 h-3.5 text-orange-400" />
                               )}
                               <span>AI Enhance</span>
                             </button>
@@ -937,10 +936,10 @@ export const AIResumeSuite: React.FC = () => {
                                 updatedExp[idx].bullets = bullets;
                                 setResumeData({ ...resumeData, experience: updatedExp });
                               }}
-                              className="p-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 cursor-pointer transition-colors"
+                              className="w-9 h-9 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
                               title="Remove Bullet Point"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         );
@@ -1004,11 +1003,10 @@ export const AIResumeSuite: React.FC = () => {
                           const updated = resumeData.projects.filter(p => p.id !== proj.id);
                           setResumeData({ ...resumeData, projects: updated });
                         }}
-                        className="px-2.5 py-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shrink-0"
+                        className="w-9 h-9 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
                         title="Remove Project Entry"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Remove</span>
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
 
@@ -1049,12 +1047,12 @@ export const AIResumeSuite: React.FC = () => {
                               type="button"
                               onClick={() => handleEnhanceBullet('projects', idx, bIdx, bullet)}
                               disabled={isEnhancing || !bullet.trim()}
-                              className="px-3 py-2.5 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                              className="px-4 py-2 rounded-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-50 hover:scale-105 shadow-sm"
                             >
                               {isEnhancing ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
                               ) : (
-                                <Wand2 className="w-3.5 h-3.5" />
+                                <Wand2 className="w-3.5 h-3.5 text-orange-400" />
                               )}
                               <span>AI Enhance</span>
                             </button>
@@ -1066,10 +1064,10 @@ export const AIResumeSuite: React.FC = () => {
                                 updatedProj[idx].bullets = bullets;
                                 setResumeData({ ...resumeData, projects: updatedProj });
                               }}
-                              className="p-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 cursor-pointer transition-colors"
+                              className="w-9 h-9 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
                               title="Remove Bullet Point"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         );
@@ -1117,10 +1115,10 @@ export const AIResumeSuite: React.FC = () => {
                           const updatedCerts = resumeData.certifications.filter((_, i) => i !== certIdx);
                           setResumeData({ ...resumeData, certifications: updatedCerts });
                         }}
-                        className="p-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold shrink-0 flex items-center justify-center cursor-pointer transition-colors"
+                        className="w-9 h-9 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
                         title="Remove Achievement"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
@@ -1129,7 +1127,7 @@ export const AIResumeSuite: React.FC = () => {
             </div>
 
             {/* RIGHT COLUMN: LIVE RESUME PREVIEW */}
-            <div className="lg:col-span-5 space-y-4">
+            <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-4 self-start">
               <div className="mono-card p-4 flex items-center justify-between">
                 <span className="text-xs font-bold text-white font-heading">Live Resume Preview</span>
                 <div className="flex items-center gap-1.5">
