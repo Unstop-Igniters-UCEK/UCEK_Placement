@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   User,
   UserRole,
@@ -77,7 +77,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [allUsers, setAllUsers] = useState<User[]>(DEMO_USERS);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
-  const toggleSidebar = () => setSidebarOpen(prev => !prev);
+  const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot'>('login');
 
@@ -85,10 +85,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return localStorage.getItem('ucek_selected_target_drive') || 'TCS Ninja & Digital 2026';
   });
 
-  const setSelectedTargetDrive = (driveLabel: string) => {
+  const setSelectedTargetDrive = useCallback((driveLabel: string) => {
     setSelectedTargetDriveState(driveLabel);
     localStorage.setItem('ucek_selected_target_drive', driveLabel);
-  };
+  }, []);
 
   // Fixed Dark Theme System (Light mode removed entirely per user directive)
   const [theme] = useState<Theme>('dark');
@@ -129,13 +129,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  const toggleTheme = () => {
-    // No-op: Light mode removed
-  };
-
-  const setTheme = () => {
-    // No-op: Light mode removed
-  };
+  const toggleTheme = useCallback(() => {}, []);
+  const setTheme = useCallback(() => {}, []);
 
   const [roadmaps, setRoadmaps] = useState<DomainRoadmap[]>(INITIAL_ROADMAPS);
   const [mockTests, setMockTests] = useState<MockTest[]>(MOCK_TESTS);
@@ -155,8 +150,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [interviewQuestions] = useState<InterviewQuestion[]>(INTERVIEW_QUESTIONS);
   const [mentors] = useState<SeniorMentor[]>(SENIOR_MENTORS);
   const [resumeData, setResumeData] = useState<ResumeData>(INITIAL_RESUME_DATA);
-
-
 
   // Recalculate user readiness score based on milestone completion and test scores
   useEffect(() => {
@@ -191,7 +184,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [roadmaps, recentScores]);
 
-  const switchDemoRole = async (role: UserRole) => {
+  const switchDemoRole = useCallback(async (role: UserRole) => {
     try {
       const data = await demoLoginApi(role);
       if (data.accessToken) {
@@ -222,9 +215,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTab(targetUser.role === 'admin' ? 'admin' : 'dashboard');
       }
     }
-  };
+  }, [allUsers]);
 
-  const loginUser = async (email: string, password?: string, role?: string): Promise<boolean> => {
+  const loginUser = useCallback(async (email: string, password?: string, role?: string): Promise<boolean> => {
     const data = await loginApi({ email, password: password || '', role });
     if (data.accessToken) {
       localStorage.setItem('ucek_access_token', data.accessToken);
@@ -246,9 +239,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAuthModalOpen(false);
     setActiveTab(mappedUser.role === 'admin' ? 'admin' : 'dashboard');
     return true;
-  };
+  }, []);
 
-  const signupUser = async (newUser: Omit<User, 'id' | 'readinessScore'> & { password?: string; adminSecurityCode?: string }): Promise<boolean> => {
+  const signupUser = useCallback(async (newUser: Omit<User, 'id' | 'readinessScore'> & { password?: string; adminSecurityCode?: string }): Promise<boolean> => {
     const data = await registerApi({
       name: newUser.name,
       email: newUser.email,
@@ -279,34 +272,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAuthModalOpen(false);
     setActiveTab(mappedUser.role === 'admin' ? 'admin' : 'dashboard');
     return true;
-  };
+  }, []);
 
-  const updateUserDomain = async (domainName: string): Promise<boolean> => {
+  const updateUserDomain = useCallback(async (domainName: string): Promise<boolean> => {
     try {
       const updatedUser = await updateProfileApi({ domainInterest: domainName, hasSelectedDomain: true });
-      if (user) {
-        setUser(prev => prev ? {
-          ...prev,
-          domain: updatedUser.domainInterest || updatedUser.domain || domainName,
-          hasSelectedDomain: true
-        } : null);
-      }
+      setUser(prev => prev ? {
+        ...prev,
+        domain: updatedUser.domainInterest || updatedUser.domain || domainName,
+        hasSelectedDomain: true
+      } : null);
       return true;
     } catch {
-      if (user) {
-        setUser(prev => prev ? { ...prev, domain: domainName, hasSelectedDomain: true } : null);
-      }
+      setUser(prev => prev ? { ...prev, domain: domainName, hasSelectedDomain: true } : null);
       return true;
     }
-  };
+  }, []);
 
-  const logoutUser = () => {
+  const logoutUser = useCallback(() => {
     logoutApi().catch(() => {});
     setUser(null);
     setActiveTab('dashboard');
-  };
+  }, []);
 
-  const toggleMilestone = (domainId: string, moduleId: string, milestoneId: string) => {
+  const toggleMilestone = useCallback((domainId: string, moduleId: string, milestoneId: string) => {
     setRoadmaps(prev =>
       prev.map(roadmap => {
         if (roadmap.id !== domainId) return roadmap;
@@ -325,9 +314,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       })
     );
-  };
+  }, []);
 
-  const saveTestResult = (resultData: Omit<TestResult, 'id' | 'date'>) => {
+  const saveTestResult = useCallback((resultData: Omit<TestResult, 'id' | 'date'>) => {
     const newResult: TestResult = {
       ...resultData,
       id: `res_${Date.now()}`,
@@ -342,16 +331,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return updated;
     });
-  };
+  }, []);
 
-  const addQuestionToBank = (newQ: Omit<Question, 'id'>) => {
+  const addQuestionToBank = useCallback((newQ: Omit<Question, 'id'>) => {
     const createdQuestion: Question = {
       ...newQ,
       id: `q_custom_${Date.now()}`
     };
 
     setMockTests(prev => {
-      // Add to company drive or aptitude test or first test
       const targetTest = prev.find(t => t.category === newQ.type || t.companyTag === newQ.companyTag) || prev[0];
       if (!targetTest) return prev;
 
@@ -364,9 +352,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       });
     });
-  };
+  }, []);
 
-  const publishTest = (test: Omit<MockTest, 'id' | 'questions' | 'passPercentage'>) => {
+  const publishTest = useCallback((test: Omit<MockTest, 'id' | 'questions' | 'passPercentage'>) => {
     const newTest: MockTest = {
       ...test,
       id: `custom_${Date.now()}`,
@@ -374,10 +362,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       passPercentage: 70,
     };
     setMockTests(prev => [newTest, ...prev]);
-  };
+  }, []);
 
-  const addMentorshipLog = (topic: string, feedback: string, actionItems: string[]) => {
-    if (!mentorshipPair) return;
+  const addMentorshipLog = useCallback((topic: string, feedback: string, actionItems: string[]) => {
     const newLog = {
       id: `log_${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
@@ -386,9 +373,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       actionItems
     };
     setMentorshipPair(prev => (prev ? { ...prev, logs: [newLog, ...prev.logs] } : null));
-  };
+  }, []);
 
-  const requestMentorship = (mentorId: string) => {
+  const requestMentorship = useCallback((mentorId: string) => {
     const mentor = mentors.find(m => m.id === mentorId);
     if (!mentor || !user) return;
 
@@ -405,58 +392,88 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       logs: []
     };
     setMentorshipPair(newPair);
-  };
+  }, [mentors, user]);
 
-  const updateUserRoleInAdmin = (userId: string, newRole: UserRole) => {
+  const updateUserRoleInAdmin = useCallback((userId: string, newRole: UserRole) => {
     setAllUsers(prev =>
       prev.map(u => (u.id === userId ? { ...u, role: newRole } : u))
     );
-    if (user && user.id === userId) {
-      setUser(prev => (prev ? { ...prev, role: newRole } : null));
-    }
-  };
+    setUser(prev => (prev && prev.id === userId ? { ...prev, role: newRole } : prev));
+  }, []);
+
+  const value = useMemo(() => ({
+    user,
+    activeTab,
+    setActiveTab,
+    sidebarOpen,
+    setSidebarOpen,
+    toggleSidebar,
+    authModalOpen,
+    setAuthModalOpen,
+    authModalMode,
+    setAuthModalMode,
+    theme,
+    toggleTheme,
+    setTheme,
+    roadmaps,
+    mockTests,
+    recentScores,
+    mentorshipPair,
+    selectedTargetDrive,
+    setSelectedTargetDrive,
+    interviewQuestions,
+    mentors,
+    resumeData,
+    setResumeData,
+    allUsers,
+    switchDemoRole,
+    loginUser,
+    signupUser,
+    updateUserDomain,
+    logoutUser,
+    toggleMilestone,
+    saveTestResult,
+    addQuestionToBank,
+    publishTest,
+    addMentorshipLog,
+    requestMentorship,
+    updateUserRoleInAdmin
+  }), [
+    user,
+    activeTab,
+    sidebarOpen,
+    toggleSidebar,
+    authModalOpen,
+    authModalMode,
+    theme,
+    toggleTheme,
+    setTheme,
+    roadmaps,
+    mockTests,
+    recentScores,
+    mentorshipPair,
+    selectedTargetDrive,
+    setSelectedTargetDrive,
+    interviewQuestions,
+    mentors,
+    resumeData,
+    allUsers,
+    switchDemoRole,
+    loginUser,
+    signupUser,
+    updateUserDomain,
+    logoutUser,
+    toggleMilestone,
+    saveTestResult,
+    addQuestionToBank,
+    publishTest,
+    addMentorshipLog,
+    requestMentorship,
+    updateUserRoleInAdmin
+  ]);
 
   return (
-    <AppContext.Provider
-      value={{
-        user,
-        activeTab,
-        setActiveTab,
-        sidebarOpen,
-        setSidebarOpen,
-        toggleSidebar,
-        authModalOpen,
-        setAuthModalOpen,
-        authModalMode,
-        setAuthModalMode,
-        theme,
-        toggleTheme,
-        setTheme,
-        roadmaps,
-        mockTests,
-        recentScores,
-        mentorshipPair,
-        selectedTargetDrive,
-        setSelectedTargetDrive,
-        interviewQuestions,
-        mentors,
-        resumeData,
-        setResumeData,
-        allUsers,
-        switchDemoRole,
-        loginUser,
-        signupUser,
-        updateUserDomain,
-        logoutUser,
-        toggleMilestone,
-        saveTestResult,
-        addQuestionToBank,
-        publishTest,
-        addMentorshipLog,
-        requestMentorship,
-        updateUserRoleInAdmin
-      }}
-    >
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   );

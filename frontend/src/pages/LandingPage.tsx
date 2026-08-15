@@ -6,7 +6,7 @@ import { CustomSelect } from '../components/CustomSelect';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogIn, UserPlus, X, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
-export const LandingPage: React.FC = () => {
+export const LandingPage: React.FC = React.memo(() => {
   const { loginUser, signupUser, setAuthModalOpen, setAuthModalMode } = useApp();
 
   // Auth panel open mode ('login' | 'signup' | null)
@@ -479,4 +479,6 @@ export const LandingPage: React.FC = () => {
       </div>
     </div>
   );
-};
+});
+
+export default LandingPage;

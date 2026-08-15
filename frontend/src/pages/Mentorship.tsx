@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import GradientBlinds from '../components/GradientBlinds';
 
-export const Mentorship: React.FC = () => {
+export const Mentorship: React.FC = React.memo(() => {
   const { setActiveTab } = useApp();
 
   return (
@@ -74,4 +74,6 @@ export const Mentorship: React.FC = () => {
       </div>
     </div>
   );
-};
+});
+
+export default Mentorship;

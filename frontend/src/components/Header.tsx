@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { motion } from 'framer-motion';
 import { GraduationCap } from 'lucide-react';
 
-export const Header: React.FC = () => {
+export const Header: React.FC = React.memo(() => {
   const { user } = useApp();
 
   // When user is logged in, Sidebar handles navigation
@@ -25,4 +25,6 @@ export const Header: React.FC = () => {
       </div>
     </motion.header>
   );
-};
+});
+
+export default Header;

@@ -104,7 +104,7 @@ Requirements: Knowledge of modern web frameworks (React, Angular, or Node.js), r
   }
 ];
 
-export const AIResumeSuite: React.FC = () => {
+export const AIResumeSuite: React.FC = React.memo(() => {
   const { resumeData, setResumeData, user } = useApp();
   const [activeSubTab, setActiveSubTab] = useState<'reviewer' | 'builder' | 'matcher'>('reviewer');
 
@@ -1545,4 +1545,6 @@ export const AIResumeSuite: React.FC = () => {
       )}
     </motion.div>
   );
-};
+});
+
+export default AIResumeSuite;

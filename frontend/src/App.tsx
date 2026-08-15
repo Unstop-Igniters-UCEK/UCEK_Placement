@@ -1,22 +1,21 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, lazy, Suspense } from 'react';
 import { useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { LandingPage } from './pages/LandingPage';
-import { Dashboard } from './pages/Dashboard';
-import { DomainRoadmap } from './pages/DomainRoadmap';
-import { AIResumeSuite } from './pages/AIResumeSuite';
-import { MockTests } from './pages/MockTests';
-import { HRInterviewSimulator } from './pages/HRInterviewSimulator';
-import { Mentorship } from './pages/Mentorship';
-import { AdminPanel } from './pages/AdminPanel';
 import { AuthModal } from './components/AuthModal';
-import ShapeGrid from './components/ShapeGrid';
 import OrangeBlackGradient from './components/OrangeBlackGradient';
-import ClickSpark from './components/ClickSpark';
-import DotGrid from './components/DotGrid';
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
 import Lenis from 'lenis';
+
+// Lazy loaded page modules to reduce initial JavaScript parse time
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const DomainRoadmap = lazy(() => import('./pages/DomainRoadmap'));
+const AIResumeSuite = lazy(() => import('./pages/AIResumeSuite'));
+const MockTests = lazy(() => import('./pages/MockTests'));
+const HRInterviewSimulator = lazy(() => import('./pages/HRInterviewSimulator'));
+const Mentorship = lazy(() => import('./pages/Mentorship'));
+const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 
 export function App() {
   const { activeTab, user, sidebarOpen } = useApp();
@@ -120,13 +119,15 @@ export function App() {
                   transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                   className="w-full transform-gpu max-w-[1600px] mx-auto"
                 >
-                  {activeTab === 'dashboard' && <Dashboard />}
-                  {activeTab === 'roadmap' && <DomainRoadmap />}
-                  {activeTab === 'resumes' && <AIResumeSuite />}
-                  {activeTab === 'tests' && <MockTests />}
-                  {activeTab === 'interview' && <HRInterviewSimulator />}
-                  {activeTab === 'mentorship' && <Mentorship />}
-                  {activeTab === 'admin' && <AdminPanel />}
+                  <Suspense fallback={null}>
+                    {activeTab === 'dashboard' && <Dashboard />}
+                    {activeTab === 'roadmap' && <DomainRoadmap />}
+                    {activeTab === 'resumes' && <AIResumeSuite />}
+                    {activeTab === 'tests' && <MockTests />}
+                    {activeTab === 'interview' && <HRInterviewSimulator />}
+                    {activeTab === 'mentorship' && <Mentorship />}
+                    {activeTab === 'admin' && <AdminPanel />}
+                  </Suspense>
                 </motion.div>
               </AnimatePresence>
             </main>

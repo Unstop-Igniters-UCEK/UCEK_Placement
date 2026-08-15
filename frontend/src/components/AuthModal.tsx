@@ -7,7 +7,7 @@ import { X, LogIn, UserPlus, KeyRound, CheckCircle2, AlertCircle, Eye, EyeOff } 
 
 import { sendOtpApi, verifyOtpResetApi } from '../lib/api';
 
-export const AuthModal: React.FC = () => {
+export const AuthModal: React.FC = React.memo(() => {
   const {
     authModalOpen,
     setAuthModalOpen,
@@ -595,4 +595,6 @@ export const AuthModal: React.FC = () => {
       )}
     </AnimatePresence>
   );
-};
+});
+
+export default AuthModal;

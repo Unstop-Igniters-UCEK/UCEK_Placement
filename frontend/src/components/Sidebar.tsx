@@ -16,7 +16,7 @@ import {
   X
 } from 'lucide-react';
 
-export const Sidebar: React.FC = () => {
+export const Sidebar: React.FC = React.memo(() => {
   const { user, logoutUser, activeTab, setActiveTab, sidebarOpen, setSidebarOpen } = useApp();
 
   if (!user) return null;
@@ -186,4 +186,6 @@ export const Sidebar: React.FC = () => {
       </AnimatePresence>
     </>
   );
-};
+});
+
+export default Sidebar;

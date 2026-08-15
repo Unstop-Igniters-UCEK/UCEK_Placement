@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-export const MockTests: React.FC = () => {
+export const MockTests: React.FC = React.memo(() => {
   const { mockTests, saveTestResult, setActiveTab } = useApp();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -695,4 +695,6 @@ export const MockTests: React.FC = () => {
       </AnimatePresence>
     </motion.div>
   );
-};
+});
+
+export default MockTests;

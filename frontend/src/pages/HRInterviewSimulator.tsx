@@ -25,7 +25,7 @@ const TARGET_DRIVES = [
   { id: 'general', label: 'General HR & Behavioral' },
 ];
 
-export const HRInterviewSimulator: React.FC = () => {
+export const HRInterviewSimulator: React.FC = React.memo(() => {
   const { interviewQuestions, logoutUser, setActiveTab, setAuthModalOpen, setAuthModalMode, setSelectedTargetDrive } = useApp();
 
   const [selectedDrive, setSelectedDrive] = useState('all');
@@ -508,4 +508,6 @@ export const HRInterviewSimulator: React.FC = () => {
       </div>
     </motion.div>
   );
-};
+});
+
+export default HRInterviewSimulator;

@@ -113,7 +113,7 @@ const StatCard = ({
   </div>
 );
 
-export const AdminPanel: React.FC = () => {
+export const AdminPanel: React.FC = React.memo(() => {
   const { user, logoutUser, allUsers, recentScores, addQuestionToBank, updateUserRoleInAdmin, setActiveTab } = useApp();
 
   const [activeAdminSubTab, setActiveAdminSubTab] = useState<'analytics' | 'roles' | 'question-bank' | 'mock-tests'>('analytics');
@@ -592,4 +592,6 @@ export const AdminPanel: React.FC = () => {
       </main>
     </div>
   );
-};
+});
+
+export default AdminPanel;

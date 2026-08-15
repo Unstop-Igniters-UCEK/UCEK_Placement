@@ -79,7 +79,7 @@ const DOMAIN_OPTIONS = [
   }
 ];
 
-export const DomainRoadmap: React.FC = () => {
+export const DomainRoadmap: React.FC = React.memo(() => {
   const { roadmaps, toggleMilestone, user, updateUserDomain } = useApp();
 
   const [isSelectModalOpen, setIsSelectModalOpen] = useState<boolean>(false);
@@ -432,4 +432,6 @@ export const DomainRoadmap: React.FC = () => {
       </AnimatePresence>
     </motion.div>
   );
-};
+});
+
+export default DomainRoadmap;
