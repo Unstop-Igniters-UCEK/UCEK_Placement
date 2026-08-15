@@ -164,4 +164,45 @@ def get_all_speech_evaluations(current_user: dict = Depends(get_current_user)):
         "evaluations": evaluations
     }
 
+@router.get("/hr-questions")
+def get_hr_practice_questions(companyTag: str = "all"):
+    """Fetch practice questions from Supabase hr_practice_questions table."""
+    from backend.database import supabase_client
+    questions = []
+    if supabase_client:
+        try:
+            query = supabase_client.table("hr_practice_questions").select("*")
+            if companyTag and companyTag.lower() != "all":
+                query = query.ilike("company_tag", f"%{companyTag}%")
+            res = query.execute()
+            if res.data:
+                questions = [
+                    {
+                        "id": str(q.get("id")),
+                        "companyTag": str(q.get("company_tag", "General HR")),
+                        "questionText": str(q.get("question_text") or q.get("question") or ""),
+                        "category": str(q.get("category", "HR & Behavioral")),
+                        "isFeatured": bool(q.get("is_featured", True))
+                    }
+                    for q in res.data
+                ]
+        except Exception as e:
+            print("[Supabase hr_practice_questions query error]:", e)
+
+    if not questions:
+        raw_list = getattr(db, "hrPracticeQuestions", [])
+        questions = [
+            {
+                "id": str(q.get("id")),
+                "companyTag": str(q.get("companyTag") or q.get("company_tag") or "General HR"),
+                "questionText": str(q.get("questionText") or q.get("question") or ""),
+                "category": str(q.get("category", "HR & Behavioral")),
+                "isFeatured": bool(q.get("isFeatured", True))
+            }
+            for q in raw_list
+            if companyTag.lower() == "all" or companyTag.lower() in str(q.get("companyTag") or q.get("company_tag", "")).lower()
+        ]
+
+    return {"questions": questions}
+
 

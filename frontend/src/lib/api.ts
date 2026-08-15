@@ -309,3 +309,26 @@ export async function getSpeechAnalyticsApi(): Promise<SpeechAnalyticsResponse> 
   }
 }
 
+/**
+ * Fetch HR practice questions dynamically from the backend Supabase database.
+ */
+export async function getHRQuestionsApi(companyTag: string = 'all'): Promise<Array<{
+  id: string;
+  companyTag: string;
+  questionText: string;
+  category: string;
+  isFeatured?: boolean;
+}>> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/ai/hr-questions?companyTag=${encodeURIComponent(companyTag)}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.questions || [];
+  } catch (err) {
+    console.warn('Failed to fetch HR questions from API:', err);
+    return [];
+  }
+}
+

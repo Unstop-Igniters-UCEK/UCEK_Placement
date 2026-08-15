@@ -65,22 +65,94 @@ INITIAL_MOCK_TESTS = [
 
 INITIAL_INTERVIEW_QUESTIONS = [
   {
-    "id": "iq1",
-    "question": "Tell me about a challenging project you built during your B.Tech course at UCEK and how you solved a major technical bottleneck.",
-    "category": "Behavioral",
-    "recommendedKeywords": ["architecture", "bottleneck", "optimization", "teamwork", "solution", "result"]
+    "id": "hr_1",
+    "question": "Tell me about yourself and why you are interested in joining our organization as a Campus Recruit.",
+    "questionText": "Tell me about yourself and why you are interested in joining our organization as a Campus Recruit.",
+    "category": "HR & Behavioral",
+    "companyTag": "TCS",
+    "company_tag": "TCS",
+    "isFeatured": True
   },
   {
-    "id": "iq2",
-    "question": "Explain the difference between SQL and NoSQL databases. When would you choose Firestore over PostgreSQL for a campus project?",
+    "id": "hr_2",
+    "question": "Describe a challenging situation during your final year project where team conflict arose. How did you resolve it?",
+    "questionText": "Describe a challenging situation during your final year project where team conflict arose. How did you resolve it?",
+    "category": "HR & Behavioral",
+    "companyTag": "TCS",
+    "company_tag": "TCS",
+    "isFeatured": True
+  },
+  {
+    "id": "inf_1",
+    "question": "Why do you want to join Infosys as a Systems Engineer / Specialist Programmer, and where do you see yourself in 3 years?",
+    "questionText": "Why do you want to join Infosys as a Systems Engineer / Specialist Programmer, and where do you see yourself in 3 years?",
+    "category": "HR & Behavioral",
+    "companyTag": "Infosys",
+    "company_tag": "Infosys",
+    "isFeatured": True
+  },
+  {
+    "id": "inf_2",
+    "question": "What is the difference between Process and Thread? Explain how Context Switching works.",
+    "questionText": "What is the difference between Process and Thread? Explain how Context Switching works.",
     "category": "Technical",
-    "recommendedKeywords": ["ACID", "relational", "document", "schema", "scalability", "indexing"]
+    "companyTag": "Infosys",
+    "company_tag": "Infosys",
+    "isFeatured": True
   },
   {
-    "id": "iq3",
-    "question": "How do you handle deadline pressures during campus placement drives when balancing end-semester exams?",
-    "category": "HR",
-    "recommendedKeywords": ["prioritization", "time management", "focus", "consistency", "planning"]
+    "id": "wip_1",
+    "question": "How do you prioritize multiple tasks when working under tight deadlines in a multi-client project team?",
+    "questionText": "How do you prioritize multiple tasks when working under tight deadlines in a multi-client project team?",
+    "category": "Situational",
+    "companyTag": "Wipro",
+    "company_tag": "Wipro",
+    "isFeatured": True
+  },
+  {
+    "id": "wip_2",
+    "question": "Describe a project where you had to learn a new technology or programming language quickly.",
+    "questionText": "Describe a project where you had to learn a new technology or programming language quickly.",
+    "category": "HR & Behavioral",
+    "companyTag": "Wipro",
+    "company_tag": "Wipro",
+    "isFeatured": True
+  },
+  {
+    "id": "acc_1",
+    "question": "Accenture focuses heavily on innovation and emerging tech. Share an example of how you used creative problem-solving in a project.",
+    "questionText": "Accenture focuses heavily on innovation and emerging tech. Share an example of how you used creative problem-solving in a project.",
+    "category": "HR & Behavioral",
+    "companyTag": "Accenture",
+    "company_tag": "Accenture",
+    "isFeatured": True
+  },
+  {
+    "id": "acc_2",
+    "question": "How do you handle constructive criticism or feedback from a senior developer or team mentor?",
+    "questionText": "How do you handle constructive criticism or feedback from a senior developer or team mentor?",
+    "category": "HR & Behavioral",
+    "companyTag": "Accenture",
+    "company_tag": "Accenture",
+    "isFeatured": True
+  },
+  {
+    "id": "gen_1",
+    "question": "What are your key strengths and what is one technical area you are actively working to improve?",
+    "questionText": "What are your key strengths and what is one technical area you are actively working to improve?",
+    "category": "HR & Behavioral",
+    "companyTag": "General HR",
+    "company_tag": "General HR",
+    "isFeatured": True
+  },
+  {
+    "id": "gen_2",
+    "question": "If you are given two high-priority tasks with tight deadlines simultaneously by two different project leads, how will you manage?",
+    "questionText": "If you are given two high-priority tasks with tight deadlines simultaneously by two different project leads, how will you manage?",
+    "category": "Situational",
+    "companyTag": "General HR",
+    "company_tag": "General HR",
+    "isFeatured": True
   }
 ]
 

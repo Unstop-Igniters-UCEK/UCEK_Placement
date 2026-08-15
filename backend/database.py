@@ -265,20 +265,33 @@ class Database:
             # 8. Sync directly from Supabase relational hr_practice_questions table
             try:
                 hr_res = supabase_client.table("hr_practice_questions").select("*").execute()
-                if hr_res.data and len(hr_res.data) > 0:
+                if hr_res.data and len(hr_res.data) >= 5:
                     self.hrPracticeQuestions = []
                     for q in hr_res.data:
                         self.hrPracticeQuestions.append({
                             "id": str(q.get("id")),
-                            "companyTag": str(q.get("company_tag", "General HR")),
-                            "company_tag": str(q.get("company_tag", "General HR")),
+                            "companyTag": str(q.get("company_tag") or q.get("companyTag") or "General HR"),
+                            "company_tag": str(q.get("company_tag") or q.get("companyTag") or "General HR"),
                             "questionText": str(q.get("question_text") or q.get("question") or ""),
                             "question": str(q.get("question_text") or q.get("question") or ""),
-                            "category": str(q.get("category", "HR")),
+                            "category": str(q.get("category", "HR & Behavioral")),
                             "isFeatured": bool(q.get("is_featured", True)),
                             "createdAt": str(q.get("created_at", ""))
                         })
                     print(f"[Supabase] Loaded {len(self.hrPracticeQuestions)} practice questions directly from Supabase hr_practice_questions table.")
+                else:
+                    print("[Supabase] Seeding default company practice questions to Supabase hr_practice_questions table...")
+                    self.hrPracticeQuestions = INITIAL_INTERVIEW_QUESTIONS
+                    for q in INITIAL_INTERVIEW_QUESTIONS:
+                        supabase_client.table("hr_practice_questions").upsert({
+                            "id": str(q["id"]),
+                            "company_tag": str(q.get("companyTag") or q.get("company_tag") or "General HR"),
+                            "question_text": str(q.get("questionText") or q.get("question") or ""),
+                            "category": str(q.get("category", "HR & Behavioral")),
+                            "is_featured": True,
+                            "created_at": datetime.now().isoformat()
+                        }, on_conflict="id").execute()
+                    print(f"[Supabase] Successfully seeded {len(INITIAL_INTERVIEW_QUESTIONS)} practice questions into hr_practice_questions table.")
             except Exception as e:
                 print("[Supabase hr_practice_questions table load notice]:", e)
 
