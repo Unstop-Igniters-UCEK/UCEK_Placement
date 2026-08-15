@@ -456,11 +456,19 @@ export const INTERVIEW_QUESTIONS: InterviewQuestion[] = [
     questionText: 'Describe a challenging situation during your final year project where team conflict arose. How did you resolve it?',
     category: 'HR & Behavioral',
     difficulty: 'Medium',
-    companyTag: 'Google',
+    companyTag: 'TCS',
     suggestedAnswer: 'Use the STAR method (Situation, Task, Action, Result). Highlight active listening, objective data-driven compromise, and delivering on target.'
   },
   {
-    id: 'tech_1',
+    id: 'inf_1',
+    questionText: 'Why do you want to join Infosys as a Systems Engineer / Specialist Programmer, and where do you see yourself in 3 years?',
+    category: 'HR & Behavioral',
+    difficulty: 'Easy',
+    companyTag: 'Infosys',
+    suggestedAnswer: 'Discuss Infosys learning ecosystem (Mysore Training Center), continuous upskilling, and contribution to enterprise digital transformation.'
+  },
+  {
+    id: 'inf_2',
     questionText: 'What is the difference between Process and Thread? Explain how Context Switching works.',
     category: 'Technical',
     difficulty: 'Medium',
@@ -468,11 +476,51 @@ export const INTERVIEW_QUESTIONS: InterviewQuestion[] = [
     suggestedAnswer: 'A process is an isolated program in execution with its own memory space. A thread is a lightweight execution unit inside a process sharing memory space.'
   },
   {
-    id: 'sit_1',
+    id: 'wip_1',
+    questionText: 'How do you prioritize multiple tasks when working under tight deadlines in a multi-client project team?',
+    category: 'Situational',
+    difficulty: 'Medium',
+    companyTag: 'Wipro',
+    suggestedAnswer: 'Prioritize by business impact and urgency. Communicate early with team leads to clarify requirements and prevent bottlenecks.'
+  },
+  {
+    id: 'wip_2',
+    questionText: 'Describe a project where you had to learn a new technology or programming language quickly.',
+    category: 'HR & Behavioral',
+    difficulty: 'Easy',
+    companyTag: 'Wipro',
+    suggestedAnswer: 'Focus on your structured learning approach, documentation research, building a prototype, and delivering the module on schedule.'
+  },
+  {
+    id: 'acc_1',
+    questionText: 'Accenture focuses heavily on innovation and emerging tech. Share an example of how you used creative problem-solving in a project.',
+    category: 'HR & Behavioral',
+    difficulty: 'Hard',
+    companyTag: 'Accenture',
+    suggestedAnswer: 'Detail how you identified an operational flaw or bottleneck, researched innovative tools, and implemented an optimized automated solution.'
+  },
+  {
+    id: 'acc_2',
+    questionText: 'How do you handle constructive criticism or feedback from a senior developer or team mentor?',
+    category: 'HR & Behavioral',
+    difficulty: 'Easy',
+    companyTag: 'Accenture',
+    suggestedAnswer: 'Emphasize a growth mindset, taking feedback objectively, implementing changes promptly, and asking clarifying questions to improve code quality.'
+  },
+  {
+    id: 'gen_1',
+    questionText: 'What are your key strengths and what is one technical area you are actively working to improve?',
+    category: 'HR & Behavioral',
+    difficulty: 'Easy',
+    companyTag: 'General HR',
+    suggestedAnswer: 'Share 2 technical strengths backed by project work, and 1 area you are actively improving via certifications or daily coding practice.'
+  },
+  {
+    id: 'gen_2',
     questionText: 'If you are given two high-priority tasks with tight deadlines simultaneously by two different project leads, how will you manage?',
     category: 'Situational',
     difficulty: 'Hard',
-    companyTag: 'UST',
+    companyTag: 'General HR',
     suggestedAnswer: 'Communicate transparently with both leads, assess business impact/dependencies, propose realistic split timelines, and escalate if blocking.'
   }
 ];

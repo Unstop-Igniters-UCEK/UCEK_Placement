@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { motion, Variants } from 'framer-motion';
+import { motion, Variants, AnimatePresence } from 'framer-motion';
 import { InterviewQuestion, InterviewFeedback } from '../types';
 import { analyzeInterview } from '../lib/api';
 import {
@@ -11,12 +11,27 @@ import {
   MessageSquare,
   Loader2,
   Sparkles,
+  Building2,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
+
+const TARGET_DRIVES = [
+  { id: 'all', label: 'All Target Drives' },
+  { id: 'tcs', label: 'TCS Ninja & Digital Drive' },
+  { id: 'infosys', label: 'Infosys Specialist Programmer' },
+  { id: 'wipro', label: 'Wipro Elite NLTH Drive' },
+  { id: 'accenture', label: 'Accenture Innovation Drive' },
+  { id: 'general', label: 'General HR & Behavioral' },
+];
 
 export const HRInterviewSimulator: React.FC = () => {
   const { interviewQuestions, logoutUser, setActiveTab, setAuthModalOpen, setAuthModalMode } = useApp();
 
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedDrive, setSelectedDrive] = useState('all');
+  const [driveDropdownOpen, setDriveDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [selectedQuestion, setSelectedQuestion] = useState<InterviewQuestion>(
     interviewQuestions[0] || {
       id: 'q1',
@@ -40,10 +55,40 @@ export const HRInterviewSimulator: React.FC = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Close custom dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDriveDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const filteredQuestions = interviewQuestions.filter(q => {
-    if (selectedCategory === 'All') return true;
-    return q.category === selectedCategory || q.companyTag === selectedCategory;
+    if (selectedDrive === 'all') return true;
+    const tag = (q.companyTag || '').toLowerCase();
+    const cat = (q.category || '').toLowerCase();
+    if (selectedDrive === 'tcs') return tag.includes('tcs') || cat.includes('tcs');
+    if (selectedDrive === 'infosys') return tag.includes('infosys') || cat.includes('infosys');
+    if (selectedDrive === 'wipro') return tag.includes('wipro') || cat.includes('wipro');
+    if (selectedDrive === 'accenture') return tag.includes('accenture') || cat.includes('accenture');
+    if (selectedDrive === 'general') return tag.includes('general') || cat.includes('general') || (!tag.includes('tcs') && !tag.includes('infosys') && !tag.includes('wipro') && !tag.includes('accenture'));
+    return true;
   });
+
+  // Automatically update selected question when selectedDrive changes
+  useEffect(() => {
+    if (filteredQuestions.length > 0) {
+      const exists = filteredQuestions.some(q => q.id === selectedQuestion.id);
+      if (!exists) {
+        setSelectedQuestion(filteredQuestions[0]);
+        setFeedback(null);
+        setApiError(null);
+      }
+    }
+  }, [selectedDrive, filteredQuestions]);
 
   useEffect(() => {
     if (isRecording) {
@@ -75,7 +120,6 @@ export const HRInterviewSimulator: React.FC = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Pick the best supported mime type
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/webm')
@@ -94,7 +138,7 @@ export const HRInterviewSimulator: React.FC = () => {
         await processRecording(mimeType);
       };
 
-      recorder.start(200); // collect chunks every 200ms
+      recorder.start(200);
       setIsRecording(true);
     } catch (err) {
       setApiError('Microphone access denied. Please allow microphone access and try again.');
@@ -109,12 +153,10 @@ export const HRInterviewSimulator: React.FC = () => {
     }
   };
 
-  /** Convert recorded Blob chunks → base64 → call backend → map to InterviewFeedback */
   const processRecording = async (mimeType: string) => {
     try {
       const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
 
-      // Convert Blob to base64 string
       const base64Audio = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -122,16 +164,14 @@ export const HRInterviewSimulator: React.FC = () => {
         reader.readAsDataURL(audioBlob);
       });
 
-      // Call the FastAPI backend
       const result = await analyzeInterview({
         questionText: selectedQuestion.questionText,
         audioBase64: base64Audio,
         mimeType: mimeType,
       });
 
-      // Map backend response → InterviewFeedback shape used by the UI
       const mapped: InterviewFeedback = {
-        wpm: Math.round(120 + (result.confidenceScore / 100) * 30),   // Estimated WPM from confidence
+        wpm: Math.round(120 + (result.confidenceScore / 100) * 30),
         fillerCount: Math.max(0, Math.round((100 - result.confidenceScore) / 25)),
         fillerWords: result.confidenceScore < 70 ? ['um', 'like'] : [],
         confidenceScore: result.confidenceScore,
@@ -181,19 +221,90 @@ export const HRInterviewSimulator: React.FC = () => {
       initial="hidden"
       animate="visible"
     >
-      {/* UNWRAPPED HEADER (No card box) */}
-      <motion.div variants={itemVariants} className="px-1 space-y-2 pb-1">
-        <div className="flex items-center gap-2 text-orange-400">
-          <div className="w-8 h-8 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
-            <Mic className="w-4.5 h-4.5 text-orange-400" />
+      {/* UNWRAPPED HEADER (With Custom OLED Placement Drive Dropdown & High Z-Index Stacking) */}
+      <motion.div variants={itemVariants} className="px-1 space-y-4 pb-1 relative z-30">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-orange-400">
+              <div className="w-8 h-8 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                <Mic className="w-4.5 h-4.5 text-orange-400" />
+              </div>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-heading">
+              HR Interview Speech Simulator
+            </h1>
+            <p className="text-sm text-zinc-400 leading-relaxed max-w-2xl">
+              Practice HR behavioral questions with real-time speech fluency, pace (WPM), and confidence analysis.
+            </p>
+          </div>
+
+          {/* TARGET DRIVE SELECTOR CUSTOM DROPDOWN */}
+          <div className="space-y-1.5 shrink-0 relative z-30" ref={dropdownRef}>
+            <label className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider block flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-orange-400" />
+              <span>Target Placement Drive</span>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setDriveDropdownOpen(prev => !prev)}
+              className="bg-[#141414] hover:bg-[#1a1a1a] border border-white/20 focus:border-orange-500 text-white font-bold text-xs rounded-full pl-4 pr-3.5 py-2.5 shadow-xl transition-all cursor-pointer flex items-center justify-between gap-3 min-w-[220px] active:scale-[0.98]"
+            >
+              <span className="truncate">{TARGET_DRIVES.find(d => d.id === selectedDrive)?.label}</span>
+              <ChevronDown className={`w-4 h-4 text-orange-400 transition-transform duration-200 shrink-0 ${driveDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {driveDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  className="absolute right-0 top-full mt-2 w-68 bg-[#0d0d0d] border border-white/20 rounded-2xl p-2.5 shadow-2xl z-[100] space-y-1 backdrop-blur-2xl"
+                >
+                  {TARGET_DRIVES.map(drive => {
+                    const isSelected = selectedDrive === drive.id;
+                    return (
+                      <div
+                        key={drive.id}
+                        onClick={() => {
+                          setSelectedDrive(drive.id);
+                          setDriveDropdownOpen(false);
+                          setFeedback(null);
+                          setApiError(null);
+
+                          const matching = interviewQuestions.filter(q => {
+                            if (drive.id === 'all') return true;
+                            const tag = (q.companyTag || '').toLowerCase();
+                            if (drive.id === 'tcs') return tag.includes('tcs');
+                            if (drive.id === 'infosys') return tag.includes('infosys');
+                            if (drive.id === 'wipro') return tag.includes('wipro');
+                            if (drive.id === 'accenture') return tag.includes('accenture');
+                            if (drive.id === 'general') return !tag || tag.includes('hr') || tag.includes('behavioral');
+                            return true;
+                          });
+
+                          if (matching.length > 0) {
+                            setSelectedQuestion(matching[0]);
+                          }
+                        }}
+                        className={`px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-orange-500/15 text-orange-400 font-bold border border-orange-500/30'
+                            : 'text-zinc-300 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        <span>{drive.label}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-orange-400 shrink-0" />}
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-heading">
-          HR Interview Speech Simulator
-        </h1>
-        <p className="text-sm text-zinc-400 leading-relaxed max-w-2xl">
-          Practice HR behavioral questions with real-time speech fluency, pace (WPM), and confidence analysis.
-        </p>
       </motion.div>
 
       {/* API ERROR BANNER */}
@@ -230,7 +341,7 @@ export const HRInterviewSimulator: React.FC = () => {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-[11px] font-bold text-orange-400 uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Current Interview Prompt ({selectedQuestion.companyTag || 'HR Round'})</span>
+              <span>Current Interview Prompt ({selectedDrive === 'all' ? 'All Drives' : selectedQuestion.companyTag || 'HR Round'})</span>
             </div>
             <h2 className="text-lg sm:text-xl font-bold text-white leading-snug font-heading pt-1">
               "{selectedQuestion.questionText}"
@@ -299,26 +410,35 @@ export const HRInterviewSimulator: React.FC = () => {
             </div>
           </div>
 
-          {/* QUESTION SELECTOR */}
+          {/* QUESTION SELECTOR (Scrollable section with forced visible custom scrollbar) */}
           <div className="space-y-3 pt-1">
-            <h4 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">Select Question Prompt</h4>
-            <div className="space-y-2.5 max-h-64 sm:max-h-72 overflow-y-auto custom-scrollbar pr-2 pb-3">
-              {filteredQuestions.map(q => (
-                <div
-                  key={q.id}
-                  onClick={() => {
-                    setSelectedQuestion(q);
-                    setFeedback(null);
-                    setApiError(null);
-                  }}
-                  className={`p-4 rounded-2xl border text-xs cursor-pointer transition-all duration-200 ${selectedQuestion.id === q.id
-                    ? 'bg-orange-500/10 border-orange-500/40 text-white font-semibold shadow-sm'
-                    : 'bg-[#000000] border-white/10 text-zinc-400 hover:text-white hover:border-white/20'
-                    }`}
-                >
-                  <p className="line-clamp-2 leading-relaxed">{q.questionText}</p>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">Select Question Prompt</h4>
+              <span className="text-[10px] font-mono text-zinc-500">{filteredQuestions.length} Prompts Available</span>
+            </div>
+            <div className="space-y-2.5 max-h-[240px] overflow-y-scroll custom-scrollbar pr-3 pb-3">
+              {filteredQuestions.length === 0 ? (
+                <div className="p-6 text-center text-xs text-zinc-500 border border-dashed border-white/10 rounded-2xl">
+                  No practice prompts found for this drive. Select "All Target Drives" above.
                 </div>
-              ))}
+              ) : (
+                filteredQuestions.map(q => (
+                  <div
+                    key={q.id}
+                    onClick={() => {
+                      setSelectedQuestion(q);
+                      setFeedback(null);
+                      setApiError(null);
+                    }}
+                    className={`p-4 rounded-2xl border text-xs cursor-pointer transition-all duration-200 ${selectedQuestion.id === q.id
+                      ? 'bg-orange-500/10 border-orange-500/40 text-white font-semibold shadow-sm'
+                      : 'bg-[#000000] border-white/10 text-zinc-400 hover:text-white hover:border-white/20'
+                      }`}
+                  >
+                    <p className="line-clamp-2 leading-relaxed">{q.questionText}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </motion.div>

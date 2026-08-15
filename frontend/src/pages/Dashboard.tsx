@@ -485,12 +485,12 @@ export const Dashboard: React.FC = () => {
                 Practice behavioral & STAR framework questions with real-time speech pace, confidence level, and filler word detection.
               </p>
 
-              {/* LIVE ANALYTICS METRICS 3 METRICS GRID */}
-              <div className="grid grid-cols-3 gap-2.5 text-xs">
-                <div className="p-3 rounded-lg bg-[#141414] border border-white/10 space-y-1 hover:border-white/20 transition-all">
+              {/* LIVE ANALYTICS METRICS 2 METRICS GRID */}
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1.5 hover:border-white/20 transition-all">
                   <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Pace</span>
                   <div className="flex items-baseline justify-between">
-                    <span className="font-extrabold text-white text-sm sm:text-base">{speechAnalytics.wpm}</span>
+                    <span className="font-extrabold text-white text-base">{speechAnalytics.wpm} <span className="text-[10px] text-zinc-400 font-normal font-mono">WPM</span></span>
                     <span className="text-[9px] text-emerald-400 font-semibold hidden sm:inline">120-150</span>
                   </div>
                   <div className="w-full bg-[#000000] rounded-full h-1 overflow-hidden">
@@ -498,20 +498,9 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-3 rounded-lg bg-[#141414] border border-white/10 space-y-1 hover:border-white/20 transition-all">
-                  <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Confidence</span>
-                  <div className="flex items-baseline justify-between">
-                    <span className="font-extrabold text-emerald-400 text-sm sm:text-base">{speechAnalytics.confidenceScore}%</span>
-                    <span className="text-[9px] text-zinc-400 font-mono hidden sm:inline">High</span>
-                  </div>
-                  <div className="w-full bg-[#000000] rounded-full h-1 overflow-hidden">
-                    <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${speechAnalytics.confidenceScore}%` }} />
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-lg bg-[#141414] border border-white/10 space-y-1 hover:border-white/20 transition-all">
+                <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1.5 hover:border-white/20 transition-all">
                   <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Fillers</span>
-                  <span className="font-bold text-zinc-200 text-xs sm:text-sm block">{speechAnalytics.fillerCount}</span>
+                  <span className="font-bold text-zinc-200 text-base block">{speechAnalytics.fillerCount}</span>
                   <span className="text-[9px] text-emerald-400 block font-medium">Optimal</span>
                 </div>
               </div>

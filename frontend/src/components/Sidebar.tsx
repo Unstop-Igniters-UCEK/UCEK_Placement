@@ -70,11 +70,11 @@ export const Sidebar: React.FC = () => {
             />
 
             <motion.aside
-              initial={{ x: -280, opacity: 0 }}
+              initial={{ x: -300, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -280, opacity: 0 }}
+              exit={{ x: -300, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-              className="fixed left-0 top-0 h-screen h-dvh max-h-screen w-64 bg-[#000000] border-r border-[#2d3132] flex flex-col justify-between p-4 z-40 select-none shadow-2xl overflow-y-auto no-scrollbar transform-gpu"
+              className="fixed left-0 top-0 h-screen h-dvh max-h-screen w-72 bg-[#000000] border-r border-[#2d3132] flex flex-col justify-between p-5 z-50 select-none shadow-2xl overflow-y-auto no-scrollbar transform-gpu"
             >
               {/* TOP SECTION: Logo icon on left + Close button placed to the right side of the logo */}
               <div className="shrink-0 pt-1 pb-3 px-1 flex items-center justify-between gap-3 border-b border-[#2d3132] mb-2">
