@@ -20,6 +20,7 @@ import {
   FileCode,
   Check,
   Plus,
+  Minus,
   Trash2,
   RefreshCw,
   ChevronDown,
@@ -262,10 +263,6 @@ export const AIResumeSuite: React.FC = () => {
       resumeData.certifications.forEach(cert => { text += `• ${cert}\n`; });
     }
     return text;
-  };
-
-  const handleLoadFromBuilder = () => {
-    setResumeText(getBuilderPlainText());
   };
 
   // HANDLER: Calculate JD Match
@@ -758,7 +755,7 @@ export const AIResumeSuite: React.FC = () => {
                 />
               </div>
 
-              {/* EXPERIENCE / LEADERSHIP WITH AI ENHANCE */}
+              {/* EXPERIENCE / LEADERSHIP WITH REMOVE & AI ENHANCE */}
               <div className="mono-card p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-xs text-orange-400 uppercase tracking-wider font-heading">Experience & Leadership</h3>
@@ -781,32 +778,63 @@ export const AIResumeSuite: React.FC = () => {
 
                 {resumeData.experience.map((exp, idx) => (
                   <div key={exp.id} className="p-4 rounded-2xl bg-[#121212] border border-white/10 space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
-                        value={exp.company}
-                        onChange={e => {
-                          const updated = [...resumeData.experience];
-                          updated[idx].company = e.target.value;
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="grid grid-cols-2 gap-2 flex-1">
+                        <input
+                          type="text"
+                          placeholder="Company Name"
+                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
+                          value={exp.company}
+                          onChange={e => {
+                            const updated = [...resumeData.experience];
+                            updated[idx].company = e.target.value;
+                            setResumeData({ ...resumeData, experience: updated });
+                          }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Role / Position"
+                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
+                          value={exp.position}
+                          onChange={e => {
+                            const updated = [...resumeData.experience];
+                            updated[idx].position = e.target.value;
+                            setResumeData({ ...resumeData, experience: updated });
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = resumeData.experience.filter(e => e.id !== exp.id);
                           setResumeData({ ...resumeData, experience: updated });
                         }}
-                      />
-                      <input
-                        type="text"
-                        className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
-                        value={exp.position}
-                        onChange={e => {
-                          const updated = [...resumeData.experience];
-                          updated[idx].position = e.target.value;
-                          setResumeData({ ...resumeData, experience: updated });
-                        }}
-                      />
+                        className="px-2.5 py-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shrink-0"
+                        title="Remove Experience Entry"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Remove</span>
+                      </button>
                     </div>
 
-                    {/* BULLET POINTS WITH AI ENHANCE BUTTONS */}
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-semibold text-zinc-400">Key Achievements (STAR Method)</label>
+                    {/* BULLET POINTS WITH REMOVE & AI ENHANCE */}
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-semibold text-zinc-400">Key Achievements (STAR Method)</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedExp = [...resumeData.experience];
+                            const bullets = [...updatedExp[idx].bullets, 'Engineered new capability using modern stack.'];
+                            updatedExp[idx] = { ...updatedExp[idx], bullets };
+                            setResumeData({ ...resumeData, experience: updatedExp });
+                          }}
+                          className="text-[10px] text-orange-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" /> Add Bullet
+                        </button>
+                      </div>
+
                       {exp.bullets.map((bullet, bIdx) => {
                         const isEnhancing = enhancingBulletIndex?.section === 'experience' && enhancingBulletIndex.idx === idx && enhancingBulletIndex.bulletIdx === bIdx;
                         return (
@@ -827,7 +855,7 @@ export const AIResumeSuite: React.FC = () => {
                               type="button"
                               onClick={() => handleEnhanceBullet('experience', idx, bIdx, bullet)}
                               disabled={isEnhancing || !bullet.trim()}
-                              className="px-3 py-2 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                              className="px-3 py-2.5 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
                             >
                               {isEnhancing ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -835,6 +863,19 @@ export const AIResumeSuite: React.FC = () => {
                                 <Wand2 className="w-3.5 h-3.5" />
                               )}
                               <span>AI Enhance</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedExp = [...resumeData.experience];
+                                const bullets = updatedExp[idx].bullets.filter((_, i) => i !== bIdx);
+                                updatedExp[idx].bullets = bullets;
+                                setResumeData({ ...resumeData, experience: updatedExp });
+                              }}
+                              className="p-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 cursor-pointer transition-colors"
+                              title="Remove Bullet Point"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         );
@@ -844,7 +885,7 @@ export const AIResumeSuite: React.FC = () => {
                 ))}
               </div>
 
-              {/* TECHNICAL PROJECTS WITH AI ENHANCE */}
+              {/* TECHNICAL PROJECTS WITH REMOVE & AI ENHANCE */}
               <div className="mono-card p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-xs text-orange-400 uppercase tracking-wider font-heading">Technical Projects</h3>
@@ -867,31 +908,62 @@ export const AIResumeSuite: React.FC = () => {
 
                 {resumeData.projects.map((proj, idx) => (
                   <div key={proj.id} className="p-4 rounded-2xl bg-[#121212] border border-white/10 space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
-                        value={proj.title}
-                        onChange={e => {
-                          const updated = [...resumeData.projects];
-                          updated[idx].title = e.target.value;
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="grid grid-cols-2 gap-2 flex-1">
+                        <input
+                          type="text"
+                          placeholder="Project Title"
+                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
+                          value={proj.title}
+                          onChange={e => {
+                            const updated = [...resumeData.projects];
+                            updated[idx].title = e.target.value;
+                            setResumeData({ ...resumeData, projects: updated });
+                          }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Tech Stack (e.g. React, Node.js)"
+                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
+                          value={proj.techStack}
+                          onChange={e => {
+                            const updated = [...resumeData.projects];
+                            updated[idx].techStack = e.target.value;
+                            setResumeData({ ...resumeData, projects: updated });
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = resumeData.projects.filter(p => p.id !== proj.id);
                           setResumeData({ ...resumeData, projects: updated });
                         }}
-                      />
-                      <input
-                        type="text"
-                        className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
-                        value={proj.techStack}
-                        onChange={e => {
-                          const updated = [...resumeData.projects];
-                          updated[idx].techStack = e.target.value;
-                          setResumeData({ ...resumeData, projects: updated });
-                        }}
-                      />
+                        className="px-2.5 py-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shrink-0"
+                        title="Remove Project Entry"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Remove</span>
+                      </button>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-semibold text-zinc-400">Project Achievements (STAR Method)</label>
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-semibold text-zinc-400">Project Achievements (STAR Method)</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedProj = [...resumeData.projects];
+                            const bullets = [...updatedProj[idx].bullets, 'Architected scalable module with real-time capabilities.'];
+                            updatedProj[idx] = { ...updatedProj[idx], bullets };
+                            setResumeData({ ...resumeData, projects: updatedProj });
+                          }}
+                          className="text-[10px] text-orange-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" /> Add Bullet
+                        </button>
+                      </div>
+
                       {proj.bullets.map((bullet, bIdx) => {
                         const isEnhancing = enhancingBulletIndex?.section === 'projects' && enhancingBulletIndex.idx === idx && enhancingBulletIndex.bulletIdx === bIdx;
                         return (
@@ -912,7 +984,7 @@ export const AIResumeSuite: React.FC = () => {
                               type="button"
                               onClick={() => handleEnhanceBullet('projects', idx, bIdx, bullet)}
                               disabled={isEnhancing || !bullet.trim()}
-                              className="px-3 py-2 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                              className="px-3 py-2.5 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
                             >
                               {isEnhancing ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -921,12 +993,73 @@ export const AIResumeSuite: React.FC = () => {
                               )}
                               <span>AI Enhance</span>
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedProj = [...resumeData.projects];
+                                const bullets = updatedProj[idx].bullets.filter((_, i) => i !== bIdx);
+                                updatedProj[idx].bullets = bullets;
+                                setResumeData({ ...resumeData, projects: updatedProj });
+                              }}
+                              className="p-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 cursor-pointer transition-colors"
+                              title="Remove Bullet Point"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         );
                       })}
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* CERTIFICATIONS & ACHIEVEMENTS SECTION */}
+              <div className="mono-card p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-xs text-orange-400 uppercase tracking-wider font-heading">Certifications & Key Achievements</h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResumeData({
+                        ...resumeData,
+                        certifications: [...resumeData.certifications, 'New Professional Certification or Award']
+                      });
+                    }}
+                    className="text-xs text-orange-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Achievement
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {resumeData.certifications.map((cert, certIdx) => (
+                    <div key={certIdx} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        className="flex-1 bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10 focus:border-orange-500 outline-none font-sans"
+                        value={cert}
+                        onChange={e => {
+                          const updatedCerts = [...resumeData.certifications];
+                          updatedCerts[certIdx] = e.target.value;
+                          setResumeData({ ...resumeData, certifications: updatedCerts });
+                        }}
+                        placeholder="e.g. NPTEL Software Engineering Certification (Elite Badge)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updatedCerts = resumeData.certifications.filter((_, i) => i !== certIdx);
+                          setResumeData({ ...resumeData, certifications: updatedCerts });
+                        }}
+                        className="p-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold shrink-0 flex items-center justify-center cursor-pointer transition-colors"
+                        title="Remove Achievement"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -998,40 +1131,44 @@ export const AIResumeSuite: React.FC = () => {
                 </div>
 
                 {/* EXPERIENCE */}
-                <div>
-                  <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Experience & Leadership</h2>
-                  {resumeData.experience.map(exp => (
-                    <div key={exp.id} className="space-y-1 mb-2">
-                      <div className="flex justify-between text-[11px]">
-                        <strong className="text-gray-900">{exp.position} — {exp.company}</strong>
-                        <span className="text-gray-600 font-mono text-[10px]">{exp.startDate} - {exp.endDate}</span>
+                {resumeData.experience.length > 0 && (
+                  <div>
+                    <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Experience & Leadership</h2>
+                    {resumeData.experience.map(exp => (
+                      <div key={exp.id} className="space-y-1 mb-2">
+                        <div className="flex justify-between text-[11px]">
+                          <strong className="text-gray-900">{exp.position} — {exp.company}</strong>
+                          <span className="text-gray-600 font-mono text-[10px]">{exp.startDate} - {exp.endDate}</span>
+                        </div>
+                        <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
+                          {exp.bullets.map((b, i) => (
+                            <li key={i}>{b}</li>
+                          ))}
+                        </ul>
                       </div>
-                      <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
-                        {exp.bullets.map((b, i) => (
-                          <li key={i}>{b}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* PROJECTS */}
-                <div>
-                  <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Technical Projects</h2>
-                  {resumeData.projects.map(proj => (
-                    <div key={proj.id} className="space-y-1 mb-2">
-                      <div className="flex justify-between text-[11px]">
-                        <strong className="text-gray-900">{proj.title}</strong>
-                        <span className="text-gray-600 font-mono text-[10px]">{proj.techStack}</span>
+                {resumeData.projects.length > 0 && (
+                  <div>
+                    <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Technical Projects</h2>
+                    {resumeData.projects.map(proj => (
+                      <div key={proj.id} className="space-y-1 mb-2">
+                        <div className="flex justify-between text-[11px]">
+                          <strong className="text-gray-900">{proj.title}</strong>
+                          <span className="text-gray-600 font-mono text-[10px]">{proj.techStack}</span>
+                        </div>
+                        <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
+                          {proj.bullets.map((b, i) => (
+                            <li key={i}>{b}</li>
+                          ))}
+                        </ul>
                       </div>
-                      <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
-                        {proj.bullets.map((b, i) => (
-                          <li key={i}>{b}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* SKILLS */}
                 <div>
@@ -1043,7 +1180,7 @@ export const AIResumeSuite: React.FC = () => {
                   ))}
                 </div>
 
-                {/* CERTIFICATIONS */}
+                {/* CERTIFICATIONS & ACHIEVEMENTS */}
                 {resumeData.certifications.length > 0 && (
                   <div>
                     <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Certifications & Achievements</h2>
