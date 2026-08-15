@@ -10,6 +10,7 @@ import {
   AlertCircle,
   MessageSquare,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 
 export const HRInterviewSimulator: React.FC = () => {
@@ -176,21 +177,19 @@ export const HRInterviewSimulator: React.FC = () => {
       initial="hidden"
       animate="visible"
     >
-      {/* HEADER CARD */}
-      <motion.div variants={itemVariants} className="mono-card p-6 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 text-orange-400">
-              <Mic className="w-5 h-5" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-heading">
-              HR Interview Speech Simulator
-            </h1>
-            <p className="text-xs text-zinc-400">
-              Practice HR behavioral questions with real-time speech fluency, pace (WPM), and confidence analysis.
-            </p>
+      {/* UNWRAPPED HEADER (No card box) */}
+      <motion.div variants={itemVariants} className="px-1 space-y-2 pb-1">
+        <div className="flex items-center gap-2 text-orange-400">
+          <div className="w-8 h-8 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+            <Mic className="w-4.5 h-4.5 text-orange-400" />
           </div>
         </div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-heading">
+          HR Interview Speech Simulator
+        </h1>
+        <p className="text-sm text-zinc-400 leading-relaxed max-w-2xl">
+          Practice HR behavioral questions with real-time speech fluency, pace (WPM), and confidence analysis.
+        </p>
       </motion.div>
 
       {/* API ERROR BANNER */}
@@ -198,61 +197,62 @@ export const HRInterviewSimulator: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-3 rounded-xl bg-rose-950/30 border border-rose-800/50 text-rose-300 text-xs flex items-start gap-2 font-sans"
+          className="p-4 rounded-2xl bg-rose-950/30 border border-rose-800/50 text-rose-300 text-xs flex items-start gap-3 font-sans shadow-lg"
         >
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{apiError}</span>
+          <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5 text-rose-400" />
+          <span className="leading-relaxed">{apiError}</span>
         </motion.div>
       )}
 
       {/* SIMULATOR STAGE GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT COLUMN: INTERVIEW PROMPT & RECORDING STAGE */}
-        <motion.div variants={itemVariants} className="lg:col-span-7 mono-card p-6 space-y-6">
+        <motion.div variants={itemVariants} className="lg:col-span-7 bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 sm:p-7 space-y-6 shadow-2xl relative overflow-hidden">
           <div className="space-y-2">
-            <span className="text-[11px] font-semibold text-orange-400 uppercase">
-              Current Interview Prompt ({selectedQuestion.companyTag || 'HR Round'})
-            </span>
-            <h2 className="text-lg font-bold text-white leading-relaxed font-heading">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-[11px] font-bold text-orange-400 uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Current Interview Prompt ({selectedQuestion.companyTag || 'HR Round'})</span>
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold text-white leading-snug font-heading pt-1">
               "{selectedQuestion.questionText}"
             </h2>
           </div>
 
           {/* SIMULATOR AUDIO STAGE / RECORDING FRAME */}
-          <div className="relative p-8 rounded-2xl bg-zinc-950/80 border border-zinc-800 flex flex-col items-center justify-center text-center space-y-4 overflow-hidden">
-            <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center relative">
+          <div className="relative p-8 sm:p-10 rounded-2xl bg-[#000000] border border-white/10 flex flex-col items-center justify-center text-center space-y-5 overflow-hidden shadow-inner">
+            <div className="w-22 h-22 rounded-full bg-[#0d0d0d] border border-white/15 flex items-center justify-center relative shadow-xl">
               {isRecording ? (
                 <>
-                  <div className="absolute inset-0 rounded-full bg-orange-500/20 animate-ping" />
-                  <Mic className="w-8 h-8 text-orange-400 z-10" />
+                  <div className="absolute inset-0 rounded-full bg-orange-500/25 animate-ping" />
+                  <Mic className="w-9 h-9 text-orange-400 z-10" />
                 </>
               ) : analyzing ? (
-                <Loader2 className="w-8 h-8 text-cyan-400 z-10 animate-spin" />
+                <Loader2 className="w-9 h-9 text-orange-400 z-10 animate-spin" />
               ) : (
-                <Mic className="w-8 h-8 text-zinc-400 z-10" />
+                <Mic className="w-9 h-9 text-zinc-400 z-10" />
               )}
             </div>
 
             <div className="space-y-1 font-mono">
-              <div className="text-2xl font-extrabold text-white">{formatSeconds(recordingTime)}</div>
-              <div className="text-xs text-zinc-400">
+              <div className="text-3xl font-extrabold text-white tracking-wider font-mono">{formatSeconds(recordingTime)}</div>
+              <div className="text-xs text-zinc-400 font-sans">
                 {isRecording
                   ? 'Recording audio… Speak your answer clearly'
                   : analyzing
-                    ? 'Sending to Gemini AI for analysis…'
-                    : 'Click start to practice response'}
+                    ? 'Sending to Gemini AI for speech & STAR evaluation…'
+                    : 'Click start to practice your response'}
               </div>
             </div>
 
             {/* SPEECH WAVEFORM SIMULATION */}
             {isRecording && (
-              <div className="flex items-center gap-1.5 h-8">
+              <div className="flex items-center gap-1.5 h-9 pt-1">
                 {[40, 75, 30, 90, 50, 80, 45, 60, 95, 35].map((h, i) => (
                   <motion.div
                     key={i}
                     animate={{ height: ['25%', `${h}%`, '25%'] }}
                     transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.08, ease: 'easeInOut' }}
-                    className="w-1 bg-orange-400 rounded-full"
+                    className="w-1.5 bg-orange-400 rounded-full"
                   />
                 ))}
               </div>
@@ -263,7 +263,7 @@ export const HRInterviewSimulator: React.FC = () => {
                 <button
                   onClick={handleStartRecording}
                   disabled={analyzing}
-                  className="btn-primary py-3 px-8 text-xs font-bold rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn-primary py-3.5 px-9 text-xs font-bold rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-orange-500/10 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
                 >
                   <Mic className="w-4 h-4 text-black" />
                   <span>Start Recording Answer</span>
@@ -271,7 +271,7 @@ export const HRInterviewSimulator: React.FC = () => {
               ) : (
                 <button
                   onClick={handleStopRecording}
-                  className="px-8 py-3 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-2 cursor-pointer transition-colors shadow-lg"
+                  className="px-9 py-3.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-2 cursor-pointer transition-all shadow-lg active:scale-95"
                 >
                   <Square className="w-4 h-4 fill-white" />
                   <span>Stop & Analyze Speech</span>
@@ -281,9 +281,9 @@ export const HRInterviewSimulator: React.FC = () => {
           </div>
 
           {/* QUESTION SELECTOR */}
-          <div className="space-y-2 pt-2">
+          <div className="space-y-3 pt-1">
             <h4 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">Select Question Prompt</h4>
-            <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar pr-1">
+            <div className="space-y-2.5 max-h-52 overflow-y-auto no-scrollbar pr-1">
               {filteredQuestions.map(q => (
                 <div
                   key={q.id}
@@ -292,12 +292,12 @@ export const HRInterviewSimulator: React.FC = () => {
                     setFeedback(null);
                     setApiError(null);
                   }}
-                  className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${selectedQuestion.id === q.id
-                    ? 'bg-cyan-950/30 border-cyan-800/60 text-white font-semibold'
-                    : 'bg-zinc-950/60 border-zinc-800/80 text-zinc-400 hover:text-zinc-200'
+                  className={`p-4 rounded-2xl border text-xs cursor-pointer transition-all duration-200 ${selectedQuestion.id === q.id
+                    ? 'bg-orange-500/10 border-orange-500/40 text-white font-semibold shadow-sm'
+                    : 'bg-[#000000] border-white/10 text-zinc-400 hover:text-white hover:border-white/20'
                     }`}
                 >
-                  <p className="line-clamp-1">{q.questionText}</p>
+                  <p className="line-clamp-2 leading-relaxed">{q.questionText}</p>
                 </div>
               ))}
             </div>
@@ -305,20 +305,25 @@ export const HRInterviewSimulator: React.FC = () => {
         </motion.div>
 
         {/* RIGHT COLUMN: SPEECH FEEDBACK REPORT */}
-        <motion.div variants={itemVariants} className="lg:col-span-5 mono-card p-6 space-y-6">
+        <motion.div variants={itemVariants} className="lg:col-span-5 bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 sm:p-7 space-y-6 shadow-2xl flex flex-col justify-center min-h-[420px]">
           {analyzing ? (
             <div className="py-24 text-center space-y-3">
               <Loader2 className="w-10 h-10 text-orange-400 mx-auto animate-spin" />
-              <p className="text-xs font-semibold text-zinc-400 font-mono">Evaluating Your Response... Please Wait!</p>
+              <p className="text-xs font-semibold text-zinc-400 font-mono">Evaluating Your Speech & Fluency… Please Wait!</p>
             </div>
           ) : !feedback ? (
-            <div className="py-24 text-center space-y-2">
-              <MessageSquare className="w-10 h-10 text-zinc-600 mx-auto" />
-              <p className="text-xs font-semibold text-zinc-400 font-mono">Record an answer to generate AI speech feedback report</p>
+            <div className="py-24 text-center space-y-3">
+              <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-zinc-400 shadow-inner">
+                <MessageSquare className="w-8 h-8" />
+              </div>
+              <div className="space-y-1 max-w-xs mx-auto">
+                <p className="text-sm font-bold text-white">AI Evaluation Workspace</p>
+                <p className="text-xs text-zinc-400 font-sans leading-relaxed">Record an answer on the left to generate an instant speech analysis & feedback report.</p>
+              </div>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-3 bg-zinc-950/60 border border-zinc-800/80 p-4 rounded-xl font-mono text-center">
+              <div className="grid grid-cols-3 gap-3 bg-[#000000] border border-white/10 p-4 rounded-2xl font-mono text-center shadow-inner">
                 <div>
                   <span className="text-[10px] text-zinc-400 uppercase tracking-wider block">Fluency Rating</span>
                   <span className="text-2xl font-extrabold text-white">{feedback.overallRating} <span className="text-xs text-zinc-500 font-normal">/ 10</span></span>
@@ -337,9 +342,9 @@ export const HRInterviewSimulator: React.FC = () => {
                 <h4 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">Key Strengths</h4>
                 <ul className="space-y-2 text-xs">
                   {feedback.strengths.map((str, idx) => (
-                    <li key={idx} className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-800/40 text-emerald-300 flex items-start gap-2">
+                    <li key={idx} className="p-3.5 rounded-2xl bg-emerald-950/20 border border-emerald-800/40 text-emerald-300 flex items-start gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>{str}</span>
+                      <span className="leading-relaxed">{str}</span>
                     </li>
                   ))}
                 </ul>
@@ -349,15 +354,15 @@ export const HRInterviewSimulator: React.FC = () => {
                 <h4 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">Actionable Improvement Areas</h4>
                 <ul className="space-y-2 text-xs">
                   {feedback.improvements.map((imp, idx) => (
-                    <li key={idx} className="p-3 rounded-xl bg-amber-950/20 border border-amber-800/40 text-amber-300 flex items-start gap-2">
+                    <li key={idx} className="p-3.5 rounded-2xl bg-amber-950/20 border border-amber-800/40 text-amber-300 flex items-start gap-2.5">
                       <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                      <span>{imp}</span>
+                      <span className="leading-relaxed">{imp}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2 text-xs">
+              <div className="p-4 rounded-2xl bg-[#000000] border border-white/10 space-y-2 text-xs">
                 <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-wider">Suggested Ideal Response</span>
                 <p className="text-zinc-300 leading-relaxed italic">{feedback.sampleIdealResponse}</p>
               </div>
