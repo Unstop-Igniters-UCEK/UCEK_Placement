@@ -139,7 +139,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [roadmaps, setRoadmaps] = useState<DomainRoadmap[]>(INITIAL_ROADMAPS);
   const [mockTests, setMockTests] = useState<MockTest[]>(MOCK_TESTS);
-  const [recentScores, setRecentScores] = useState<TestResult[]>(INITIAL_RECENT_SCORES);
+  const [recentScores, setRecentScores] = useState<TestResult[]>(() => {
+    try {
+      const saved = localStorage.getItem('ucek_recent_test_scores');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to parse test scores from localStorage:', e);
+    }
+    return INITIAL_RECENT_SCORES;
+  });
   const [mentorshipPair, setMentorshipPair] = useState<MentorshipPair | null>(INITIAL_MENTORSHIP);
   const [interviewQuestions] = useState<InterviewQuestion[]>(INTERVIEW_QUESTIONS);
   const [mentors] = useState<SeniorMentor[]>(SENIOR_MENTORS);
@@ -322,7 +333,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `res_${Date.now()}`,
       date: new Date().toISOString().split('T')[0]
     };
-    setRecentScores(prev => [newResult, ...prev]);
+    setRecentScores(prev => {
+      const updated = [newResult, ...prev];
+      try {
+        localStorage.setItem('ucek_recent_test_scores', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to save test score to localStorage:', e);
+      }
+      return updated;
+    });
   };
 
   const addQuestionToBank = (newQ: Omit<Question, 'id'>) => {

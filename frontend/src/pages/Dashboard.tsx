@@ -466,7 +466,11 @@ export const Dashboard: React.FC = () => {
                           </div>
                         </td>
                         <td className="p-4">
-                          {res.passed ? (
+                          {res.testTitle.includes('DISQUALIFIED') ? (
+                            <span className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold inline-flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 text-rose-400" /> DISQUALIFIED
+                            </span>
+                          ) : res.passed ? (
                             <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold inline-flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3" /> PASSED
                             </span>
