@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 export const HRInterviewSimulator: React.FC = () => {
-  const { interviewQuestions } = useApp();
+  const { interviewQuestions, logoutUser, setActiveTab, setAuthModalOpen, setAuthModalMode } = useApp();
 
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedQuestion, setSelectedQuestion] = useState<InterviewQuestion>(
@@ -148,7 +148,11 @@ export const HRInterviewSimulator: React.FC = () => {
       setFeedback(mapped);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
-      setApiError(`AI analysis failed: ${msg}. Check that the backend is running on ${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}.`);
+      if (msg.toLowerCase().includes('expired') || msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
+        setApiError('Token has expired, please sign in again.');
+      } else {
+        setApiError(`AI analysis failed: ${msg}. Check that the backend is running on ${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}.`);
+      }
     } finally {
       setAnalyzing(false);
     }
@@ -197,10 +201,25 @@ export const HRInterviewSimulator: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 rounded-2xl bg-rose-950/30 border border-rose-800/50 text-rose-300 text-xs flex items-start gap-3 font-sans shadow-lg"
+          className="p-4 rounded-2xl bg-rose-950/30 border border-rose-800/50 text-rose-300 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-sans shadow-lg"
         >
-          <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5 text-rose-400" />
-          <span className="leading-relaxed">{apiError}</span>
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5 text-rose-400" />
+            <span className="leading-relaxed">{apiError}</span>
+          </div>
+          {(apiError.includes('expired') || apiError.includes('401') || apiError.includes('Unauthorized') || apiError.includes('sign in')) && (
+            <button
+              onClick={() => {
+                logoutUser();
+                setActiveTab('dashboard');
+                setAuthModalMode('login');
+                setAuthModalOpen(true);
+              }}
+              className="px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shrink-0 cursor-pointer transition-all shadow-md active:scale-95"
+            >
+              Sign In Again
+            </button>
+          )}
         </motion.div>
       )}
 
