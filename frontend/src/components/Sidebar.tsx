@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import SideRays from './SideRays';
 import {
   User,
   LogOut,
@@ -74,13 +75,33 @@ export const Sidebar: React.FC = () => {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -300, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-              className="fixed left-0 top-0 h-screen h-dvh max-h-screen w-72 bg-[#000000] border-r border-[#2d3132] flex flex-col justify-between p-5 z-50 select-none shadow-2xl overflow-y-auto no-scrollbar transform-gpu"
+              className="fixed left-0 top-0 h-screen h-dvh max-h-screen w-72 bg-[#050505]/90 backdrop-blur-xl border-r border-[#2d3132]/80 flex flex-col justify-between p-5 z-50 select-none shadow-2xl overflow-y-auto no-scrollbar transform-gpu"
             >
+              {/* Animated SideRays Background (Sidebar Only) */}
+              <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+                <SideRays
+                  speed={1.8}
+                  rayColor1="#F97316"
+                  rayColor2="#F97316"
+                  intensity={1.2}
+                  spread={0.4}
+                  origin="top-left"
+                  tilt={21}
+                  saturation={1.65}
+                  blend={0.16}
+                  falloff={1.1}
+                  opacity={1}
+                />
+              </div>
+
               {/* TOP SECTION: Logo icon on left + Close button placed to the right side of the logo */}
-              <div className="shrink-0 pt-1 pb-3 px-1 flex items-center justify-between gap-3 border-b border-[#2d3132] mb-2">
+              <div className="relative z-10 shrink-0 pt-1 pb-3 px-1 flex items-center justify-between gap-3 border-b border-white/10 mb-2">
                 <div
-                  onClick={() => setActiveTab('dashboard')}
-                  className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-bold shadow-md cursor-pointer hover:scale-105 transition-transform shrink-0"
+                  onClick={() => {
+                    setActiveTab('dashboard');
+                    if (window.innerWidth < 1024) setSidebarOpen(false);
+                  }}
+                  className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-bold shadow-lg shadow-orange-500/10 cursor-pointer hover:scale-105 transition-transform shrink-0"
                   title="UCEK Ignite Dashboard"
                 >
                   <GraduationCap className="w-5.5 h-5.5 text-black" />
@@ -92,7 +113,7 @@ export const Sidebar: React.FC = () => {
                 {/* Close Button on the right side of the logo */}
                 <button
                   onClick={() => setSidebarOpen(false)}
-                  className="w-8 h-8 rounded-full bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0"
+                  className="w-8 h-8 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/15 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-all active:scale-95 shrink-0 shadow-sm"
                   title="Close Sidebar"
                 >
                   <X className="w-4 h-4" />
@@ -100,7 +121,7 @@ export const Sidebar: React.FC = () => {
               </div>
 
               {/* MID SECTION: Top bar navigation elements in rounded button style */}
-              <nav className="flex-1 space-y-1.5 py-2 overflow-y-auto no-scrollbar">
+              <nav className="relative z-10 flex-1 space-y-1.5 py-2 overflow-y-auto no-scrollbar">
                 {navItems.map(tab => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -108,11 +129,14 @@ export const Sidebar: React.FC = () => {
                   return (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        if (window.innerWidth < 1024) setSidebarOpen(false);
+                      }}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-xs font-bold relative whitespace-nowrap cursor-pointer transition-all active:scale-[0.97] ${
                         isActive
-                          ? 'text-black font-extrabold bg-white shadow-md'
-                          : 'text-zinc-400 hover:text-white hover:bg-[#2a2e2f] font-semibold'
+                          ? 'text-black font-extrabold bg-white shadow-lg shadow-white/10'
+                          : 'text-zinc-300 hover:text-white hover:bg-white/10 font-semibold backdrop-blur-xs'
                       }`}
                     >
                       {isActive && (
@@ -122,7 +146,7 @@ export const Sidebar: React.FC = () => {
                           transition={{ type: 'spring', stiffness: 450, damping: 35 }}
                         />
                       )}
-                      <Icon className={`w-4 h-4 z-10 shrink-0 ${isActive ? 'text-black' : 'text-zinc-400'}`} />
+                      <Icon className={`w-4 h-4 z-10 shrink-0 ${isActive ? 'text-black' : 'text-zinc-300'}`} />
                       <span className="tracking-tight z-10 truncate">{tab.label}</span>
                     </button>
                   );
@@ -130,10 +154,10 @@ export const Sidebar: React.FC = () => {
               </nav>
 
               {/* BOTTOM SECTION: User Logo/Profile & Red Rounded Logout Button */}
-              <div className="shrink-0 pt-3 border-t border-[#1f1f1f] space-y-2.5">
+              <div className="relative z-10 shrink-0 pt-3 border-t border-white/10 space-y-2.5">
                 {/* User Info Tile */}
-                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#141414] border border-white/10">
-                  <div className="w-9 h-9 rounded-full bg-[#000000] border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 shadow-md">
+                  <div className="w-9 h-9 rounded-full bg-zinc-950 border border-white/15 flex items-center justify-center overflow-hidden shrink-0">
                     {user.avatar ? (
                       <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
                     ) : (
@@ -149,7 +173,7 @@ export const Sidebar: React.FC = () => {
                 {/* Red Rounded Logout Button (Preserved) */}
                 <button
                   onClick={logoutUser}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg transition-all cursor-pointer active:scale-[0.97]"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-950/30 transition-all cursor-pointer active:scale-[0.97]"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Logout</span>
