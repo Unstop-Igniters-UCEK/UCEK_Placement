@@ -130,9 +130,13 @@ export const AIResumeSuite: React.FC = () => {
   const [matchLoading, setMatchLoading] = useState(false);
   const [matchResult, setMatchResult] = useState<JDMatchResult | null>(null);
   
-  // RESUME SOURCE TOGGLE FIX ('builder' vs 'custom')
+  // RESUME SOURCE TOGGLE & CHECKBOX
   const [resumeSource, setResumeSource] = useState<'builder' | 'custom'>('builder');
+  const [useSameReviewerResume, setUseSameReviewerResume] = useState(false);
   const [customResumeSourceText, setCustomResumeSourceText] = useState('');
+  const [matcherPdfLoading, setMatcherPdfLoading] = useState(false);
+  const [matcherPdfProgress, setMatcherPdfProgress] = useState(0);
+  const jdFileInputRef = useRef<HTMLInputElement>(null);
 
   // HANDLER: Run ATS AI Scan (Prevents blank white-screen React crash)
   const handleRunReview = async () => {
@@ -237,6 +241,65 @@ export const AIResumeSuite: React.FC = () => {
     }
   };
 
+  // HANDLER: JD Matcher File Upload with Bar Loader
+  const handleMatcherFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setResumeSource('custom');
+    setUseSameReviewerResume(false);
+
+    if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
+      setMatcherPdfLoading(true);
+      setMatcherPdfProgress(15);
+
+      const interval = setInterval(() => {
+        setMatcherPdfProgress(prev => (prev < 90 ? prev + 15 : prev));
+      }, 250);
+
+      try {
+        const text = await parsePdfApi(file);
+        clearInterval(interval);
+        setMatcherPdfProgress(100);
+
+        setTimeout(() => {
+          if (text && text.trim().length > 10) {
+            setCustomResumeSourceText(text.trim());
+          } else {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const raw = event.target?.result as string;
+              if (raw) setCustomResumeSourceText(raw);
+            };
+            reader.readAsText(file);
+          }
+          setMatcherPdfLoading(false);
+          setMatcherPdfProgress(0);
+        }, 300);
+      } catch (err) {
+        clearInterval(interval);
+        setMatcherPdfProgress(100);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const raw = event.target?.result as string;
+          if (raw) setCustomResumeSourceText(raw);
+        };
+        reader.readAsText(file);
+        setTimeout(() => {
+          setMatcherPdfLoading(false);
+          setMatcherPdfProgress(0);
+        }, 300);
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        if (text) setCustomResumeSourceText(text);
+      };
+      reader.readAsText(file);
+    }
+  };
+
   // HANDLER: Generate plain text from Builder Data
   const getBuilderPlainText = () => {
     const p = resumeData.personal;
@@ -271,7 +334,9 @@ export const AIResumeSuite: React.FC = () => {
     setMatchLoading(true);
     
     let candidateText = '';
-    if (resumeSource === 'builder') {
+    if (useSameReviewerResume && resumeText.trim()) {
+      candidateText = resumeText.trim();
+    } else if (resumeSource === 'builder') {
       candidateText = getBuilderPlainText();
     } else {
       candidateText = customResumeSourceText.trim() || resumeText.trim() || getBuilderPlainText();
@@ -1211,33 +1276,107 @@ export const AIResumeSuite: React.FC = () => {
               </h2>
             </div>
 
-            {/* RESUME SOURCE TOGGLE BANNER */}
-            <div className="p-3.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-xs text-zinc-300 flex items-center justify-between">
-              <div>
-                <span className="text-zinc-400 block text-[10px]">Active Resume Source:</span>
-                <strong className="font-semibold text-orange-400">
-                  {resumeSource === 'builder' ? 'Resume Builder Profile' : 'Custom Uploaded / Pasted Resume'}
-                </strong>
+            {/* RESUME SOURCE TOGGLE & CHECKBOX BANNER */}
+            <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 text-xs text-zinc-300 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-zinc-400 block text-[10px]">Active Resume Source:</span>
+                  <strong className="font-semibold text-orange-400">
+                    {useSameReviewerResume
+                      ? 'AI Reviewer Resume Text'
+                      : resumeSource === 'builder'
+                      ? 'Resume Builder Profile'
+                      : 'Custom Uploaded / Pasted Resume'}
+                  </strong>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="file"
+                    ref={jdFileInputRef}
+                    onChange={handleMatcherFileUpload}
+                    accept=".pdf,.txt,.md,.doc,.docx"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => jdFileInputRef.current?.click()}
+                    disabled={matcherPdfLoading}
+                    className="px-2.5 py-1 rounded-full bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 font-bold border border-orange-500/30 text-[11px] cursor-pointer transition-all flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <Upload className="w-3 h-3 text-orange-400" />
+                    <span>Upload File</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseSameReviewerResume(false);
+                      setResumeSource(prev => prev === 'builder' ? 'custom' : 'builder');
+                    }}
+                    className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <Edit3 className="w-3 h-3 text-zinc-400" />
+                    <span>Change</span>
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setResumeSource(prev => prev === 'builder' ? 'custom' : 'builder')}
-                className="px-3 py-1 rounded-full bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 font-bold border border-orange-500/30 text-[11px] cursor-pointer transition-all flex items-center gap-1"
-              >
-                <Edit3 className="w-3 h-3 text-orange-400" />
-                <span>Change</span>
-              </button>
+
+              {/* CHECKBOX: USE SAME RESUME AS AI REVIEWER */}
+              <label className="flex items-center gap-2 cursor-pointer pt-1 border-t border-white/10 text-[11px] font-medium text-zinc-200">
+                <input
+                  type="checkbox"
+                  checked={useSameReviewerResume}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setUseSameReviewerResume(checked);
+                    if (checked && resumeText.trim()) {
+                      setResumeSource('custom');
+                      setCustomResumeSourceText(resumeText.trim());
+                    }
+                  }}
+                  className="w-4 h-4 accent-orange-500 rounded cursor-pointer shrink-0"
+                />
+                <span>Use the same resume uploaded/entered in AI Reviewer</span>
+              </label>
             </div>
 
+            {/* ANIMATED BAR LOADER FOR JD MATCHER PDF PARSING */}
+            {matcherPdfLoading && (
+              <div className="p-3.5 rounded-xl bg-orange-500/10 border border-orange-500/30 space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-orange-400 font-heading">
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
+                    Extracting PDF Resume Content for Matcher...
+                  </span>
+                  <span className="font-mono text-[11px] text-white">{matcherPdfProgress}%</span>
+                </div>
+                <div className="w-full bg-black/60 h-2.5 rounded-full overflow-hidden border border-white/10 p-0.5">
+                  <div
+                    className="bg-gradient-to-r from-orange-500 via-amber-400 to-orange-400 h-full rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(249,115,22,0.8)]"
+                    style={{ width: `${matcherPdfProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* IF CUSTOM SOURCE IS SELECTED, SHOW CUSTOM TEXTAREA */}
-            {resumeSource === 'custom' && (
+            {(resumeSource === 'custom' || useSameReviewerResume) && (
               <div className="space-y-1.5 p-3 rounded-xl bg-[#121212] border border-white/10">
-                <label className="text-[11px] font-semibold text-zinc-400">Custom Resume Text for Matcher</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-semibold text-zinc-400">Source Resume Plain Text for Matcher</label>
+                  <span className="text-[10px] font-mono text-zinc-500">
+                    {(useSameReviewerResume ? resumeText : customResumeSourceText).length} chars
+                  </span>
+                </div>
                 <textarea
-                  className="w-full bg-black/60 text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none h-36 font-mono resize-none"
-                  value={customResumeSourceText}
-                  onChange={e => setCustomResumeSourceText(e.target.value)}
-                  placeholder="Paste custom candidate resume text to match against the JD..."
+                  className="w-full bg-black/60 text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none h-36 font-mono leading-relaxed resize-none"
+                  value={useSameReviewerResume ? resumeText : customResumeSourceText}
+                  onChange={e => {
+                    if (!useSameReviewerResume) {
+                      setCustomResumeSourceText(e.target.value);
+                    }
+                  }}
+                  readOnly={useSameReviewerResume}
+                  placeholder="Paste custom candidate resume text or upload PDF file above..."
                 />
               </div>
             )}
