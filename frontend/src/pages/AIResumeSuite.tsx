@@ -473,11 +473,11 @@ export const AIResumeSuite: React.FC = React.memo(() => {
           </div>
 
           {/* TAB SWITCHER PILLS */}
-          <div className="flex gap-1.5 p-1.5 bg-[#121212] border border-white/10 rounded-full text-xs font-semibold self-start md:self-auto">
+          <div className="w-full sm:w-auto grid grid-cols-3 sm:flex gap-1 p-1.5 bg-[#121212] border border-white/10 rounded-2xl sm:rounded-full text-xs font-semibold self-stretch sm:self-auto">
             <button
               type="button"
               onClick={() => setActiveSubTab('reviewer')}
-              className={`px-4 py-2 rounded-full font-bold transition-all cursor-pointer ${
+              className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${
                 activeSubTab === 'reviewer'
                   ? 'bg-white text-black shadow-md'
                   : 'text-zinc-400 hover:text-white'
@@ -488,7 +488,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
             <button
               type="button"
               onClick={() => setActiveSubTab('builder')}
-              className={`px-4 py-2 rounded-full font-bold transition-all cursor-pointer ${
+              className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${
                 activeSubTab === 'builder'
                   ? 'bg-white text-black shadow-md'
                   : 'text-zinc-400 hover:text-white'
@@ -499,7 +499,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
             <button
               type="button"
               onClick={() => setActiveSubTab('matcher')}
-              className={`px-4 py-2 rounded-full font-bold transition-all cursor-pointer ${
+              className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${
                 activeSubTab === 'matcher'
                   ? 'bg-white text-black shadow-md'
                   : 'text-zinc-400 hover:text-white'
@@ -739,75 +739,75 @@ export const AIResumeSuite: React.FC = React.memo(() => {
       {activeSubTab === 'builder' && (
         <motion.div variants={itemVariants} className="space-y-6">
           {/* TEMPLATE PICKER HEADER */}
-          <div className="mono-card p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="mono-card p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h2 className="font-bold text-lg text-white font-heading">Interactive Resume Content Builder</h2>
+              <h2 className="font-bold text-base sm:text-lg text-white font-heading">Interactive Resume Content Builder</h2>
               <p className="text-xs text-zinc-400">Select template format and optimize achievements using STAR Method AI Enhance.</p>
             </div>
 
-            <div className="flex items-center gap-2 bg-[#121212] border border-white/10 p-1 rounded-full text-xs font-semibold">
+            <div className="grid grid-cols-3 sm:flex items-center gap-1.5 bg-[#121212] border border-white/10 p-1.5 rounded-2xl sm:rounded-full text-xs font-semibold w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setBuilderTemplate('ats')}
-                className={`px-3.5 py-1.5 rounded-full cursor-pointer transition-all ${
-                  builderTemplate === 'ats' ? 'bg-orange-500 text-black font-bold shadow-md' : 'text-zinc-400 hover:text-white'
+                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${
+                  builderTemplate === 'ats' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
                 }`}
               >
-                ATS Plain Clean
+                ATS Clean
               </button>
               <button
                 type="button"
                 onClick={() => setBuilderTemplate('modern')}
-                className={`px-3.5 py-1.5 rounded-full cursor-pointer transition-all ${
-                  builderTemplate === 'modern' ? 'bg-orange-500 text-black font-bold shadow-md' : 'text-zinc-400 hover:text-white'
+                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${
+                  builderTemplate === 'modern' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
                 }`}
               >
-                Modern Executive
+                Modern Exec
               </button>
               <button
                 type="button"
                 onClick={() => setBuilderTemplate('academic')}
-                className={`px-3.5 py-1.5 rounded-full cursor-pointer transition-all ${
-                  builderTemplate === 'academic' ? 'bg-orange-500 text-black font-bold shadow-md' : 'text-zinc-400 hover:text-white'
+                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${
+                  builderTemplate === 'academic' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
                 }`}
               >
-                Academic Minimal
+                Academic
               </button>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* LEFT INPUT FORM EDITORS (Scrollable Container) */}
-            <div className="lg:col-span-7 space-y-6 h-[760px] max-h-[760px] overflow-y-auto pr-3.5 custom-scrollbar">
+            {/* LEFT INPUT FORM EDITORS (Responsive Container) */}
+            <div className="lg:col-span-7 space-y-6 h-auto lg:h-[760px] lg:max-h-[760px] overflow-visible lg:overflow-y-auto pr-0 lg:pr-3.5 custom-scrollbar">
               {/* PERSONAL INFORMATION */}
-              <div className="mono-card p-6 space-y-4">
+              <div className="mono-card p-4 sm:p-6 space-y-4">
                 <h3 className="font-bold text-xs text-orange-400 uppercase tracking-wider font-heading">Personal Header Information</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="text"
                     placeholder="Full Name"
-                    className="bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none"
+                    className="bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none w-full"
                     value={resumeData.personal.fullName}
                     onChange={e => setResumeData({ ...resumeData, personal: { ...resumeData.personal, fullName: e.target.value } })}
                   />
                   <input
                     type="email"
                     placeholder="Email"
-                    className="bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none"
+                    className="bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none w-full"
                     value={resumeData.personal.email}
                     onChange={e => setResumeData({ ...resumeData, personal: { ...resumeData.personal, email: e.target.value } })}
                   />
                   <input
                     type="text"
                     placeholder="Phone"
-                    className="bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none"
+                    className="bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none w-full"
                     value={resumeData.personal.phone}
                     onChange={e => setResumeData({ ...resumeData, personal: { ...resumeData.personal, phone: e.target.value } })}
                   />
                   <input
                     type="text"
                     placeholder="Location"
-                    className="bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none"
+                    className="bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none w-full"
                     value={resumeData.personal.location}
                     onChange={e => setResumeData({ ...resumeData, personal: { ...resumeData.personal, location: e.target.value } })}
                   />
@@ -821,7 +821,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               </div>
 
               {/* EXPERIENCE / LEADERSHIP WITH REMOVE & AI ENHANCE */}
-              <div className="mono-card p-6 space-y-4">
+              <div className="mono-card p-4 sm:p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-xs text-orange-400 uppercase tracking-wider font-heading">Experience & Leadership</h3>
                   <button
@@ -842,13 +842,13 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                 </div>
 
                 {resumeData.experience.map((exp, idx) => (
-                  <div key={exp.id} className="p-4 rounded-2xl bg-[#121212] border border-white/10 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="grid grid-cols-2 gap-2 flex-1">
+                  <div key={exp.id} className="p-3.5 sm:p-4 rounded-2xl bg-[#121212] border border-white/10 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
                         <input
                           type="text"
                           placeholder="Company Name"
-                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
+                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10 focus:border-orange-500 outline-none w-full"
                           value={exp.company}
                           onChange={e => {
                             const updated = [...resumeData.experience];
@@ -859,7 +859,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                         <input
                           type="text"
                           placeholder="Role / Position"
-                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
+                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10 focus:border-orange-500 outline-none w-full"
                           value={exp.position}
                           onChange={e => {
                             const updated = [...resumeData.experience];
@@ -874,10 +874,11 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                           const updated = resumeData.experience.filter(e => e.id !== exp.id);
                           setResumeData({ ...resumeData, experience: updated });
                         }}
-                        className="w-9 h-9 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
+                        className="self-end sm:self-center px-3 py-1.5 rounded-lg sm:rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold shrink-0 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
                         title="Remove Experience Entry"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="sm:hidden text-[11px]">Delete</span>
                       </button>
                     </div>
 
@@ -902,10 +903,10 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                       {exp.bullets.map((bullet, bIdx) => {
                         const isEnhancing = enhancingBulletIndex?.section === 'experience' && enhancingBulletIndex.idx === idx && enhancingBulletIndex.bulletIdx === bIdx;
                         return (
-                          <div key={bIdx} className="flex items-center gap-2">
+                          <div key={bIdx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-black/40 sm:bg-transparent p-2.5 sm:p-0 rounded-xl sm:rounded-none border border-white/10 sm:border-none">
                             <input
                               type="text"
-                              className="flex-1 bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10 focus:border-orange-500 outline-none"
+                              className="w-full sm:flex-1 bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10 focus:border-orange-500 outline-none"
                               value={bullet}
                               onChange={e => {
                                 const updatedExp = [...resumeData.experience];
@@ -915,32 +916,34 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                                 setResumeData({ ...resumeData, experience: updatedExp });
                               }}
                             />
-                            <button
-                              type="button"
-                              onClick={() => handleEnhanceBullet('experience', idx, bIdx, bullet)}
-                              disabled={isEnhancing || !bullet.trim()}
-                              className="px-4 py-2 rounded-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-50 hover:scale-105 shadow-sm"
-                            >
-                              {isEnhancing ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
-                              ) : (
-                                <Wand2 className="w-3.5 h-3.5 text-orange-400" />
-                              )}
-                              <span>AI Enhance</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updatedExp = [...resumeData.experience];
-                                const bullets = updatedExp[idx].bullets.filter((_, i) => i !== bIdx);
-                                updatedExp[idx].bullets = bullets;
-                                setResumeData({ ...resumeData, experience: updatedExp });
-                              }}
-                              className="w-9 h-9 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
-                              title="Remove Bullet Point"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-end gap-2 shrink-0 self-end sm:self-auto">
+                              <button
+                                type="button"
+                                onClick={() => handleEnhanceBullet('experience', idx, bIdx, bullet)}
+                                disabled={isEnhancing || !bullet.trim()}
+                                className="px-3 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-50 hover:scale-105 shadow-sm"
+                              >
+                                {isEnhancing ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
+                                ) : (
+                                  <Wand2 className="w-3.5 h-3.5 text-orange-400" />
+                                )}
+                                <span>AI Enhance</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updatedExp = [...resumeData.experience];
+                                  const bullets = updatedExp[idx].bullets.filter((_, i) => i !== bIdx);
+                                  updatedExp[idx].bullets = bullets;
+                                  setResumeData({ ...resumeData, experience: updatedExp });
+                                }}
+                                className="w-8 h-8 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
+                                title="Remove Bullet Point"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
@@ -950,7 +953,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               </div>
 
               {/* TECHNICAL PROJECTS WITH REMOVE & AI ENHANCE */}
-              <div className="mono-card p-6 space-y-4">
+              <div className="mono-card p-4 sm:p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-xs text-orange-400 uppercase tracking-wider font-heading">Technical Projects</h3>
                   <button
@@ -971,13 +974,13 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                 </div>
 
                 {resumeData.projects.map((proj, idx) => (
-                  <div key={proj.id} className="p-4 rounded-2xl bg-[#121212] border border-white/10 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="grid grid-cols-2 gap-2 flex-1">
+                  <div key={proj.id} className="p-3.5 sm:p-4 rounded-2xl bg-[#121212] border border-white/10 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1">
                         <input
                           type="text"
                           placeholder="Project Title"
-                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
+                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10 focus:border-orange-500 outline-none w-full"
                           value={proj.title}
                           onChange={e => {
                             const updated = [...resumeData.projects];
@@ -988,7 +991,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                         <input
                           type="text"
                           placeholder="Tech Stack (e.g. React, Node.js)"
-                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10"
+                          className="bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10 focus:border-orange-500 outline-none w-full"
                           value={proj.techStack}
                           onChange={e => {
                             const updated = [...resumeData.projects];
@@ -1003,10 +1006,11 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                           const updated = resumeData.projects.filter(p => p.id !== proj.id);
                           setResumeData({ ...resumeData, projects: updated });
                         }}
-                        className="w-9 h-9 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
+                        className="self-end sm:self-center px-3 py-1.5 rounded-lg sm:rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold shrink-0 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
                         title="Remove Project Entry"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="sm:hidden text-[11px]">Delete</span>
                       </button>
                     </div>
 
@@ -1030,10 +1034,10 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                       {proj.bullets.map((bullet, bIdx) => {
                         const isEnhancing = enhancingBulletIndex?.section === 'projects' && enhancingBulletIndex.idx === idx && enhancingBulletIndex.bulletIdx === bIdx;
                         return (
-                          <div key={bIdx} className="flex items-center gap-2">
+                          <div key={bIdx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-black/40 sm:bg-transparent p-2.5 sm:p-0 rounded-xl sm:rounded-none border border-white/10 sm:border-none">
                             <input
                               type="text"
-                              className="flex-1 bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10 focus:border-orange-500 outline-none"
+                              className="w-full sm:flex-1 bg-black/60 text-xs text-white p-2.5 rounded-lg border border-white/10 focus:border-orange-500 outline-none"
                               value={bullet}
                               onChange={e => {
                                 const updatedProj = [...resumeData.projects];
@@ -1043,32 +1047,34 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                                 setResumeData({ ...resumeData, projects: updatedProj });
                               }}
                             />
-                            <button
-                              type="button"
-                              onClick={() => handleEnhanceBullet('projects', idx, bIdx, bullet)}
-                              disabled={isEnhancing || !bullet.trim()}
-                              className="px-4 py-2 rounded-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-50 hover:scale-105 shadow-sm"
-                            >
-                              {isEnhancing ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
-                              ) : (
-                                <Wand2 className="w-3.5 h-3.5 text-orange-400" />
-                              )}
-                              <span>AI Enhance</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updatedProj = [...resumeData.projects];
-                                const bullets = updatedProj[idx].bullets.filter((_, i) => i !== bIdx);
-                                updatedProj[idx].bullets = bullets;
-                                setResumeData({ ...resumeData, projects: updatedProj });
-                              }}
-                              className="w-9 h-9 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
-                              title="Remove Bullet Point"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-end gap-2 shrink-0 self-end sm:self-auto">
+                              <button
+                                type="button"
+                                onClick={() => handleEnhanceBullet('projects', idx, bIdx, bullet)}
+                                disabled={isEnhancing || !bullet.trim()}
+                                className="px-3 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold shrink-0 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-50 hover:scale-105 shadow-sm"
+                              >
+                                {isEnhancing ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
+                                ) : (
+                                  <Wand2 className="w-3.5 h-3.5 text-orange-400" />
+                                )}
+                                <span>AI Enhance</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updatedProj = [...resumeData.projects];
+                                  const bullets = updatedProj[idx].bullets.filter((_, i) => i !== bIdx);
+                                  updatedProj[idx].bullets = bullets;
+                                  setResumeData({ ...resumeData, projects: updatedProj });
+                                }}
+                                className="w-8 h-8 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 flex items-center justify-center cursor-pointer transition-all active:scale-95 hover:scale-105 shadow-sm"
+                                title="Remove Bullet Point"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
