@@ -21,6 +21,9 @@ export const Header: React.FC = React.memo(() => {
           <div className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-bold shadow-md group-hover:scale-105 transition-transform">
             <GraduationCap className="w-6 h-6 text-black" />
           </div>
+          <span className="text-xl sm:text-2xl font-black text-white tracking-tight font-heading group-hover:text-orange-400 transition-colors">
+            Impulse
+          </span>
         </div>
       </div>
     </motion.header>
