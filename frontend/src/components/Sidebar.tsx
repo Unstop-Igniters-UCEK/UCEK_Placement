@@ -133,11 +133,10 @@ export const Sidebar: React.FC = React.memo(() => {
                         setActiveTab(tab.id);
                         if (window.innerWidth < 1024) setSidebarOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-2 sm:py-2.5 rounded-full text-xs font-bold relative whitespace-nowrap cursor-pointer transition-all active:scale-[0.97] ${
-                        isActive
-                          ? 'text-black font-extrabold bg-white shadow-lg shadow-white/10'
-                          : 'text-zinc-300 hover:text-white hover:bg-white/10 font-semibold backdrop-blur-xs'
-                      }`}
+                      className={`w-full flex items-center gap-3 px-4 py-2 sm:py-2.5 rounded-full text-xs font-bold relative whitespace-nowrap cursor-pointer transition-all active:scale-[0.97] ${isActive
+                        ? 'text-black font-extrabold bg-white shadow-lg shadow-white/10'
+                        : 'text-zinc-300 hover:text-white hover:bg-white/10 font-semibold backdrop-blur-xs'
+                        }`}
                     >
                       {isActive && (
                         <motion.div
