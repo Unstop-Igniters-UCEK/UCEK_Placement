@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import {
@@ -38,6 +39,30 @@ const DOMAIN_OPTIONS = [
     description: 'Deep dive into Machine Learning algorithms, Data Preprocessing, Feature Engineering, Neural Networks & Generative AI.'
   },
   {
+    id: 'data_analytics_bi',
+    name: 'Data Analytics & BI',
+    tagline: 'Excel, SQL, Power BI, & Data Storytelling',
+    icon: Sparkles,
+    color: 'from-fuchsia-500 to-purple-600',
+    description: 'Master data analysis, interactive dashboard creation, business intelligence tools, and data-driven storytelling.'
+  },
+  {
+    id: 'dev',
+    name: 'Backend & Cloud Engineering',
+    tagline: 'APIs, Databases, Cloud Services, & CI/CD',
+    icon: ExternalLink,
+    color: 'from-amber-500 to-yellow-500',
+    description: 'Build scalable backend services, master database engineering, and deploy on modern cloud infrastructure.'
+  },
+  {
+    id: 'cybersecurity',
+    name: 'Cybersecurity & SOC',
+    tagline: 'Networking, Linux, SIEM, & Incident Response',
+    icon: ShieldCheck,
+    color: 'from-red-500 to-rose-600',
+    description: 'Defend systems against threats, analyze logs in a SOC, and master incident response and cloud security.'
+  },
+  {
     id: 'elec',
     name: 'Core Electronics & Embedded',
     tagline: 'Microcontrollers, Digital Circuits, & IoT',
@@ -62,14 +87,6 @@ const DOMAIN_OPTIONS = [
     description: 'Understand RTL Synthesis, Verilog/SystemVerilog programming, FPGA prototyping, and Digital IC Verification.'
   },
   {
-    id: 'dev',
-    name: 'Cloud & DevOps',
-    tagline: 'AWS, Docker, Kubernetes, & CI/CD Pipelines',
-    icon: ExternalLink,
-    color: 'from-amber-500 to-yellow-500',
-    description: 'Deploy scaleable cloud infrastructures, container orchestration, automated CI/CD pipelines, and Infrastructure as Code.'
-  },
-  {
     id: 'mgmt',
     name: 'Management & Consulting',
     tagline: 'Case Studies, Financial Analysis, & Strategy',
@@ -87,10 +104,18 @@ export const DomainRoadmap: React.FC = React.memo(() => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({
+    swe_year_1: true,
+    swe_year_2: true,
+    swe_year_3: true,
+    swe_year_4: true,
     swe_mod_1: true,
     swe_mod_2: true,
     swe_mod_3: true,
-    ds_mod_1: true,
+    ds_ai_year_1: true,
+    backend_year_1: true,
+    analytics_year_1: true,
+    cyber_year_1: true,
+    ds_mod_1: true, // fallback for legacy
     elec_mod_1: true,
     ui_mod_1: true,
     vlsi_mod_1: true,
@@ -111,8 +136,8 @@ export const DomainRoadmap: React.FC = React.memo(() => {
   }, [user]);
 
   const activeRoadmap = roadmaps.find(
-    r => r.name.toLowerCase() === (user?.domain || '').toLowerCase() || r.id === 'swe'
-  ) || roadmaps[0];
+    r => r.name.toLowerCase() === (user?.domain || '').toLowerCase()
+  ) || roadmaps.find(r => r.id === 'swe') || roadmaps[0];
 
   let totalMilestones = 0;
   let completedMilestones = 0;
@@ -157,12 +182,13 @@ export const DomainRoadmap: React.FC = React.memo(() => {
   };
 
   return (
-    <motion.div
-      className="space-y-6 py-4 font-sans max-w-7xl mx-auto transform-gpu relative"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
+    <>
+      <motion.div
+        className="space-y-6 py-4 font-sans max-w-7xl mx-auto transform-gpu relative"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
       {/* HEADER CARD */}
       <motion.div variants={itemVariants} className="mono-card p-6 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -302,8 +328,10 @@ export const DomainRoadmap: React.FC = React.memo(() => {
           );
         })}
       </div>
+    </motion.div>
 
-      {/* DOMAIN SELECTION & CONFIRMATION MODAL POPUP */}
+    {/* DOMAIN SELECTION & CONFIRMATION MODAL POPUP */}
+    {createPortal(
       <AnimatePresence>
         {isSelectModalOpen && (
           <motion.div
@@ -311,6 +339,7 @@ export const DomainRoadmap: React.FC = React.memo(() => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md font-sans overflow-hidden"
+            data-lenis-prevent="true"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 10 }}
@@ -429,8 +458,10 @@ export const DomainRoadmap: React.FC = React.memo(() => {
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
-    </motion.div>
+      </AnimatePresence>,
+      document.body
+    )}
+    </>
   );
 });
 

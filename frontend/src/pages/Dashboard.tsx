@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import { getSpeechAnalyticsApi, SpeechAnalyticsResponse } from '../lib/api';
@@ -15,6 +16,7 @@ import {
   GraduationCap,
   Sparkles,
   Target,
+  ChevronLeft,
   ChevronRight,
   Clock,
   BookOpen,
@@ -36,6 +38,7 @@ export const Dashboard: React.FC = React.memo(() => {
     setActiveTab,
     roadmaps,
     recentScores,
+    clearTestHistory,
     mentorshipPair,
     setAuthModalOpen,
     setAuthModalMode,
@@ -46,6 +49,14 @@ export const Dashboard: React.FC = React.memo(() => {
 
   const [driveFilter, setDriveFilter] = useState<'all' | 'Company Drive' | 'Aptitude' | 'Technical'>('all');
   const [selectedReviewResult, setSelectedReviewResult] = useState<TestResult | null>(null);
+  
+  // Pagination State (Limit of 3 items per page)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const ITEMS_PER_PAGE = 3;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [driveFilter]);
 
   const [speechAnalytics, setSpeechAnalytics] = useState<SpeechAnalyticsResponse>({
     wpm: 135,
@@ -124,8 +135,8 @@ export const Dashboard: React.FC = React.memo(() => {
 
   // 4. Domain progress calculations
   const currentDomainRoadmap = roadmaps.find(
-    r => r.name.toLowerCase() === user.domain.toLowerCase() || r.id === 'swe'
-  );
+    r => r.name.toLowerCase() === (user.domain || '').toLowerCase()
+  ) || roadmaps.find(r => r.id === 'swe') || roadmaps[0];
   let totalTopics = 0;
   let doneTopics = 0;
   if (currentDomainRoadmap) {
@@ -152,6 +163,12 @@ export const Dashboard: React.FC = React.memo(() => {
     if (driveFilter === 'all') return true;
     return s.category === driveFilter;
   });
+
+  // Pagination calculation logic
+  const totalPages = Math.ceil(filteredScores.length / ITEMS_PER_PAGE) || 1;
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedScores = filteredScores.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -204,8 +221,8 @@ export const Dashboard: React.FC = React.memo(() => {
                     </h1>
                     
                     {/* MOTIVATIONAL QUOTE */}
-                    <p className="text-xs sm:text-sm text-zinc-300/90 leading-relaxed font-normal max-w-xl md:max-w-2xl tracking-normal italic border-l-2 border-orange-500/70 pl-3.5 my-2.5">
-                      “Success in campus placement isn’t about perfection—it’s about relentless consistency. Every roadmap milestone cleared, ATS keyword optimized, and mock drive completed brings you one step closer to securing your dream engineering role.”
+                    <p className="text-xs sm:text-sm text-zinc-300/90 leading-snug font-normal max-w-xl md:max-w-2xl tracking-normal italic border-l-2 border-orange-500/70 pl-3.5 my-2 line-clamp-2">
+                      “Success in placement comes from relentless consistency. Every roadmap milestone cleared and mock drive completed brings you closer to your dream engineering role.”
                     </p>
                   </div>
 
@@ -405,6 +422,17 @@ export const Dashboard: React.FC = React.memo(() => {
                     ))}
                   </div>
 
+                  {recentScores.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearTestHistory}
+                      className="px-3 py-1.5 rounded-full bg-[#141414] hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/30 text-zinc-400 hover:text-rose-400 transition-all text-xs font-medium cursor-pointer"
+                      title="Clear past test attempt history"
+                    >
+                      Clear History
+                    </button>
+                  )}
+
                   <button
                     onClick={() => setActiveTab('tests')}
                     className="btn-primary py-2 px-4 text-xs font-bold rounded-full cursor-pointer flex items-center gap-1.5 shrink-0 shadow-md"
@@ -427,82 +455,132 @@ export const Dashboard: React.FC = React.memo(() => {
                   </button>
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-white/10 rounded-lg bg-[#0d0d0d] shadow-inner">
-                  <table className="w-full text-left border-collapse font-sans">
-                    <thead>
-                      <tr className="bg-[#000000] border-b border-white/10 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-                        <th className="p-4 pl-5">Drive Title</th>
-                        <th className="p-4">Category</th>
-                        <th className="p-4">Score</th>
-                        <th className="p-4">Accuracy</th>
-                        <th className="p-4">Status</th>
-                        <th className="p-4 pr-5 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/10 text-xs text-white">
-                      {filteredScores.map(res => (
-                        <tr key={res.id} className="hover:bg-[#141414] transition-colors group">
-                          <td className="p-4 pl-5 font-bold text-white flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[#000000] border border-white/10 text-orange-400 flex items-center justify-center shrink-0">
-                              <Briefcase className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <span className="block font-semibold group-hover:text-orange-400 transition-colors">{res.testTitle}</span>
-                              <span className="text-[10px] text-zinc-500 font-mono">Attempt ID: #{res.id.slice(0, 6)}</span>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <span className="mono-badge rounded-full px-3 py-1 bg-[#141414] border border-white/10 text-zinc-200 text-[11px] font-medium">
-                              {res.category}
-                            </span>
-                          </td>
-                          <td className="p-4 font-semibold text-zinc-200">
-                            {res.score} / {res.totalQuestions}
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-16 bg-[#000000] rounded-full h-1.5 overflow-hidden border border-white/10">
-                                <div
-                                  className="bg-orange-500 h-full rounded-full"
-                                  style={{ width: `${res.accuracy}%` }}
-                                />
-                              </div>
-                              <span className="font-bold text-orange-400 text-xs">{res.accuracy}%</span>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            {res.testTitle.includes('DISQUALIFIED') ? (
-                              <span className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold inline-flex items-center gap-1">
-                                <AlertCircle className="w-3 h-3 text-rose-400" /> DISQUALIFIED
-                              </span>
-                            ) : res.passed ? (
-                              <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold inline-flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" /> PASSED
-                              </span>
-                            ) : (
-                              <span className="px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[11px] font-bold inline-flex items-center gap-1">
-                                <RotateCcw className="w-3 h-3" /> RETRY
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-4 pr-5 text-right">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setSelectedReviewResult(res);
-                              }}
-                              className="px-3.5 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-[11px] font-medium text-zinc-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 active:scale-[0.97]"
-                            >
-                              Review
-                              <ChevronRight className="w-3 h-3" />
-                            </button>
-                          </td>
+                <div className="space-y-4">
+                  <div className="overflow-x-auto border border-white/10 rounded-lg bg-[#0d0d0d] shadow-inner">
+                    <table className="w-full text-left border-collapse font-sans">
+                      <thead>
+                        <tr className="bg-[#000000] border-b border-white/10 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                          <th className="p-4 pl-5">Drive Title</th>
+                          <th className="p-4">Category</th>
+                          <th className="p-4">Score</th>
+                          <th className="p-4">Accuracy</th>
+                          <th className="p-4">Status</th>
+                          <th className="p-4 pr-5 text-right">Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-white/10 text-xs text-white">
+                        {paginatedScores.map(res => (
+                          <tr key={res.id} className="hover:bg-[#141414] transition-colors group">
+                            <td className="p-4 pl-5 font-bold text-white flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-[#000000] border border-white/10 text-orange-400 flex items-center justify-center shrink-0">
+                                <Briefcase className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <span className="block font-semibold group-hover:text-orange-400 transition-colors">{res.testTitle}</span>
+                                <span className="text-[10px] text-zinc-500 font-mono">Attempt ID: #{res.id.slice(0, 6)}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className="mono-badge rounded-full px-3 py-1 bg-[#141414] border border-white/10 text-zinc-200 text-[11px] font-medium">
+                                {res.category}
+                              </span>
+                            </td>
+                            <td className="p-4 font-semibold text-zinc-200">
+                              {res.score} / {res.totalQuestions}
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-16 bg-[#000000] rounded-full h-1.5 overflow-hidden border border-white/10">
+                                  <div
+                                    className="bg-orange-500 h-full rounded-full"
+                                    style={{ width: `${res.accuracy}%` }}
+                                  />
+                                </div>
+                                <span className="font-bold text-orange-400 text-xs">{res.accuracy}%</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              {res.testTitle.includes('DISQUALIFIED') ? (
+                                <span className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold inline-flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3 text-rose-400" /> DISQUALIFIED
+                                </span>
+                              ) : res.passed ? (
+                                <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold inline-flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3" /> PASSED
+                                </span>
+                              ) : (
+                                <span className="px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[11px] font-bold inline-flex items-center gap-1">
+                                  <RotateCcw className="w-3 h-3" /> RETRY
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-4 pr-5 text-right">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setSelectedReviewResult(res);
+                                }}
+                                className="px-3.5 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-[11px] font-medium text-zinc-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 active:scale-[0.97]"
+                              >
+                                Review
+                                <ChevronRight className="w-3 h-3" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* PAGINATION BAR (Limit: 3 per page) */}
+                  {filteredScores.length > ITEMS_PER_PAGE && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-lg bg-[#0d0d0d] border border-white/10 text-xs font-sans">
+                      <div className="text-zinc-400 text-xs">
+                        Showing <strong className="text-white font-mono">{startIndex + 1}</strong> to <strong className="text-white font-mono">{Math.min(startIndex + ITEMS_PER_PAGE, filteredScores.length)}</strong> of <strong className="text-white font-mono">{filteredScores.length}</strong> drives
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={safeCurrentPage === 1}
+                          className="px-3.5 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] disabled:opacity-40 disabled:cursor-not-allowed border border-white/10 text-zinc-300 hover:text-white transition-all text-xs font-semibold flex items-center gap-1 cursor-pointer active:scale-[0.97]"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                          <span>Prev</span>
+                        </button>
+
+                        <div className="flex items-center gap-1 px-1">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                            <button
+                              key={pageNum}
+                              type="button"
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`w-7 h-7 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                                safeCurrentPage === pageNum
+                                  ? 'bg-orange-500 text-black shadow-md shadow-orange-500/20'
+                                  : 'bg-[#141414] text-zinc-400 hover:text-white hover:bg-zinc-800 border border-white/10'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          ))}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={safeCurrentPage === totalPages}
+                          className="px-3.5 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] disabled:opacity-40 disabled:cursor-not-allowed border border-white/10 text-zinc-300 hover:text-white transition-all text-xs font-semibold flex items-center gap-1 cursor-pointer active:scale-[0.97]"
+                        >
+                          <span>Next</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -596,15 +674,17 @@ export const Dashboard: React.FC = React.memo(() => {
       </motion.div>
 
       {/* TEST DETAILS REVIEW POPUP MODAL */}
-      <AnimatePresence>
-        {selectedReviewResult && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 font-sans"
-            onClick={() => setSelectedReviewResult(null)}
-          >
+      {createPortal(
+        <AnimatePresence>
+          {selectedReviewResult && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 font-sans overflow-hidden"
+              data-lenis-prevent="true"
+              onClick={() => setSelectedReviewResult(null)}
+            >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -820,7 +900,9 @@ export const Dashboard: React.FC = React.memo(() => {
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
     </>
   );
 });

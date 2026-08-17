@@ -45,14 +45,52 @@ export const MockTests: React.FC = React.memo(() => {
   const [examSubmitted, setExamSubmitted] = useState<boolean>(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
 
-  // Ref to track active test state in event listeners
+  // Ref to track active test state in event listeners and unmount handlers
   const activeTestRef = useRef<MockTest | null>(null);
   const examSubmittedRef = useRef<boolean>(false);
   const tabSwitchCountRef = useRef<number>(0);
+  const userAnswersRef = useRef<Record<string, number>>({});
+  const saveTestResultRef = useRef(saveTestResult);
+  const timeLeftSecRef = useRef<number>(0);
 
   activeTestRef.current = activeTest;
   examSubmittedRef.current = examSubmitted;
   tabSwitchCountRef.current = tabSwitchCount;
+  userAnswersRef.current = userAnswers;
+  saveTestResultRef.current = saveTestResult;
+  timeLeftSecRef.current = timeLeftSec;
+
+  // Evaluate & save attempt automatically if component unmounts while exam is in progress
+  useEffect(() => {
+    return () => {
+      if (activeTestRef.current && !examSubmittedRef.current) {
+        const currentTest = activeTestRef.current;
+        const answers = userAnswersRef.current;
+        let score = 0;
+        currentTest.questions.forEach(q => {
+          if (answers[q.id] === q.correctOption) {
+            score++;
+          }
+        });
+        const totalQuestions = currentTest.questions.length;
+        const accuracy = Math.round((score / totalQuestions) * 100);
+        const passed = accuracy >= currentTest.passPercentage;
+        const timeSpent = Math.max(1, Math.round((currentTest.durationMinutes * 60 - timeLeftSecRef.current) / 60));
+
+        saveTestResultRef.current({
+          testId: currentTest.id,
+          testTitle: currentTest.title,
+          category: currentTest.category,
+          score,
+          totalQuestions,
+          accuracy,
+          passed,
+          timeSpentMinutes: timeSpent,
+          userAnswers: answers
+        });
+      }
+    };
+  }, []);
 
   const filteredTests = mockTests.filter(t => {
     if (selectedCategory === 'All') return true;

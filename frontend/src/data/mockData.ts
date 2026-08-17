@@ -1,6 +1,5 @@
 import {
   User,
-  DomainRoadmap,
   MockTest,
   InterviewQuestion,
   SeniorMentor,
@@ -8,6 +7,8 @@ import {
   ResumeData,
   TestResult
 } from '../types';
+
+export { INITIAL_ROADMAPS } from './roadmaps';
 
 export const DEMO_USERS: User[] = [
   {
@@ -34,262 +35,14 @@ export const DEMO_USERS: User[] = [
   }
 ];
 
-export const INITIAL_ROADMAPS: DomainRoadmap[] = [
-  {
-    id: 'swe',
-    name: 'Software Engineering',
-    description: 'Master Core Data Structures, Algorithms, System Architecture, & Web Engineering for top tier placement drives.',
-    modules: [
-      {
-        id: 'swe_mod_1',
-        title: 'Core DSA & Problem Solving Foundation',
-        level: 'Beginner',
-        milestones: [
-          {
-            id: 'm1_1',
-            title: 'Arrays, Strings, Two Pointers & Sliding Window',
-            description: 'Learn memory alignment, basic complexity analysis, two-pointer techniques for array searches.',
-            estimatedHours: 12,
-            completed: true,
-            keyConcepts: ['Time Complexity', 'Two Pointers', 'Sliding Window', 'In-place Mutation'],
-            resources: [
-              { name: 'Neetcode 150 Arrays Guide', type: 'doc', url: 'https://neetcode.io' },
-              { name: 'Sliding Window Deep Dive', type: 'video', url: 'https://youtube.com' }
-            ]
-          },
-          {
-            id: 'm1_2',
-            title: 'Linked Lists, Stacks & Queues Mastery',
-            description: 'Implement doubly linked lists, monotonic stack pattern for next greater element, stack evaluation.',
-            estimatedHours: 10,
-            completed: true,
-            keyConcepts: ['Pointers', 'Monotonic Stack', 'Queue via Stacks', 'LRU Cache'],
-            resources: [
-              { name: 'Stack Pattern Practice Set', type: 'practice', url: 'https://leetcode.com' }
-            ]
-          },
-          {
-            id: 'm1_3',
-            title: 'Trees, BST & Graph Traversals (BFS/DFS)',
-            description: 'Master binary tree recursion, tree height, LCA algorithm, BFS/DFS matrix traversals.',
-            estimatedHours: 18,
-            completed: false,
-            keyConcepts: ['Binary Trees', 'LCA', 'Graph Adjacency', 'BFS / DFS'],
-            resources: [
-              { name: 'Graph Algorithm Cheatsheet', type: 'doc', url: 'https://geeksforgeeks.org' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'swe_mod_2',
-        title: 'Object Oriented Programming & System Basics',
-        level: 'Intermediate',
-        milestones: [
-          {
-            id: 'm2_1',
-            title: 'Java / C++ OOP Design Principles & SOLID',
-            description: 'Understand Polymorphism, Encapsulation, Single Responsibility, and Factory Design Pattern.',
-            estimatedHours: 14,
-            completed: true,
-            keyConcepts: ['Polymorphism', 'Inheritance', 'SOLID', 'Design Patterns'],
-            resources: [
-              { name: 'Refactoring Guru - Design Patterns', type: 'doc', url: 'https://refactoring.guru' }
-            ]
-          },
-          {
-            id: 'm2_2',
-            title: 'Database Design & SQL Querying (MySQL/PostgreSQL)',
-            description: 'Master ER diagrams, 3NF Normalization, SQL Joins, Indexing, and ACID transactions.',
-            estimatedHours: 16,
-            completed: false,
-            keyConcepts: ['Normal Forms', 'Joins', 'Indexes', 'ACID'],
-            resources: [
-              { name: 'SQL Zoo Interactive', type: 'practice', url: 'https://sqlzoo.net' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'swe_mod_3',
-        title: 'System Design & High Concurrency',
-        level: 'Advanced',
-        milestones: [
-          {
-            id: 'm3_1',
-            title: 'Low-Level System Design (LLD) & Clean Architecture',
-            description: 'Design Parking Lot, Elevator System, and Tic-Tac-Toe with proper UML & classes.',
-            estimatedHours: 20,
-            completed: false,
-            keyConcepts: ['UML Diagrams', 'Design Patterns', 'Extensibility'],
-            resources: [
-              { name: 'LLD Interview Primer', type: 'doc', url: 'https://github.com' }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'ds_ai',
-    name: 'Data Science & AI',
-    description: 'Statistical Inference, Machine Learning Algorithms, Deep Learning, & Python Analytics pipeline.',
-    modules: [
-      {
-        id: 'ds_mod_1',
-        title: 'Exploratory Data Analysis & Python Stack',
-        level: 'Beginner',
-        milestones: [
-          {
-            id: 'ds_m1',
-            title: 'NumPy, Pandas Data Wrangling & Feature Engineering',
-            description: 'Master DataFrame operations, missing value handling, one-hot encoding, feature scaling.',
-            estimatedHours: 15,
-            completed: true,
-            keyConcepts: ['Pandas', 'NumPy', 'Feature Scaling', 'Categorical Encoding'],
-            resources: [
-              { name: 'Kaggle Pandas Tutorial', type: 'doc', url: 'https://kaggle.com' }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'electronics',
-    name: 'Core Electronics & Embedded',
-    description: 'Embedded C, Microcontrollers, ARM Architecture, Real-Time Operating Systems (RTOS), & Digital Circuits.',
-    modules: [
-      {
-        id: 'elec_mod_1',
-        title: 'Microcontroller Fundamentals & Embedded C',
-        level: 'Beginner',
-        milestones: [
-          {
-            id: 'elec_m1',
-            title: 'Registers, GPIO, Timers & UART Communication',
-            description: 'Learn bitwise operations in C, memory maps, interrupts, and UART serial communication.',
-            estimatedHours: 16,
-            completed: true,
-            keyConcepts: ['Embedded C', 'Interrupts', 'UART/SPI', 'GPIO Registers'],
-            resources: [
-              { name: 'ARM Cortex Embedded Guide', type: 'doc', url: 'https://arm.com' }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'ui_ux',
-    name: 'UI/UX & Product Design',
-    description: 'User Research, Figma Prototyping, Design Systems, Information Architecture, & Usability Testing.',
-    modules: [
-      {
-        id: 'ui_mod_1',
-        title: 'Figma Auto-Layout & UI Systems',
-        level: 'Beginner',
-        milestones: [
-          {
-            id: 'ui_m1',
-            title: 'Grid Systems, Typography Scale & Components',
-            description: 'Design responsive web cards, auto-layout frame constraints, and interactive prototypes.',
-            estimatedHours: 12,
-            completed: false,
-            keyConcepts: ['Figma Tokens', 'Auto-Layout', 'Accessibility (WCAG)'],
-            resources: [
-              { name: 'Figma Academy UI Course', type: 'video', url: 'https://figma.com' }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'vlsi',
-    name: 'VLSI & Chip Design',
-    description: 'Verilog HDL, CMOS Digital Design, Synthesis, STA (Static Timing Analysis), & FPGA Prototyping.',
-    modules: [
-      {
-        id: 'vlsi_mod_1',
-        title: 'Verilog Digital Logic Synthesis',
-        level: 'Intermediate',
-        milestones: [
-          {
-            id: 'vlsi_m1',
-            title: 'RTL Coding, Finite State Machines (FSM) & Testbenches',
-            description: 'Implement Mealy & Moore state machines in Verilog and simulate with ModelSim.',
-            estimatedHours: 20,
-            completed: false,
-            keyConcepts: ['Verilog HDL', 'FSM Synthesis', 'Testbench Logic'],
-            resources: [
-              { name: 'HDLBits Interactive Verilog', type: 'practice', url: 'https://hdlbits.01xz.net' }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'devops',
-    name: 'Cloud & DevOps',
-    description: 'Docker Containerization, Kubernetes Orchestration, CI/CD Pipelines, AWS Services, & Terraform Infrastructure.',
-    modules: [
-      {
-        id: 'dev_mod_1',
-        title: 'Containerization & Cloud Infrastructure',
-        level: 'Intermediate',
-        milestones: [
-          {
-            id: 'dev_m1',
-            title: 'Docker Image Building, Multi-Stage Builds & Compose',
-            description: 'Write optimized Dockerfiles, network containers, and run multi-container applications.',
-            estimatedHours: 14,
-            completed: true,
-            keyConcepts: ['Docker', 'Multi-Stage Build', 'Networking', 'Volume Mounts'],
-            resources: [
-              { name: 'Docker Docs & Labs', type: 'doc', url: 'https://docker.com' }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'management',
-    name: 'Management & Consulting',
-    description: 'Business Aptitude, Case Study Frameworks, Financial Ratios, Guesstimates, & Product Management.',
-    modules: [
-      {
-        id: 'mgmt_mod_1',
-        title: 'Consulting Frameworks & Guesstimates',
-        level: 'Intermediate',
-        milestones: [
-          {
-            id: 'mgmt_m1',
-            title: 'Profitability Trees, Market Sizing & MECE Approach',
-            description: 'Break down complex market entry problems using Mutually Exclusive Collectively Exhaustive logic.',
-            estimatedHours: 12,
-            completed: false,
-            keyConcepts: ['MECE Framework', 'Profitability Tree', 'Market Sizing'],
-            resources: [
-              { name: 'Case In Point Summary Guide', type: 'doc', url: 'https://consulting.com' }
-            ]
-          }
-        ]
-      }
-    ]
-  }
-];
-
 export const MOCK_TESTS: MockTest[] = [
   {
     id: 'tcs_ninja_drive',
     title: 'TCS Ninja & Digital National Drive Mock 2026',
     category: 'Company Drive',
     companyTag: 'TCS',
-    durationMinutes: 30,
-    questionCount: 5,
+    durationMinutes: 40,
+    questionCount: 18,
     passPercentage: 70,
     description: 'Comprehensive simulation matching TCS NQT question style covering Numerical Ability, Verbal Reasoning, & Core Coding Concepts.',
     questions: [
@@ -342,6 +95,136 @@ export const MOCK_TESTS: MockTest[] = [
         options: ['2 : 1', '3 : 1', '1 : 2', '4 : 1'],
         correctOption: 0,
         explanation: 'Equating work: 10(6M + 8B) = 2(26M + 48B) => 60M + 80B = 52M + 96B => 8M = 16B => M/B = 2/1.'
+      },
+      {
+        id: 'q6',
+        title: 'If a clock takes 7 seconds to strike 7, how long will the same clock take to strike 10?',
+        type: 'Aptitude',
+        companyTag: 'TCS',
+        difficulty: 'Medium',
+        options: ['10.5 seconds', '10 seconds', '9.5 seconds', '11 seconds'],
+        correctOption: 0,
+        explanation: 'The clock strikes for the first time at start, leaving 6 intervals in 7s => 1 interval = 7/6s. For 10 strikes, 9 intervals take 9 * (7/6) = 10.5 seconds.'
+      },
+      {
+        id: 'q7',
+        title: 'Two trains start from stations A and B spaced 50 km apart at the same time towards each other at 50 km/h. A bird flies continuously back and forth between them at 100 km/h. How far did the bird fly before collision?',
+        type: 'Aptitude',
+        companyTag: 'TCS',
+        difficulty: 'Hard',
+        options: ['100 km', '50 km', '75 km', '120 km'],
+        correctOption: 0,
+        explanation: 'Relative speed of trains = 100 km/h. Collision time = 50km / 100km/h = 0.5h. Bird distance = 100 km/h * 1h total travel = 100 km.'
+      },
+      {
+        id: 'q8',
+        title: 'Complete the mathematical number series: 5, 20, 24, 6, 2, 8, ?',
+        type: 'Logical',
+        companyTag: 'TCS',
+        difficulty: 'Medium',
+        options: ['12', '16', '10', '14'],
+        correctOption: 0,
+        explanation: 'Operations pattern using 4: 5*4=20, 20+4=24, 24/4=6, 6-4=2, 2*4=8, 8+4=12.'
+      },
+      {
+        id: 'q9',
+        title: 'A person travels to a city at 10 mph and returns back along the same route at 15 mph. What is their average speed for the round trip?',
+        type: 'Aptitude',
+        companyTag: 'TCS',
+        difficulty: 'Medium',
+        options: ['12 mph', '12.5 mph', '11.5 mph', '13 mph'],
+        correctOption: 0,
+        explanation: 'Harmonic mean speed formula = 2 * v1 * v2 / (v1 + v2) = 2 * 10 * 15 / (10 + 15) = 300 / 25 = 12 mph.'
+      },
+      {
+        id: 'q10',
+        title: 'A person was 80 years old in the year 490 BC and only 70 years old in the year 500 BC. In which year was he born?',
+        type: 'Logical',
+        companyTag: 'TCS',
+        difficulty: 'Medium',
+        options: ['570 BC', '470 BC', '510 BC', '430 BC'],
+        correctOption: 0,
+        explanation: 'In BC years count backwards. Born in 570 BC => In 500 BC age is (570-500) = 70, in 490 BC age is (570-490) = 80.'
+      },
+      {
+        id: 'q11',
+        title: 'Fresh fruit contains 72% water while dry fruit contains 20% water. How much dry fruit can be obtained from 100 grams of fresh fruit?',
+        type: 'Aptitude',
+        companyTag: 'TCS',
+        difficulty: 'Hard',
+        options: ['35 grams', '30 grams', '40 grams', '28 grams'],
+        correctOption: 0,
+        explanation: 'Fruit solid content in 100g fresh fruit = 28g. Dry fruit has 80% solid content => Dry fruit weight = 28 / 0.80 = 35 grams.'
+      },
+      {
+        id: 'q12',
+        title: 'How many two-digit numbers have their square ending with the digit 8?',
+        type: 'Logical',
+        companyTag: 'TCS',
+        difficulty: 'Easy',
+        options: ['0', '2', '4', '8'],
+        correctOption: 0,
+        explanation: 'No perfect square in mathematics can end in 2, 3, 7, or 8. Therefore, exactly 0 two-digit numbers end in 8.'
+      },
+      {
+        id: 'q13',
+        title: 'In how many years will $1,200 amount to $1,323 at 5% per annum compound interest?',
+        type: 'Aptitude',
+        companyTag: 'TCS',
+        difficulty: 'Medium',
+        options: ['2 years', '3 years', '1.5 years', '4 years'],
+        correctOption: 0,
+        explanation: '1323 / 1200 = 441 / 400 = (21/20)^2. Since 1 + 5/100 = 21/20, time n = 2 years.'
+      },
+      {
+        id: 'q14',
+        title: 'The sum of three consecutive integers is 132. Find the square of the largest number among them.',
+        type: 'Aptitude',
+        companyTag: 'TCS',
+        difficulty: 'Easy',
+        options: ['2025', '1936', '1849', '2116'],
+        correctOption: 0,
+        explanation: 'Let numbers be x-1, x, x+1 => 3x = 132 => x = 44. Largest number = 45. 45^2 = 2025.'
+      },
+      {
+        id: 'q15',
+        title: 'Father\'s present age is 5 times his son\'s age. 4 years ago, father was 9 times as old as his son. What are their present ages?',
+        type: 'Aptitude',
+        companyTag: 'TCS',
+        difficulty: 'Medium',
+        options: ['Father 40, Son 8', 'Father 35, Son 7', 'Father 45, Son 9', 'Father 50, Son 10'],
+        correctOption: 0,
+        explanation: 'F = 5S. F - 4 = 9(S - 4) => 5S - 4 = 9S - 36 => 4S = 32 => S = 8, F = 40.'
+      },
+      {
+        id: 'q16',
+        title: 'Which printf statement correctly outputs the literal `%` character in C?',
+        type: 'Technical',
+        companyTag: 'TCS',
+        difficulty: 'Easy',
+        options: ['printf("%%");', 'printf("\\%");', 'printf("\\\\%");', 'printf("\\%%");'],
+        correctOption: 0,
+        explanation: 'In C printf formatting, `%%` is the standard escape sequence to print a literal `%` character.'
+      },
+      {
+        id: 'q17',
+        title: 'Which sorting algorithms guarantee both Best-Case and Worst-Case time complexities of O(N log N)?',
+        type: 'Technical',
+        companyTag: 'TCS',
+        difficulty: 'Medium',
+        options: ['Merge Sort & Heap Sort', 'Quick Sort & Bubble Sort', 'Insertion Sort & Selection Sort', 'Radix Sort & Counting Sort'],
+        correctOption: 0,
+        explanation: 'Merge Sort and Heap Sort maintain O(N log N) execution time across all input conditions.'
+      },
+      {
+        id: 'q18',
+        title: 'In CPU Round Robin scheduling, if the time quantum is configured to be arbitrarily large, it degenerates into:',
+        type: 'Technical',
+        companyTag: 'TCS',
+        difficulty: 'Easy',
+        options: ['First-Come First-Served (FCFS)', 'Shortest Job First (SJF)', 'Priority Scheduling', 'Multilevel Queue'],
+        correctOption: 0,
+        explanation: 'When time quantum exceeds max process burst time, processes execute to completion without preemption, matching FCFS.'
       }
     ]
   },
@@ -350,20 +233,20 @@ export const MOCK_TESTS: MockTest[] = [
     title: 'Infosys Specialist Programmer Diagnostic Exam',
     category: 'Company Drive',
     companyTag: 'Infosys',
-    durationMinutes: 25,
-    questionCount: 4,
+    durationMinutes: 35,
+    questionCount: 16,
     passPercentage: 75,
-    description: 'Standard Infosys NQT pattern test focusing on Logical Deductions, Data Interpretation, and Algorithm optimization.',
+    description: 'Standard Infosys NQT pattern test focusing on Logical Deductions, Data Interpretation, C/C++ Concepts, and Algorithm optimization.',
     questions: [
       {
         id: 'iq1',
-        title: 'Find the next number in the series: 3, 5, 9, 17, 33, ?',
+        title: 'Find the next number in the logical series: 3, 5, 9, 17, 33, ?',
         type: 'Logical',
         companyTag: 'Infosys',
         difficulty: 'Easy',
         options: ['65', '49', '64', '55'],
         correctOption: 0,
-        explanation: 'The difference between numbers doubles each time (+2, +4, +8, +16, +32). 33 + 32 = 65.'
+        explanation: 'The difference between terms doubles each step (+2, +4, +8, +16, +32). 33 + 32 = 65.'
       },
       {
         id: 'iq2',
@@ -399,6 +282,293 @@ export const MOCK_TESTS: MockTest[] = [
         ],
         correctOption: 1,
         explanation: 'In "neither... nor" structures, the verb agrees with the subject closest to it ("employees were").'
+      },
+      {
+        id: 'iq5',
+        title: 'Fifty minutes ago if it was four times as many minutes past 3 o\'clock, how many minutes is it to 6 o\'clock?',
+        type: 'Logical',
+        companyTag: 'Infosys',
+        difficulty: 'Hard',
+        options: ['26 minutes', '20 minutes', '34 minutes', '15 minutes'],
+        correctOption: 0,
+        explanation: 'Let x be mins past 3:00 50 mins ago. Time now = 3:00 + x + 50. Total mins 3:00 to 6:00 is 180. Solving equations yields 26 minutes remaining to 6:00.'
+      },
+      {
+        id: 'iq6',
+        title: 'Two church towers are 150 ft and 200 ft high. A grain is placed between them such that two birds flying at equal speed from tower tops reach it simultaneously. Distance of grain from 150 ft tower (if towers are 250 ft apart):',
+        type: 'Aptitude',
+        companyTag: 'Infosys',
+        difficulty: 'Hard',
+        options: ['90 ft', '100 ft', '120 ft', '80 ft'],
+        correctOption: 0,
+        explanation: 'Equating hypotenuses squared: 150^2 + x^2 = 200^2 + (250-x)^2 => 22500 + x^2 = 40000 + 62500 - 500x + x^2 => 500x = 80000 => x = 90 ft.'
+      },
+      {
+        id: 'iq7',
+        title: '100 light bulbs numbered 1 to 100 are initially OFF. 100 people toggle multiples of their position. How many bulbs remain ON at the end?',
+        type: 'Logical',
+        companyTag: 'Infosys',
+        difficulty: 'Medium',
+        options: ['10 bulbs', '50 bulbs', '25 bulbs', '1 bulb'],
+        correctOption: 0,
+        explanation: 'Only perfect square numbers (1, 4, 9, 16, 25, 36, 49, 64, 81, 100) have an odd number of total factors. Thus, 10 bulbs remain ON.'
+      },
+      {
+        id: 'iq8',
+        title: 'Raju distributes Rs 1000 among his 5 children such that their shares are in Arithmetic Progression. What is the share of the youngest child?',
+        type: 'Aptitude',
+        companyTag: 'Infosys',
+        difficulty: 'Medium',
+        options: ['Rs 160', 'Rs 200', 'Rs 150', 'Rs 180'],
+        correctOption: 0,
+        explanation: 'Let shares be a-2d, a-d, a, a+d, a+2d. Sum = 5a = 1000 => a = 200. With standard non-negative d progression, youngest share = Rs 160.'
+      },
+      {
+        id: 'iq9',
+        title: 'What is the decimal equivalent value of (121) base 4 + (84) base 16?',
+        type: 'Technical',
+        companyTag: 'Infosys',
+        difficulty: 'Medium',
+        options: ['159', '160', '132', '175'],
+        correctOption: 0,
+        explanation: '(121)_4 = 1*16 + 2*4 + 1 = 25. (84)_16 = 8*16 + 4 = 132. Total = 25 + 132 = 159 in decimal.'
+      },
+      {
+        id: 'iq10',
+        title: 'Which page replacement algorithm achieves the theoretical minimum number of page faults?',
+        type: 'Technical',
+        companyTag: 'Infosys',
+        difficulty: 'Medium',
+        options: ['Optimal Page Replacement (OPT)', 'First In First Out (FIFO)', 'Least Recently Used (LRU)', 'Least Frequently Used (LFU)'],
+        correctOption: 0,
+        explanation: 'Belady\'s Optimal Page Replacement algorithm replaces the page that will not be used for the longest time in future.'
+      },
+      {
+        id: 'iq11',
+        title: 'In the OSI 7-layer networking architecture, at which layer is packet Routing performed?',
+        type: 'Technical',
+        companyTag: 'Infosys',
+        difficulty: 'Easy',
+        options: ['Network Layer (Layer 3)', 'Data Link Layer (Layer 2)', 'Transport Layer (Layer 4)', 'Session Layer (Layer 5)'],
+        correctOption: 0,
+        explanation: 'Packet routing across logical network boundaries is performed at Layer 3 (Network Layer).'
+      },
+      {
+        id: 'iq12',
+        title: 'Which networking protocol resolves a known IP address to its corresponding physical hardware MAC address?',
+        type: 'Technical',
+        companyTag: 'Infosys',
+        difficulty: 'Easy',
+        options: ['ARP (Address Resolution Protocol)', 'RARP', 'DHCP', 'ICMP'],
+        correctOption: 0,
+        explanation: 'ARP (Address Resolution Protocol) translates IP addresses to hardware MAC addresses.'
+      },
+      {
+        id: 'iq13',
+        title: 'When a C function is invoked, where is the return address of the caller stored?',
+        type: 'Technical',
+        companyTag: 'Infosys',
+        difficulty: 'Easy',
+        options: ['System Call Stack', 'Heap Memory', 'Data Segment', 'CPU Registers'],
+        correctOption: 0,
+        explanation: 'Function return addresses, parameters, and stack frames are stored on the system Call Stack.'
+      },
+      {
+        id: 'iq14',
+        title: 'What is the output of macro `#define perplexed 3` after `#undef perplexed` and `#define perplexed 4`?',
+        type: 'Technical',
+        companyTag: 'Infosys',
+        difficulty: 'Medium',
+        options: ['4', '3', '2', '0'],
+        correctOption: 0,
+        explanation: 'The macro `perplexed` is redefined to 4 inside the preprocessor directive block.'
+      },
+      {
+        id: 'iq15',
+        title: 'What happens when executing `char *p = "hello world"; p[0] = \'H\'; printf("%s", p);` in C?',
+        type: 'Technical',
+        companyTag: 'Infosys',
+        difficulty: 'Hard',
+        options: ['Segmentation Fault / Runtime Error (Modifying string literal)', 'Outputs "Hello world"', 'Compilation Error', 'Outputs "hello world"'],
+        correctOption: 0,
+        explanation: 'String literals are stored in read-only memory. Attempting to mutate p[0] causes a runtime segmentation fault.'
+      },
+      {
+        id: 'iq16',
+        title: 'Which data structure is optimal for dictionary search operations requiring fast prefix spell checking?',
+        type: 'Technical',
+        companyTag: 'Infosys',
+        difficulty: 'Medium',
+        options: ['Trie / Hash Table', 'Binary Search Tree', 'Linked List', 'Stack'],
+        correctOption: 0,
+        explanation: 'Tries (Prefix Trees) provide O(K) lookup time where K is word length, making them ideal for spell check and autocomplete.'
+      }
+    ]
+  },
+  {
+    id: 'technical_core_cpp',
+    title: 'Core C/C++ Systems & CS Fundamentals Test',
+    category: 'Technical',
+    companyTag: 'Core Systems',
+    durationMinutes: 30,
+    questionCount: 15,
+    passPercentage: 70,
+    description: 'High-frequency placement technical questions on C pointers, Unions, Memory layout, OOP C++, Operating Systems & Computer Networks.',
+    questions: [
+      {
+        id: 'tc1',
+        title: 'What is the output of `union u { struct { int i:4; int j:4; int k:4; int l; } st; int i; } u; u.i = 100; printf("%d, %d, %d", u.i, u.st.i, u.st.l);`?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Hard',
+        options: ['100, 4, 0', '4, 4, 0', '0, 0, 0', '40, 4, 0'],
+        correctOption: 0,
+        explanation: 'u.i sets value 100 (binary 01100100). u.st.i accesses the lower 4 bits (0100 = 4 decimal). u.st.l is offset 0.'
+      },
+      {
+        id: 'tc2',
+        title: 'What is the value of `sizeof(u)` and `sizeof(u.a)` for `union u { union u1 { int i; int j; } a[10]; int b[10]; } u;` on 32-bit systems?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Medium',
+        options: ['40 bytes, 40 bytes', '4 bytes, 4 bytes', '400 bytes, 40 bytes', '20 bytes, 200 bytes'],
+        correctOption: 0,
+        explanation: 'An array of 10 integers (4 bytes each) takes 40 bytes. Since u is a union of a[10] and b[10], sizeof(u) = 40 and sizeof(u.a) = 40.'
+      },
+      {
+        id: 'tc3',
+        title: 'What happens when executing `int i = 25, *p = &i; printf("%f", i/(*p));` in C?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Medium',
+        options: ['Format Mismatch / Abnormal Output (int printed via %f)', 'Prints 1.000000', 'Prints 0.000000', 'Runtime Crash'],
+        correctOption: 0,
+        explanation: 'i/(*p) yields integer 1, but passing an int to %f causes printf format specifier mismatch.'
+      },
+      {
+        id: 'tc4',
+        title: 'How do you correctly print a literal `%` symbol using `printf` in C?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Easy',
+        options: ['printf("%%");', 'printf("\\%");', 'printf("\\\\%");', 'printf("\\%%");'],
+        correctOption: 0,
+        explanation: 'In C printf format strings, double percent `%%` escapes the format character to output `%`.'
+      },
+      {
+        id: 'tc5',
+        title: 'What is the evaluation result of `#define perplexed 3` after preprocessor `#undef perplexed` and `#define perplexed 4`?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Medium',
+        options: ['4', '3', '2', '0'],
+        correctOption: 0,
+        explanation: 'The macro `perplexed` is undef’d and redefined to 4, replacing all subsequent usages with 4.'
+      },
+      {
+        id: 'tc6',
+        title: 'Which pair of sorting algorithms guarantees O(N log N) time complexity in both Best and Worst cases?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Easy',
+        options: ['Merge Sort & Heap Sort', 'Quick Sort & Bubble Sort', 'Insertion Sort & Selection Sort', 'Radix Sort & Counting Sort'],
+        correctOption: 0,
+        explanation: 'Merge Sort and Heap Sort consistently achieve O(N log N) time performance across all input cases.'
+      },
+      {
+        id: 'tc7',
+        title: 'What is the primary function of declaring a base class as `virtual` in C++ object-oriented inheritance?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Medium',
+        options: [
+          'To prevent duplicate base subobjects in diamond inheritance',
+          'To restrict private members from child access',
+          'To force all derived classes to be static',
+          'To disable dynamic dispatch'
+        ],
+        correctOption: 0,
+        explanation: 'Virtual base classes prevent duplicate copies of a common ancestor in multiple/diamond inheritance.'
+      },
+      {
+        id: 'tc8',
+        title: 'Which Page Replacement algorithm yields the minimum possible number of page faults?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Easy',
+        options: ['Optimal Page Replacement (OPT)', 'First In First Out (FIFO)', 'Least Recently Used (LRU)', 'Least Frequently Used (LFU)'],
+        correctOption: 0,
+        explanation: 'Belady\'s Optimal Page Replacement replaces the page that will not be used for the longest time in future.'
+      },
+      {
+        id: 'tc9',
+        title: 'In C language assignment statements (`x = y`), what does the assignment operator target on its left side?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Easy',
+        options: ['l-value (modifiable memory location)', 'r-value', 'constant literal', 'void pointer'],
+        correctOption: 0,
+        explanation: 'The assignment operator requires an l-value (locator value), representing a modifiable memory location.'
+      },
+      {
+        id: 'tc10',
+        title: 'In OS CPU scheduling, if the Time Quantum in Round Robin algorithm is set extremely large, it degenerates into:',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Easy',
+        options: ['First-Come First-Served (FCFS)', 'Shortest Job First (SJF)', 'Priority Scheduling', 'Multilevel Queue'],
+        correctOption: 0,
+        explanation: 'Without preemption forced by a small quantum, processes run to completion in arrival order (FCFS).'
+      },
+      {
+        id: 'tc11',
+        title: 'In the OSI 7-layer networking architecture, at which layer is packet Routing performed?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Easy',
+        options: ['Network Layer (Layer 3)', 'Data Link Layer (Layer 2)', 'Transport Layer (Layer 4)', 'Session Layer (Layer 5)'],
+        correctOption: 0,
+        explanation: 'Routing across logical IP networks is performed at Layer 3 (Network Layer).'
+      },
+      {
+        id: 'tc12',
+        title: 'Which network protocol maps a given IP address to its corresponding physical MAC address?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Easy',
+        options: ['ARP (Address Resolution Protocol)', 'RARP', 'DHCP', 'ICMP'],
+        correctOption: 0,
+        explanation: 'ARP (Address Resolution Protocol) resolves IPv4 addresses to physical MAC hardware addresses.'
+      },
+      {
+        id: 'tc13',
+        title: 'When a function call takes place in C/C++, where is the caller function\'s return address stored?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Easy',
+        options: ['System Call Stack', 'Heap Memory', 'Data Segment', 'BSS Segment'],
+        correctOption: 0,
+        explanation: 'Stack frames store function parameters, local variables, and return addresses on the Call Stack.'
+      },
+      {
+        id: 'tc14',
+        title: 'What is the total decimal value of `(121) base 4 + (84) base 16`?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Medium',
+        options: ['159', '160', '132', '175'],
+        correctOption: 0,
+        explanation: '(121)_4 = 1*16 + 2*4 + 1 = 25. (84)_16 = 8*16 + 4 = 132. 25 + 132 = 159 decimal.'
+      },
+      {
+        id: 'tc15',
+        title: 'Which data structure is best suited for dictionary search operations with spell checking capabilities?',
+        type: 'Technical',
+        companyTag: 'Core Systems',
+        difficulty: 'Medium',
+        options: ['Trie / Hash Table', 'Binary Search Tree', 'Linked List', 'Stack'],
+        correctOption: 0,
+        explanation: 'Tries store string prefixes efficiently, enabling fast O(K) dictionary lookups and spell check suggestions.'
       }
     ]
   },
@@ -406,10 +576,11 @@ export const MOCK_TESTS: MockTest[] = [
     id: 'general_aptitude',
     title: 'Universal Quantitative & Logical Aptitude Test',
     category: 'Aptitude',
-    durationMinutes: 20,
-    questionCount: 3,
-    passPercentage: 60,
-    description: 'High-frequency placement questions on Probability, Permutations, Syllogisms, & Data Sufficiency.',
+    companyTag: 'Aptitude & Reasoning',
+    durationMinutes: 35,
+    questionCount: 20,
+    passPercentage: 65,
+    description: 'High-frequency campus placement questions on Probability, Permutations, Clocks, Speed-Distance, Number Series & Syllogisms.',
     questions: [
       {
         id: 'ga1',
@@ -437,6 +608,159 @@ export const MOCK_TESTS: MockTest[] = [
         options: ['TNBUS', 'TLBSU', 'TNBSU', 'TMCUS'],
         correctOption: 2,
         explanation: 'Each letter is shifted by +1 (L->M, O->P... S->T, M->N, A->B, R->S, T->U = TNBSU).'
+      },
+      {
+        id: 'ga4',
+        title: 'A merchant had to weigh amounts from 1 kg to 121 kgs to the nearest kg. What is the minimum number of weights required and their values?',
+        type: 'Aptitude',
+        difficulty: 'Hard',
+        options: ['5 weights: 1, 3, 9, 27, 81 kg', '4 weights: 1, 2, 4, 8 kg', '6 weights: 1, 2, 4, 8, 16, 32 kg', '5 weights: 1, 5, 10, 25, 50 kg'],
+        correctOption: 0,
+        explanation: 'Ternary powers (1, 3, 9, 27, 81) allow measuring any integer weight from 1 to 121 kg on a 2-pan balance scale.'
+      },
+      {
+        id: 'ga5',
+        title: 'Fifty minutes ago if it was four times as many minutes past 3 o\'clock, how many minutes is it to 6 o\'clock?',
+        type: 'Aptitude',
+        difficulty: 'Hard',
+        options: ['26 minutes', '20 minutes', '34 minutes', '15 minutes'],
+        correctOption: 0,
+        explanation: 'Minutes past 3:00 50 mins ago = x. Time now = 3:00 + x + 50. Total minutes 3:00 to 6:00 = 180. Solving yields 26 minutes to 6:00.'
+      },
+      {
+        id: 'ga6',
+        title: 'If a clock takes 7 seconds to strike 7, how long will the same clock take to strike 10?',
+        type: 'Aptitude',
+        difficulty: 'Medium',
+        options: ['10.5 seconds', '10 seconds', '9.5 seconds', '11 seconds'],
+        correctOption: 0,
+        explanation: '7 strikes have 6 interval gaps taking 7s => 1 interval = 7/6s. 10 strikes have 9 interval gaps => 9 * (7/6) = 10.5 seconds.'
+      },
+      {
+        id: 'ga7',
+        title: 'Two trains start from stations A and B 50 km apart towards each other at 50 km/h. A bird flies back and forth between them at 100 km/h. How far did the bird fly?',
+        type: 'Aptitude',
+        difficulty: 'Hard',
+        options: ['100 km', '50 km', '75 km', '120 km'],
+        correctOption: 0,
+        explanation: 'Relative train speed = 100 km/h. Time to collision = 50km / 100km/h = 0.5h. Bird flies 100 km/h * 1h total travel = 100 km.'
+      },
+      {
+        id: 'ga8',
+        title: 'Complete the mathematical series: 5, 20, 24, 6, 2, 8, ?',
+        type: 'Logical',
+        difficulty: 'Medium',
+        options: ['12', '16', '10', '14'],
+        correctOption: 0,
+        explanation: 'Pattern with 4: 5*4=20, 20+4=24, 24/4=6, 6-4=2, 2*4=8, 8+4=12.'
+      },
+      {
+        id: 'ga9',
+        title: 'Two towers are 150 ft and 200 ft tall. A grain is placed between them such that two birds from tower tops reach it simultaneously. Distance of grain from 150 ft tower (if towers are 250 ft apart):',
+        type: 'Aptitude',
+        difficulty: 'Hard',
+        options: ['90 ft', '100 ft', '120 ft', '80 ft'],
+        correctOption: 0,
+        explanation: 'Equating distances squared: 150^2 + x^2 = 200^2 + (250-x)^2 => 22500 + x^2 = 40000 + 62500 - 500x + x^2 => 500x = 80000 => x = 90 ft.'
+      },
+      {
+        id: 'ga10',
+        title: 'A person was 80 years old in 490 BC and 70 years old in 500 BC. In which year was he born?',
+        type: 'Logical',
+        difficulty: 'Medium',
+        options: ['570 BC', '470 BC', '510 BC', '430 BC'],
+        correctOption: 0,
+        explanation: 'BC years count backwards. Born in 570 BC => In 500 BC age is (570-500) = 70, in 490 BC age is (570-490) = 80.'
+      },
+      {
+        id: 'ga11',
+        title: 'A person travels to a city at 10 mph and returns back along the same route at 15 mph. What is their average speed?',
+        type: 'Aptitude',
+        difficulty: 'Medium',
+        options: ['12 mph', '12.5 mph', '11.5 mph', '13 mph'],
+        correctOption: 0,
+        explanation: 'Harmonic mean = 2 * 10 * 15 / (10 + 15) = 300 / 25 = 12 mph.'
+      },
+      {
+        id: 'ga12',
+        title: 'A frog in a 30-meter deep well climbs 3 meters during day and slips 2 meters during night. How many days will it take to come out?',
+        type: 'Logical',
+        difficulty: 'Medium',
+        options: ['27 days', '30 days', '28 days', '29 days'],
+        correctOption: 0,
+        explanation: 'Net progress per day = 1m. On day 27, it reaches 27m + 3m = 30m and climbs out before slipping!'
+      },
+      {
+        id: 'ga13',
+        title: 'Raju wants to distribute Rs 1000 to his 5 children in Arithmetic Progression. What is the share of the youngest child?',
+        type: 'Aptitude',
+        difficulty: 'Medium',
+        options: ['Rs 160', 'Rs 200', 'Rs 150', 'Rs 180'],
+        correctOption: 0,
+        explanation: '5a = 1000 => a = 200. With common difference d = 20, youngest share = a - 2d = 160.'
+      },
+      {
+        id: 'ga14',
+        title: 'Fresh fruit contains 72% water while dry fruit contains 20% water. From 100 grams of fresh fruit, how much dry fruit can be obtained?',
+        type: 'Aptitude',
+        difficulty: 'Hard',
+        options: ['35 grams', '30 grams', '40 grams', '28 grams'],
+        correctOption: 0,
+        explanation: 'Solid content in 100g fresh fruit = 28g. Dry fruit has 80% solid content => Weight = 28 / 0.80 = 35 grams.'
+      },
+      {
+        id: 'ga15',
+        title: 'How many two-digit numbers have their square ending with 8?',
+        type: 'Logical',
+        difficulty: 'Easy',
+        options: ['0', '2', '4', '8'],
+        correctOption: 0,
+        explanation: 'No perfect square in mathematics ends in 2, 3, 7, or 8. Thus, 0 numbers.'
+      },
+      {
+        id: 'ga16',
+        title: '100 light bulbs numbered 1 to 100 are toggled by 100 people according to multiples. How many bulbs stay ON at the end?',
+        type: 'Logical',
+        difficulty: 'Medium',
+        options: ['10 bulbs', '50 bulbs', '25 bulbs', '1 bulb'],
+        correctOption: 0,
+        explanation: 'Only perfect square numbered bulbs (1, 4, 9, 16, 25, 36, 49, 64, 81, 100) have an odd number of factors and remain ON.'
+      },
+      {
+        id: 'ga17',
+        title: 'In how many years will $1,200 amount to $1,323 at 5% p.a. compound interest?',
+        type: 'Aptitude',
+        difficulty: 'Medium',
+        options: ['2 years', '3 years', '1.5 years', '4 years'],
+        correctOption: 0,
+        explanation: '1323 / 1200 = (21/20)^2 => (1 + 5/100)^2 => n = 2 years.'
+      },
+      {
+        id: 'ga18',
+        title: 'The sum of three consecutive numbers is 132. Find the square of the largest number.',
+        type: 'Aptitude',
+        difficulty: 'Easy',
+        options: ['2025', '1936', '1849', '2116'],
+        correctOption: 0,
+        explanation: '3x = 132 => x = 44. Largest number = 45. 45^2 = 2025.'
+      },
+      {
+        id: 'ga19',
+        title: 'Father\'s age is 5 times his son\'s age. Four years ago father was 9 times as old as his son. What are their present ages?',
+        type: 'Aptitude',
+        difficulty: 'Medium',
+        options: ['Father 40, Son 8', 'Father 35, Son 7', 'Father 45, Son 9', 'Father 50, Son 10'],
+        correctOption: 0,
+        explanation: 'F = 5S. F - 4 = 9(S - 4) => 5S - 4 = 9S - 36 => 4S = 32 => S = 8, F = 40.'
+      },
+      {
+        id: 'ga20',
+        title: 'A bag has 10 Red, 10 Blue, 10 Green, 10 Yellow, and 10 White balls. What is the minimum number of balls required to guarantee a pair of at least one color?',
+        type: 'Logical',
+        difficulty: 'Medium',
+        options: ['6 balls', '5 balls', '11 balls', '10 balls'],
+        correctOption: 0,
+        explanation: 'By Pigeonhole Principle: drawing 5 balls could draw 1 of each of 5 colors. The 6th ball must match one of the 5 colors, forming a pair.'
       }
     ]
   }
@@ -582,34 +906,7 @@ export const INITIAL_MENTORSHIP: MentorshipPair = {
   ]
 };
 
-export const INITIAL_RECENT_SCORES: TestResult[] = [
-  {
-    id: 'res_1',
-    testId: 'tcs_ninja_drive',
-    testTitle: 'TCS Ninja & Digital National Drive Mock 2026',
-    category: 'Company Drive',
-    score: 4,
-    totalQuestions: 5,
-    accuracy: 80,
-    passed: true,
-    timeSpentMinutes: 18,
-    date: '2026-07-29',
-    userAnswers: { q1: 0, q2: 1, q3: 0, q4: 2, q5: 1 }
-  },
-  {
-    id: 'res_2',
-    testId: 'general_aptitude',
-    testTitle: 'Universal Quantitative & Logical Aptitude Test',
-    category: 'Aptitude',
-    score: 2,
-    totalQuestions: 3,
-    accuracy: 67,
-    passed: true,
-    timeSpentMinutes: 12,
-    date: '2026-07-25',
-    userAnswers: { ga1: 0, ga2: 0, ga3: 0 }
-  }
-];
+export const INITIAL_RECENT_SCORES: TestResult[] = [];
 
 export const INITIAL_RESUME_DATA: ResumeData = {
   template: 'ats',

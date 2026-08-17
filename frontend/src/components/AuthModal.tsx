@@ -405,9 +405,13 @@ export const AuthModal: React.FC = React.memo(() => {
                       options={[
                         'Software Engineering',
                         'Data Science & AI',
+                        'Data Analytics & BI',
+                        'Backend & Cloud Engineering',
+                        'Cybersecurity & SOC',
                         'Core Electronics & Embedded',
                         'UI/UX & Product Design',
-                        'Cloud & DevOps'
+                        'VLSI & Chip Design',
+                        'Management & Consulting'
                       ]}
                     />
                   </div>

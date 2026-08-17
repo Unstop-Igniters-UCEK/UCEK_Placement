@@ -63,6 +63,7 @@ interface AppContextType {
   logoutUser: () => void;
   toggleMilestone: (domainId: string, moduleId: string, milestoneId: string) => void;
   saveTestResult: (result: Omit<TestResult, 'id' | 'date'>) => void;
+  clearTestHistory: () => void;
   addQuestionToBank: (newQ: Omit<Question, 'id'>) => void;
   publishTest: (test: Omit<MockTest, 'id' | 'questions' | 'passPercentage'>) => void;
   addMentorshipLog: (topic: string, feedback: string, actionItems: string[]) => void;
@@ -155,8 +156,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (!user) return;
     const currentDomainRoadmap = roadmaps.find(
-      r => r.name.toLowerCase() === user.domain.toLowerCase() || r.id === 'swe'
-    );
+      r => r.name.toLowerCase() === (user.domain || '').toLowerCase()
+    ) || roadmaps.find(r => r.id === 'swe') || roadmaps[0];
     if (!currentDomainRoadmap) return;
 
     let totalMilestones = 0;
@@ -333,6 +334,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   }, []);
 
+  const clearTestHistory = useCallback(() => {
+    setRecentScores([]);
+    localStorage.removeItem('ucek_recent_test_scores');
+  }, []);
+
   const addQuestionToBank = useCallback((newQ: Omit<Question, 'id'>) => {
     const createdQuestion: Question = {
       ...newQ,
@@ -433,6 +439,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logoutUser,
     toggleMilestone,
     saveTestResult,
+    clearTestHistory,
     addQuestionToBank,
     publishTest,
     addMentorshipLog,
@@ -465,6 +472,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logoutUser,
     toggleMilestone,
     saveTestResult,
+    clearTestHistory,
     addQuestionToBank,
     publishTest,
     addMentorshipLog,

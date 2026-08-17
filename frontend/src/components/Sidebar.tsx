@@ -78,13 +78,13 @@ export const Sidebar: React.FC = React.memo(() => {
               className="fixed left-0 top-0 h-screen h-dvh max-h-screen w-72 bg-[#050505]/90 backdrop-blur-xl border-r border-[#2d3132]/80 flex flex-col justify-between p-5 z-50 select-none shadow-2xl overflow-y-auto no-scrollbar transform-gpu"
             >
               {/* Animated SideRays Background (Sidebar Only) */}
-              <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+              <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden w-full h-full min-h-screen">
                 <SideRays
                   speed={1.8}
                   rayColor1="#F97316"
                   rayColor2="#F97316"
-                  intensity={1.2}
-                  spread={0.4}
+                  intensity={1.5}
+                  spread={0.5}
                   origin="top-left"
                   tilt={21}
                   saturation={1.65}
