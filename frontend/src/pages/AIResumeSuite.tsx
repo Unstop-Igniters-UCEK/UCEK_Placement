@@ -129,7 +129,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   const [jdText, setJdText] = useState(COMPANY_DRIVES[0].text);
   const [matchLoading, setMatchLoading] = useState(false);
   const [matchResult, setMatchResult] = useState<JDMatchResult | null>(null);
-  
+
   // RESUME SOURCE TOGGLE & CHECKBOX
   const [resumeSource, setResumeSource] = useState<'builder' | 'custom'>('builder');
   const [useSameReviewerResume, setUseSameReviewerResume] = useState(false);
@@ -332,7 +332,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   const handleRunMatcher = async () => {
     if (!jdText.trim()) return;
     setMatchLoading(true);
-    
+
     let candidateText = '';
     if (useSameReviewerResume && resumeText.trim()) {
       candidateText = resumeText.trim();
@@ -477,33 +477,30 @@ export const AIResumeSuite: React.FC = React.memo(() => {
             <button
               type="button"
               onClick={() => setActiveSubTab('reviewer')}
-              className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${
-                activeSubTab === 'reviewer'
+              className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${activeSubTab === 'reviewer'
                   ? 'bg-white text-black shadow-md'
                   : 'text-zinc-400 hover:text-white'
-              }`}
+                }`}
             >
               AI Reviewer
             </button>
             <button
               type="button"
               onClick={() => setActiveSubTab('builder')}
-              className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${
-                activeSubTab === 'builder'
+              className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${activeSubTab === 'builder'
                   ? 'bg-white text-black shadow-md'
                   : 'text-zinc-400 hover:text-white'
-              }`}
+                }`}
             >
               Resume Builder
             </button>
             <button
               type="button"
               onClick={() => setActiveSubTab('matcher')}
-              className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${
-                activeSubTab === 'matcher'
+              className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${activeSubTab === 'matcher'
                   ? 'bg-white text-black shadow-md'
                   : 'text-zinc-400 hover:text-white'
-              }`}
+                }`}
             >
               JD Matcher
             </button>
@@ -749,27 +746,24 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               <button
                 type="button"
                 onClick={() => setBuilderTemplate('ats')}
-                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${
-                  builderTemplate === 'ats' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
-                }`}
+                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${builderTemplate === 'ats' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
+                  }`}
               >
                 ATS Clean
               </button>
               <button
                 type="button"
                 onClick={() => setBuilderTemplate('modern')}
-                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${
-                  builderTemplate === 'modern' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
-                }`}
+                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${builderTemplate === 'modern' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
+                  }`}
               >
                 Modern Exec
               </button>
               <button
                 type="button"
                 onClick={() => setBuilderTemplate('academic')}
-                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${
-                  builderTemplate === 'academic' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
-                }`}
+                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${builderTemplate === 'academic' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
+                  }`}
               >
                 Academic
               </button>
@@ -1289,8 +1283,8 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                     {useSameReviewerResume
                       ? 'AI Reviewer Resume Text'
                       : resumeSource === 'builder'
-                      ? 'Resume Builder Profile'
-                      : 'Custom Uploaded / Pasted Resume'}
+                        ? 'Resume Builder Profile'
+                        : 'Custom Uploaded / Pasted Resume'}
                   </strong>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -1408,11 +1402,10 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                         if (drive.text) setJdText(drive.text);
                         setCompanyDropdownOpen(false);
                       }}
-                      className={`px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center justify-between ${
-                        selectedCompanyDriveId === drive.id
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center justify-between ${selectedCompanyDriveId === drive.id
                           ? 'bg-orange-500/15 text-orange-400 font-bold border border-orange-500/30'
                           : 'text-zinc-300 hover:text-white hover:bg-white/5'
-                      }`}
+                        }`}
                     >
                       <span>{drive.company}</span>
                       {selectedCompanyDriveId === drive.id && <Check className="w-3.5 h-3.5 text-orange-400 shrink-0" />}
