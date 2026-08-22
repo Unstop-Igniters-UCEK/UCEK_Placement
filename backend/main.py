@@ -5,7 +5,9 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 load_dotenv()
 
-from fastapi import FastAPI
+from typing import Optional
+from datetime import datetime
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -51,6 +53,28 @@ app.add_middleware(
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "backend": "Python FastAPI", "platform": "UCEK Unstop Igniters"}
+
+# UptimeRobot Keep-Alive Endpoint
+@app.get("/api/keep-alive")
+def keep_alive(token: Optional[str] = None):
+    secret_token = os.getenv("PING_SECRET_KEY", "ucek_ping_secret_2026")
+    if token and token != secret_token:
+        raise HTTPException(status_code=403, detail="Invalid ping authorization token")
+    
+    db_status = "connected"
+    try:
+        from backend.database import supabase_client
+        if supabase_client:
+            supabase_client.table("users").select("id").limit(1).execute()
+    except Exception as e:
+        db_status = f"warning: {str(e)[:50]}"
+
+    return {
+        "status": "alive",
+        "timestamp": datetime.now().isoformat(),
+        "backend": "FastAPI",
+        "db": db_status
+    }
 
 # Include Routers
 app.include_router(auth.router)
