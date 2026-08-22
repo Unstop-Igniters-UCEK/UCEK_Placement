@@ -5,9 +5,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 load_dotenv()
 
-from typing import Optional
-from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -49,31 +47,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from datetime import datetime
+
 # Healthcheck
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "backend": "Python FastAPI", "platform": "UCEK Unstop Igniters"}
 
-# UptimeRobot Keep-Alive Endpoint
+# Keep-Alive for UptimeRobot / Cron monitoring (keeps Render container + Supabase warm 24/7)
 @app.get("/api/keep-alive")
-def keep_alive(token: Optional[str] = None):
-    secret_token = os.getenv("PING_SECRET_KEY", "ucek_ping_secret_2026")
-    if token and token != secret_token:
-        raise HTTPException(status_code=403, detail="Invalid ping authorization token")
-    
-    db_status = "connected"
+def keep_alive():
+    db_status = "idle"
     try:
         from backend.database import supabase_client
         if supabase_client:
-            supabase_client.table("users").select("id").limit(1).execute()
-    except Exception as e:
-        db_status = f"warning: {str(e)[:50]}"
+            supabase_client.table("questions").select("id").limit(1).execute()
+            db_status = "connected"
+    except Exception as err:
+        db_status = f"active (db: {str(err)})"
 
     return {
         "status": "alive",
-        "timestamp": datetime.now().isoformat(),
-        "backend": "FastAPI",
-        "db": db_status
+        "service": "UCEK Placement API",
+        "backend": "Render.com",
+        "database": db_status,
+        "timestamp": datetime.utcnow().isoformat() + "Z"
     }
 
 # Include Routers
