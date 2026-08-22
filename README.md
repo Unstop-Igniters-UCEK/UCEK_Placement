@@ -4,7 +4,7 @@
 
 ### Campus Placement Suite — University College of Engineering Kariavattom
 
-[![Live Site](https://img.shields.io/badge/🌐_Live-impulse.ucek.ac.in-000000?style=for-the-badge&labelColor=F97316)](https://impulse.ucek.ac.in)
+[![Website](https://img.shields.io/badge/impulse.uck.ac.in-F97316?style=for-the-badge)](https://impulse.uck.ac.in/)
 [![Backend API](https://img.shields.io/badge/⚡_API-Render.com-000000?style=for-the-badge&labelColor=46E3B7)](https://impulse-fw49.onrender.com/api/health)
 [![GitHub](https://img.shields.io/badge/GitHub-Unstop--Igniters--UCEK-000000?style=for-the-badge&logo=github)](https://github.com/Unstop-Igniters-UCEK/UCEK_Placement)
 
