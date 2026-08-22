@@ -181,7 +181,7 @@ npm run dev
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/health` | Server health check |
-| `GET` | `/api/keep-alive` | UptimeRobot keep-alive ping (warms DB) |
+| `GET` | `/api/keep-alive` | Health & DB connection ping |
 | `POST` | `/api/auth/signup` | User registration |
 | `POST` | `/api/auth/login` | User login (returns JWT) |
 | `POST` | `/api/auth/send-otp` | Send password reset OTP |
@@ -216,14 +216,6 @@ npm run dev
 4. Set **Build Command** to `pip install -r requirements.txt`
 5. Set **Start Command** to `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
 6. Add all `backend/.env` variables in Render's Environment settings
-
-### Keep-Alive (UptimeRobot)
-
-Render's free tier sleeps after 15 minutes of inactivity. To prevent cold starts:
-
-1. Create a free monitor on [UptimeRobot](https://uptimerobot.com)
-2. Set **URL** to `https://your-backend.onrender.com/api/keep-alive`
-3. Set **Interval** to every 5 minutes
 
 ---
 
