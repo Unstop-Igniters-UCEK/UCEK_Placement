@@ -254,10 +254,10 @@ npm run dev
 
 <table>
   <tr>
-    <td align="center"><b>Karthik S</b><br/>Full-Stack Developer</td>
-    <td align="center"><b>Theertha S Nair</b><br/>Developer</td>
-    <td align="center"><b>Amarnath Sujith</b><br/>Developer</td>
-    <td align="center"><b>Nimish M Biju</b><br/>Developer</td>
+    <td align="center"><b>Karthik S</b><br/>Backend Developer - System Architect</td>
+    <td align="center"><b>Theertha S Nair</b><br/>Full-Stack Developer</td>
+    <td align="center"><b>Amarnath Sujith</b><br/>Full-Stack Developer</td>
+    <td align="center"><b>Nimish M Biju</b><br/>Frontend Developer</td>
   </tr>
 </table>
 
