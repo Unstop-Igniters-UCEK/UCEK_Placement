@@ -180,23 +180,33 @@ class Database:
             try:
                 ts_res = supabase_client.table("test_scores").select("*").execute()
                 if ts_res.data and len(ts_res.data) > 0:
-                    self.testScores = []
+                    existing_by_id = {str(s.get("id")): s for s in self.testScores if s.get("id")}
+                    loaded_scores = []
                     for s in ts_res.data:
-                        score_val = int(s.get("score", 0))
-                        total_val = int(s.get("total") or s.get("total_questions") or 10)
-                        pct_val = float(s.get("percentage") or ((score_val / total_val) * 100 if total_val > 0 else 0.0))
-                        self.testScores.append({
-                            "id": str(s.get("id")),
-                            "userId": str(s.get("user_id")),
-                            "testId": str(s.get("test_id")),
+                        score_id = str(s.get("id"))
+                        prev = existing_by_id.get(score_id, {})
+                        score_val = int(s.get("score", prev.get("score", 0)))
+                        total_val = int(s.get("total") or s.get("total_questions") or prev.get("totalQuestions") or 10)
+                        pct_val = float(s.get("percentage") or prev.get("percentage") or ((score_val / total_val) * 100 if total_val > 0 else 0.0))
+
+                        loaded_scores.append({
+                            "id": score_id,
+                            "userId": str(s.get("user_id") or prev.get("userId")),
+                            "testId": str(s.get("test_id") or prev.get("testId")),
+                            "testTitle": s.get("test_title") or s.get("testTitle") or prev.get("testTitle") or "Mock Assessment Drive",
+                            "category": s.get("category") or prev.get("category") or "Company Drive",
                             "score": score_val,
                             "total": total_val,
                             "totalQuestions": total_val,
                             "percentage": pct_val,
-                            "submittedAt": str(s.get("submitted_at") or s.get("date") or ""),
-                            "submitted_at": str(s.get("submitted_at") or s.get("date") or ""),
-                            "date": str(s.get("submitted_at") or s.get("date") or "")
+                            "passed": bool(s.get("passed") if s.get("passed") is not None else prev.get("passed", pct_val >= 60)),
+                            "timeTakenSec": int(s.get("time_taken_sec") or s.get("timeTakenSec") or prev.get("timeTakenSec") or 0),
+                            "userAnswers": s.get("user_answers") or s.get("userAnswers") or prev.get("userAnswers") or {},
+                            "submittedAt": str(s.get("submitted_at") or s.get("date") or prev.get("submittedAt") or ""),
+                            "submitted_at": str(s.get("submitted_at") or s.get("date") or prev.get("submittedAt") or ""),
+                            "date": str(s.get("submitted_at") or s.get("date") or prev.get("date") or "").split("T")[0]
                         })
+                    self.testScores = loaded_scores
                     print(f"[Supabase] Loaded {len(self.testScores)} test scores directly from Supabase test_scores table.")
             except Exception as e:
                 print("[Supabase test_scores table load notice]:", e)

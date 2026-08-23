@@ -460,7 +460,16 @@ export async function getTestHistoryApi(): Promise<any[]> {
  */
 export async function submitTestApi(
   testId: string,
-  payload: { score: number; totalQuestions: number; timeTakenSec: number; userAnswers?: any }
+  payload: {
+    score: number;
+    totalQuestions: number;
+    timeTakenSec: number;
+    userAnswers?: any;
+    testTitle?: string;
+    category?: string;
+    passed?: boolean;
+    percentage?: number;
+  }
 ) {
   try {
     const res = await fetch(`${BASE_URL}/api/tests/${testId}/submit`, {
@@ -470,6 +479,10 @@ export async function submitTestApi(
         score: payload.score,
         totalQuestions: payload.totalQuestions,
         timeTakenSec: payload.timeTakenSec,
+        testTitle: payload.testTitle,
+        category: payload.category,
+        passed: payload.passed,
+        percentage: payload.percentage,
         userAnswers: Object.entries(payload.userAnswers || {}).map(([qId, opt]) => ({
           questionId: qId,
           selectedOption: Number(opt)

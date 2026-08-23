@@ -4,6 +4,26 @@ INITIAL_QUESTIONS = []
 
 INITIAL_MOCK_TESTS = [
   {
+    "id": "tcs_ninja_mock_2026",
+    "title": "TCS Ninja & Digital National Drive Mock 2026",
+    "category": "Company Drive",
+    "companyTag": "TCS",
+    "company_tag": "TCS",
+    "durationMinutes": 30,
+    "duration_mins": 30,
+    "passPercentage": 70,
+    "pass_percentage": 70,
+    "totalQuestions": 10,
+    "questions": [
+      {
+        "id": "q1",
+        "title": "A train 150m long passes a telegraph post in 12 seconds. What is the speed of the train in km/hr?",
+        "options": ["45 km/hr", "50 km/hr", "36 km/hr", "40 km/hr"],
+        "correctOption": 0
+      }
+    ]
+  },
+  {
     "id": "tcs_ninja_drive",
     "title": "TCS Ninja & Digital National Drive Mock 2026",
     "category": "Company Drive",
@@ -14,26 +34,33 @@ INITIAL_MOCK_TESTS = [
     "passPercentage": 70,
     "pass_percentage": 70,
     "totalQuestions": 5,
-    "questions": [
-      {
-        "id": "q1",
-        "title": "A train 150m long passes a telegraph post in 12 seconds. What is the speed of the train in km/hr?",
-        "options": ["45 km/hr", "50 km/hr", "36 km/hr", "40 km/hr"],
-        "correctOption": 0
-      },
-      {
-        "id": "q2",
-        "title": "Which data structure is primarily used to implement Recursion in programming languages?",
-        "options": ["Queue", "Call Stack", "Min-Heap", "Graph"],
-        "correctOption": 1
-      },
-      {
-        "id": "q3",
-        "title": "Select the antonym for the word 'BENEVOLENT':",
-        "options": ["Malevolent", "Generous", "Altruistic", "Friendly"],
-        "correctOption": 0
-      }
-    ]
+    "questions": []
+  },
+  {
+    "id": "quant_aptitude_1",
+    "title": "Universal Quantitative & Logical Aptitude Test",
+    "category": "Aptitude",
+    "companyTag": "General Aptitude",
+    "company_tag": "General Aptitude",
+    "durationMinutes": 25,
+    "duration_mins": 25,
+    "passPercentage": 65,
+    "pass_percentage": 65,
+    "totalQuestions": 15,
+    "questions": []
+  },
+  {
+    "id": "technical_core_cpp",
+    "title": "Core C/C++ Systems & CS Fundamentals Test",
+    "category": "Technical",
+    "companyTag": "Core Systems",
+    "company_tag": "Core Systems",
+    "durationMinutes": 30,
+    "duration_mins": 30,
+    "passPercentage": 70,
+    "pass_percentage": 70,
+    "totalQuestions": 15,
+    "questions": []
   },
   {
     "id": "infosys_nqt",

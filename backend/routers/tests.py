@@ -142,7 +142,7 @@ def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_
 
 @router.get("/history/my")
 def get_test_history(current_user: dict = Depends(get_current_user)):
-    user_scores = [s for s in db.testScores if s["userId"] == current_user["id"]]
+    user_scores = [s for s in db.testScores if str(s.get("userId")) == str(current_user["id"])]
     return {"scores": user_scores}
 
 @router.get("/{test_id}")
@@ -157,33 +157,51 @@ def get_test_details(test_id: str):
 @router.post("/{test_id}/submit")
 def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depends(get_current_user)):
     test = next((t for t in db.mockTests if t["id"] == test_id), None)
-    if not test:
-        raise HTTPException(status_code=404, detail="Mock test not found")
-
-    questions = [q for q in db.questions if q["id"] in test.get("questionIds", [])]
     
-    score = 0
-    total = len(questions)
+    test_title = req.testTitle or (test["title"] if test else "Mock Assessment Drive")
+    category = req.category or (test.get("category") if test else "Company Drive")
     
-    for ans in req.userAnswers:
-        q = next((item for item in questions if item["id"] == ans.questionId), None)
-        if q and q["correctOptionIndex"] == ans.selectedOption:
-            score += 1
+    questions = [q for q in db.questions if q["id"] in test.get("questionIds", [])] if test else []
+    
+    if req.score is not None:
+        score = req.score
+    else:
+        score = 0
+        for ans in (req.userAnswers or []):
+            q = next((item for item in questions if item["id"] == ans.questionId), None)
+            if q and q.get("correctOptionIndex") == ans.selectedOption:
+                score += 1
 
-    percentage = round((score / total) * 100) if total > 0 else 0
-    passed = score >= test.get("passingMarks", round(total * 0.6))
+    total = req.totalQuestions if req.totalQuestions is not None else (len(questions) if len(questions) > 0 else 10)
+    percentage = req.percentage if req.percentage is not None else (round((score / total) * 100) if total > 0 else 0)
+    
+    if req.passed is not None:
+        passed = req.passed
+    elif test:
+        passed = score >= test.get("passingMarks", round(total * 0.6))
+    else:
+        passed = percentage >= 60
+
+    user_ans_dict = {}
+    if req.userAnswers:
+        for ans in req.userAnswers:
+            user_ans_dict[ans.questionId] = ans.selectedOption
 
     new_score = {
         "id": f"score_{uuid.uuid4().hex[:8]}",
         "userId": current_user["id"],
         "testId": test_id,
-        "testTitle": test["title"],
+        "testTitle": test_title,
+        "category": category,
         "score": score,
+        "total": total,
         "totalQuestions": total,
         "percentage": percentage,
         "passed": passed,
-        "timeTakenSec": req.timeTakenSec,
-        "submittedAt": datetime.now().isoformat()
+        "timeTakenSec": req.timeTakenSec or 0,
+        "userAnswers": user_ans_dict,
+        "submittedAt": datetime.now().isoformat(),
+        "date": datetime.now().isoformat().split('T')[0]
     }
 
     db.testScores.append(new_score)

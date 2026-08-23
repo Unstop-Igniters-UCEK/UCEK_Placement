@@ -110,7 +110,8 @@ def register(request: Request, req: RegisterRequest, response: Response):
         "domainInterest": new_user["domainInterest"],
         "hasSelectedDomain": new_user.get("hasSelectedDomain", False),
         "isVerified": new_user["isVerified"],
-        "readinessScore": new_user["readinessScore"]
+        "readinessScore": new_user["readinessScore"],
+        "targetDrive": new_user.get("targetDrive")
     }
 
     access_token = create_access_token({"id": new_user["id"], "email": new_user["email"], "role": new_user["role"], "name": new_user["name"]})
@@ -172,7 +173,8 @@ def login(request: Request, req: LoginRequest, response: Response):
         "readinessScore": user.get("readinessScore", 60),
         "bio": user.get("bio"),
         "linkedInUrl": user.get("linkedInUrl"),
-        "githubUrl": user.get("githubUrl")
+        "githubUrl": user.get("githubUrl"),
+        "targetDrive": user.get("targetDrive")
     }
 
     access_token = create_access_token({"id": user["id"], "email": user["email"], "role": user["role"], "name": user["name"]})
@@ -223,7 +225,8 @@ def demo_login(req: DemoLoginRequest, response: Response):
         "readinessScore": user.get("readinessScore", 75),
         "bio": user.get("bio"),
         "linkedInUrl": user.get("linkedInUrl"),
-        "githubUrl": user.get("githubUrl")
+        "githubUrl": user.get("githubUrl"),
+        "targetDrive": user.get("targetDrive")
     }
 
     access_token = create_access_token({"id": user["id"], "email": user["email"], "role": user["role"], "name": user["name"]})
@@ -282,7 +285,8 @@ def get_me(current_user: dict = Depends(get_current_user)):
         "readinessScore": current_user.get("readinessScore", 75),
         "bio": current_user.get("bio"),
         "linkedInUrl": current_user.get("linkedInUrl"),
-        "githubUrl": current_user.get("githubUrl")
+        "githubUrl": current_user.get("githubUrl"),
+        "targetDrive": current_user.get("targetDrive")
     }
     return {"user": user_payload}
 

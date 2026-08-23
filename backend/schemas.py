@@ -67,8 +67,14 @@ class UserAnswer(BaseModel):
     selectedOption: int
 
 class SubmitTestRequest(BaseModel):
-    userAnswers: List[UserAnswer]
-    timeTakenSec: int
+    userAnswers: Optional[List[UserAnswer]] = []
+    timeTakenSec: Optional[int] = 0
+    score: Optional[int] = None
+    totalQuestions: Optional[int] = None
+    testTitle: Optional[str] = None
+    category: Optional[str] = None
+    percentage: Optional[float] = None
+    passed: Optional[bool] = None
 
 class RequestMentorRequest(BaseModel):
     mentorId: str
