@@ -109,14 +109,15 @@ export const Dashboard: React.FC = React.memo(() => {
 
   // Helper function to extract test percentage accurately
   const getTestPercentage = (s: typeof recentScores[0]) => {
+    if (!s) return 0;
     if (typeof s.accuracy === 'number' && s.accuracy > 0) return s.accuracy;
-    if (s.totalQuestions && s.totalQuestions > 0) return Math.round((s.score / s.totalQuestions) * 100);
+    if (s.totalQuestions && s.totalQuestions > 0) return Math.round(((s.score || 0) / s.totalQuestions) * 100);
     return s.score || 0;
   };
 
   // 1. Aptitude Score Calculation from real submitted tests
   const aptitudeTestResults = recentScores.filter(
-    s => (s.category || '').toLowerCase().includes('aptitude') || (s.category || '').toLowerCase().includes('company')
+    s => s && ((s.category || '').toLowerCase().includes('aptitude') || (s.category || '').toLowerCase().includes('company'))
   );
   const aptitudeScore = aptitudeTestResults.length > 0
     ? Math.round(aptitudeTestResults.reduce((acc, s) => acc + getTestPercentage(s), 0) / aptitudeTestResults.length)
@@ -124,7 +125,7 @@ export const Dashboard: React.FC = React.memo(() => {
 
   // 2. Technical Score Calculation from real technical tests
   const technicalTestResults = recentScores.filter(
-    s => (s.category || '').toLowerCase().includes('technical') || (s.category || '').toLowerCase().includes('coding')
+    s => s && ((s.category || '').toLowerCase().includes('technical') || (s.category || '').toLowerCase().includes('coding'))
   );
   const technicalScore = technicalTestResults.length > 0
     ? Math.round(technicalTestResults.reduce((acc, s) => acc + getTestPercentage(s), 0) / technicalTestResults.length)
@@ -134,17 +135,21 @@ export const Dashboard: React.FC = React.memo(() => {
   const atsScore = 82;
 
   // 4. Domain progress calculations
-  const currentDomainRoadmap = roadmaps.find(
-    r => r.name.toLowerCase() === (user.domain || '').toLowerCase()
-  ) || roadmaps.find(r => r.id === 'swe') || roadmaps[0];
+  const userDomain = (user?.domain || '').toLowerCase();
+  const currentDomainRoadmap = (roadmaps || []).find(
+    r => r && r.name && r.name.toLowerCase() === userDomain
+  ) || (roadmaps || []).find(r => r && r.id === 'swe') || (roadmaps || [])[0];
+
   let totalTopics = 0;
   let doneTopics = 0;
-  if (currentDomainRoadmap) {
+  if (currentDomainRoadmap && Array.isArray(currentDomainRoadmap.modules)) {
     currentDomainRoadmap.modules.forEach(m => {
-      m.milestones.forEach(ms => {
-        totalTopics++;
-        if (ms.completed) doneTopics++;
-      });
+      if (m && Array.isArray(m.milestones)) {
+        m.milestones.forEach(ms => {
+          totalTopics++;
+          if (ms && ms.completed) doneTopics++;
+        });
+      }
     });
   }
   const domainPct = totalTopics > 0 ? Math.round((doneTopics / totalTopics) * 100) : 6;
@@ -157,9 +162,10 @@ export const Dashboard: React.FC = React.memo(() => {
   const score = Math.min(100, Math.max(0, calculatedReadinessScore));
 
   const testsTaken = recentScores.length;
-  const testsPassed = recentScores.filter(s => s.passed).length;
+  const testsPassed = recentScores.filter(s => s && s.passed).length;
 
   const filteredScores = recentScores.filter(s => {
+    if (!s) return false;
     if (driveFilter === 'all') return true;
     return s.category === driveFilter;
   });
@@ -469,67 +475,75 @@ export const Dashboard: React.FC = React.memo(() => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/10 text-xs text-white">
-                        {paginatedScores.map(res => (
-                          <tr key={res.id} className="hover:bg-[#141414] transition-colors group">
-                            <td className="p-4 pl-5 font-bold text-white flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-[#000000] border border-white/10 text-orange-400 flex items-center justify-center shrink-0">
-                                <Briefcase className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <span className="block font-semibold group-hover:text-orange-400 transition-colors">{res.testTitle}</span>
-                                <span className="text-[10px] text-zinc-500 font-mono">Attempt ID: #{res.id.slice(0, 6)}</span>
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <span className="mono-badge rounded-full px-3 py-1 bg-[#141414] border border-white/10 text-zinc-200 text-[11px] font-medium">
-                                {res.category}
-                              </span>
-                            </td>
-                            <td className="p-4 font-semibold text-zinc-200">
-                              {res.score} / {res.totalQuestions}
-                            </td>
-                            <td className="p-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-16 bg-[#000000] rounded-full h-1.5 overflow-hidden border border-white/10">
-                                  <div
-                                    className="bg-orange-500 h-full rounded-full"
-                                    style={{ width: `${res.accuracy}%` }}
-                                  />
+                        {paginatedScores.map((res, idx) => {
+                          if (!res) return null;
+                          const resIdStr = String(res.id || idx);
+                          const resTitleStr = String(res.testTitle || 'Mock Assessment Drive');
+                          const resCategoryStr = String(res.category || 'Company Drive');
+                          const resAccuracy = res.accuracy ?? 0;
+
+                          return (
+                            <tr key={resIdStr} className="hover:bg-[#141414] transition-colors group">
+                              <td className="p-4 pl-5 font-bold text-white flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-[#000000] border border-white/10 text-orange-400 flex items-center justify-center shrink-0">
+                                  <Briefcase className="w-4 h-4" />
                                 </div>
-                                <span className="font-bold text-orange-400 text-xs">{res.accuracy}%</span>
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              {res.testTitle.includes('DISQUALIFIED') ? (
-                                <span className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold inline-flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3 text-rose-400" /> DISQUALIFIED
+                                <div>
+                                  <span className="block font-semibold group-hover:text-orange-400 transition-colors">{resTitleStr}</span>
+                                  <span className="text-[10px] text-zinc-500 font-mono">Attempt ID: #{resIdStr.slice(0, 6)}</span>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <span className="mono-badge rounded-full px-3 py-1 bg-[#141414] border border-white/10 text-zinc-200 text-[11px] font-medium">
+                                  {resCategoryStr}
                                 </span>
-                              ) : res.passed ? (
-                                <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold inline-flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3" /> PASSED
-                                </span>
-                              ) : (
-                                <span className="px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[11px] font-bold inline-flex items-center gap-1">
-                                  <RotateCcw className="w-3 h-3" /> RETRY
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-4 pr-5 text-right">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
-                                  setSelectedReviewResult(res);
-                                }}
-                                className="px-3.5 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-[11px] font-medium text-zinc-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 active:scale-[0.97]"
-                              >
-                                Review
-                                <ChevronRight className="w-3 h-3" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                              <td className="p-4 font-semibold text-zinc-200">
+                                {res.score ?? 0} / {res.totalQuestions ?? 0}
+                              </td>
+                              <td className="p-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-16 bg-[#000000] rounded-full h-1.5 overflow-hidden border border-white/10">
+                                    <div
+                                      className="bg-orange-500 h-full rounded-full"
+                                      style={{ width: `${resAccuracy}%` }}
+                                    />
+                                  </div>
+                                  <span className="font-bold text-orange-400 text-xs">{resAccuracy}%</span>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                {resTitleStr.includes('DISQUALIFIED') ? (
+                                  <span className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold inline-flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3 text-rose-400" /> DISQUALIFIED
+                                  </span>
+                                ) : res.passed ? (
+                                  <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold inline-flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3" /> PASSED
+                                  </span>
+                                ) : (
+                                  <span className="px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[11px] font-bold inline-flex items-center gap-1">
+                                    <RotateCcw className="w-3 h-3" /> RETRY
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-4 pr-5 text-right">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    setSelectedReviewResult(res);
+                                  }}
+                                  className="px-3.5 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-[11px] font-medium text-zinc-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 active:scale-[0.97]"
+                                >
+                                  Review
+                                  <ChevronRight className="w-3 h-3" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -702,12 +716,12 @@ export const Dashboard: React.FC = React.memo(() => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="mono-badge text-[10px] uppercase font-bold text-orange-400 bg-orange-500/10 border-orange-500/20">
-                        {selectedReviewResult.category}
+                        {selectedReviewResult.category || 'Company Drive'}
                       </span>
-                      <span className="text-[10px] text-zinc-400 font-mono">Attempt #{selectedReviewResult.id.slice(0, 8)}</span>
+                      <span className="text-[10px] text-zinc-400 font-mono">Attempt #{String(selectedReviewResult.id || '').slice(0, 8)}</span>
                     </div>
                     <h2 className="text-xl font-bold text-white font-heading mt-1">
-                      {selectedReviewResult.testTitle}
+                      {selectedReviewResult.testTitle || 'Mock Assessment Drive'}
                     </h2>
                   </div>
                 </div>
@@ -727,7 +741,7 @@ export const Dashboard: React.FC = React.memo(() => {
                 <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
                   <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Status</span>
                   <div>
-                    {selectedReviewResult.testTitle.includes('DISQUALIFIED') ? (
+                    {String(selectedReviewResult.testTitle || '').includes('DISQUALIFIED') ? (
                       <span className="px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold inline-flex items-center gap-1">
                         <AlertCircle className="w-3 h-3 text-rose-400" /> Disqualified
                       </span>
@@ -747,7 +761,7 @@ export const Dashboard: React.FC = React.memo(() => {
                 <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
                   <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Score</span>
                   <span className="font-extrabold text-white text-base block font-heading">
-                    {selectedReviewResult.score} <span className="text-xs text-zinc-400 font-normal">/ {selectedReviewResult.totalQuestions}</span>
+                    {selectedReviewResult.score ?? 0} <span className="text-xs text-zinc-400 font-normal">/ {selectedReviewResult.totalQuestions ?? 0}</span>
                   </span>
                 </div>
 
@@ -755,7 +769,7 @@ export const Dashboard: React.FC = React.memo(() => {
                 <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
                   <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Accuracy</span>
                   <span className="font-extrabold text-orange-400 text-base block font-heading">
-                    {selectedReviewResult.accuracy}%
+                    {selectedReviewResult.accuracy ?? 0}%
                   </span>
                 </div>
 
@@ -763,15 +777,16 @@ export const Dashboard: React.FC = React.memo(() => {
                 <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
                   <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Date Attempted</span>
                   <span className="font-semibold text-zinc-200 text-xs block font-mono">
-                    {selectedReviewResult.date}
+                    {selectedReviewResult.date || 'Today'}
                   </span>
                 </div>
               </div>
 
               {/* DETAILED QUESTION BREAKDOWN & ANSWERS */}
               {(() => {
-                const matchingTest = mockTests.find(
-                  t => t.id === selectedReviewResult.testId || t.title.toLowerCase() === selectedReviewResult.testTitle.toLowerCase()
+                const selTitleLower = String(selectedReviewResult.testTitle || '').toLowerCase();
+                const matchingTest = (mockTests || []).find(
+                  t => t && (t.id === selectedReviewResult.testId || (t.title && t.title.toLowerCase() === selTitleLower))
                 ) || mockTests[0];
 
                 const questionsList = matchingTest?.questions || [];

@@ -8,6 +8,8 @@ import OrangeBlackGradient from './components/OrangeBlackGradient';
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
 import Lenis from 'lenis';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 // Lazy loaded page modules to reduce initial JavaScript parse time
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const DomainRoadmap = lazy(() => import('./pages/DomainRoadmap'));
@@ -119,15 +121,17 @@ export function App() {
                   transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                   className="w-full transform-gpu max-w-[1600px] mx-auto"
                 >
-                  <Suspense fallback={null}>
-                    {activeTab === 'dashboard' && <Dashboard />}
-                    {activeTab === 'roadmap' && <DomainRoadmap />}
-                    {activeTab === 'resumes' && <AIResumeSuite />}
-                    {activeTab === 'tests' && <MockTests />}
-                    {activeTab === 'interview' && <HRInterviewSimulator />}
-                    {activeTab === 'mentorship' && <Mentorship />}
-                    {activeTab === 'admin' && <AdminPanel />}
-                  </Suspense>
+                  <ErrorBoundary>
+                    <Suspense fallback={null}>
+                      {activeTab === 'dashboard' && <Dashboard />}
+                      {activeTab === 'roadmap' && <DomainRoadmap />}
+                      {activeTab === 'resumes' && <AIResumeSuite />}
+                      {activeTab === 'tests' && <MockTests />}
+                      {activeTab === 'interview' && <HRInterviewSimulator />}
+                      {activeTab === 'mentorship' && <Mentorship />}
+                      {activeTab === 'admin' && <AdminPanel />}
+                    </Suspense>
+                  </ErrorBoundary>
                 </motion.div>
               </AnimatePresence>
             </main>
