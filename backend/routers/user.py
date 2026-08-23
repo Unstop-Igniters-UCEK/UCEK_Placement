@@ -87,6 +87,9 @@ def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_c
                 "lastUpdated": datetime.now().isoformat()
             })
 
+    if req.targetDrive is not None:
+        user["targetDrive"] = req.targetDrive.strip()
+
     db.save()
 
     updated_payload = {
@@ -102,7 +105,8 @@ def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_c
         "readinessScore": user.get("readinessScore", 75),
         "bio": user.get("bio"),
         "linkedInUrl": user.get("linkedInUrl"),
-        "githubUrl": user.get("githubUrl")
+        "githubUrl": user.get("githubUrl"),
+        "targetDrive": user.get("targetDrive")
     }
 
     return {"message": "Profile updated successfully", "user": updated_payload}

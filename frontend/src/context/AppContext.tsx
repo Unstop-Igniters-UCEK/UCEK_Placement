@@ -21,7 +21,7 @@ import {
   INITIAL_RECENT_SCORES,
   INITIAL_RESUME_DATA
 } from '../data/mockData';
-import { loginApi, registerApi, getMeApi, logoutApi, demoLoginApi, updateProfileApi } from '../lib/api';
+import { loginApi, registerApi, getMeApi, logoutApi, demoLoginApi, updateProfileApi, getTestHistoryApi, submitTestApi } from '../lib/api';
 
 export type Theme = 'dark' | 'light';
 
@@ -89,6 +89,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setSelectedTargetDrive = useCallback((driveLabel: string) => {
     setSelectedTargetDriveState(driveLabel);
     localStorage.setItem('ucek_selected_target_drive', driveLabel);
+    const token = localStorage.getItem('ucek_access_token');
+    if (token) {
+      updateProfileApi({ targetDrive: driveLabel }).catch(() => {});
+    }
   }, []);
 
   // Fixed Dark Theme System (Light mode removed entirely per user directive)
@@ -121,6 +125,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               avatar: data.user.avatar,
               bio: data.user.bio,
             });
+
+            if (data.user.targetDrive) {
+              setSelectedTargetDriveState(data.user.targetDrive);
+              localStorage.setItem('ucek_selected_target_drive', data.user.targetDrive);
+            }
           }
         })
         .catch(err => {
@@ -129,6 +138,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
     }
   }, []);
+
+  // Sync user central test history from backend when authenticated
+  useEffect(() => {
+    const token = localStorage.getItem('ucek_access_token');
+    if (token && user) {
+      getTestHistoryApi()
+        .then(scores => {
+          if (Array.isArray(scores) && scores.length > 0) {
+            setRecentScores(scores);
+            localStorage.setItem('ucek_recent_test_scores', JSON.stringify(scores));
+          }
+        })
+        .catch(err => console.warn('Failed to fetch test history:', err));
+    }
+  }, [user?.id]);
 
   const toggleTheme = useCallback(() => {}, []);
   const setTheme = useCallback(() => {}, []);
@@ -332,6 +356,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return updated;
     });
+
+    const token = localStorage.getItem('ucek_access_token');
+    if (token) {
+      submitTestApi(resultData.testId, {
+        score: resultData.score,
+        totalQuestions: resultData.totalQuestions,
+        timeTakenSec: (resultData.timeSpentMinutes || 1) * 60,
+        userAnswers: resultData.userAnswers
+      }).catch(err => console.warn('Failed to sync test score to backend:', err));
+    }
   }, []);
 
   const clearTestHistory = useCallback(() => {

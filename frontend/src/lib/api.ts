@@ -61,6 +61,7 @@ export interface AuthResponse {
     readinessScore?: number;
     avatar?: string;
     bio?: string;
+    targetDrive?: string;
   };
   accessToken: string;
 }
@@ -74,6 +75,7 @@ export async function updateProfileApi(payload: {
   bio?: string;
   linkedInUrl?: string;
   githubUrl?: string;
+  targetDrive?: string;
 }): Promise<AuthResponse['user']> {
   const res = await fetch(`${BASE_URL}/api/user/profile`, {
     method: 'PUT',
@@ -422,4 +424,64 @@ export async function parsePdfApi(file: File): Promise<string> {
   const data = await res.json();
   return data.text || '';
 }
+
+/**
+ * Fetch authenticated user's test history from FastAPI / Supabase backend.
+ */
+export async function getTestHistoryApi(): Promise<any[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/tests/history/my`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data.scores)) return [];
+    return data.scores.map((s: any) => ({
+      id: s.id || `res_${Date.now()}`,
+      testId: s.testId || 'test',
+      testTitle: s.testTitle || 'Mock Test',
+      category: s.category || 'Company Drive',
+      score: s.score || 0,
+      totalQuestions: s.totalQuestions || 0,
+      accuracy: s.percentage ?? (s.totalQuestions > 0 ? Math.round((s.score / s.totalQuestions) * 100) : 0),
+      passed: Boolean(s.passed),
+      timeSpentMinutes: Math.max(1, Math.round((s.timeTakenSec || 0) / 60)),
+      date: s.submittedAt ? s.submittedAt.split('T')[0] : new Date().toISOString().split('T')[0],
+      userAnswers: s.userAnswers || {},
+    }));
+  } catch (e) {
+    console.warn('Failed to fetch test history from backend:', e);
+    return [];
+  }
+}
+
+/**
+ * Submit test attempt to FastAPI backend to persist in central database.
+ */
+export async function submitTestApi(
+  testId: string,
+  payload: { score: number; totalQuestions: number; timeTakenSec: number; userAnswers?: any }
+) {
+  try {
+    const res = await fetch(`${BASE_URL}/api/tests/${testId}/submit`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        score: payload.score,
+        totalQuestions: payload.totalQuestions,
+        timeTakenSec: payload.timeTakenSec,
+        userAnswers: Object.entries(payload.userAnswers || {}).map(([qId, opt]) => ({
+          questionId: qId,
+          selectedOption: Number(opt)
+        }))
+      }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.warn('Failed to submit test score to backend:', e);
+    return null;
+  }
+}
+
 

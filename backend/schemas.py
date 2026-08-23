@@ -55,6 +55,7 @@ class ProfileUpdateRequest(BaseModel):
     bio: Optional[str] = None
     linkedInUrl: Optional[str] = None
     githubUrl: Optional[str] = None
+    targetDrive: Optional[str] = None
 
 class ToggleMilestoneRequest(BaseModel):
     moduleId: str

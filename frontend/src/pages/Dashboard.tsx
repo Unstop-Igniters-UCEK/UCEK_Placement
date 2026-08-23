@@ -120,7 +120,7 @@ export const Dashboard: React.FC = React.memo(() => {
   );
   const aptitudeScore = aptitudeTestResults.length > 0
     ? Math.round(aptitudeTestResults.reduce((acc, s) => acc + getTestPercentage(s), 0) / aptitudeTestResults.length)
-    : (recentScores.length > 0 ? Math.round(recentScores.reduce((acc, s) => acc + getTestPercentage(s), 0) / recentScores.length) : 85);
+    : (recentScores.length > 0 ? Math.round(recentScores.reduce((acc, s) => acc + getTestPercentage(s), 0) / recentScores.length) : 0);
 
   // 2. Technical Score Calculation from real technical tests
   const technicalTestResults = recentScores.filter(
@@ -128,7 +128,7 @@ export const Dashboard: React.FC = React.memo(() => {
   );
   const technicalScore = technicalTestResults.length > 0
     ? Math.round(technicalTestResults.reduce((acc, s) => acc + getTestPercentage(s), 0) / technicalTestResults.length)
-    : (recentScores.length > 0 ? Math.round(recentScores.reduce((acc, s) => acc + getTestPercentage(s), 0) / recentScores.length) : 70);
+    : (recentScores.length > 0 ? Math.round(recentScores.reduce((acc, s) => acc + getTestPercentage(s), 0) / recentScores.length) : 0);
 
   // 3. ATS Resume Score
   const atsScore = 82;
@@ -147,12 +147,12 @@ export const Dashboard: React.FC = React.memo(() => {
       });
     });
   }
-  const domainPct = totalTopics > 0 ? Math.round((doneTopics / totalTopics) * 100) : 68;
+  const domainPct = totalTopics > 0 ? Math.round((doneTopics / totalTopics) * 100) : 6;
 
   // Real Composite Readiness Score (35% Aptitude + 35% Technical + 20% ATS + 10% Roadmap)
   const calculatedReadinessScore = recentScores.length > 0
     ? Math.round((0.35 * aptitudeScore) + (0.35 * technicalScore) + (0.20 * atsScore) + (0.10 * domainPct))
-    : (user.readinessScore || 50);
+    : Math.round((0.20 * atsScore) + (0.10 * domainPct));
 
   const score = Math.min(100, Math.max(0, calculatedReadinessScore));
 
