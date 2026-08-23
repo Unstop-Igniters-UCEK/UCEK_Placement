@@ -164,7 +164,7 @@ export const Dashboard: React.FC = React.memo(() => {
   const testsTaken = recentScores.length;
   const testsPassed = recentScores.filter(s => s && s.passed).length;
 
-  const filteredScores = recentScores.filter(s => {
+  const filteredScores = [...recentScores].reverse().filter(s => {
     if (!s) return false;
     if (driveFilter === 'all') return true;
     return s.category === driveFilter;
@@ -552,7 +552,7 @@ export const Dashboard: React.FC = React.memo(() => {
                   {filteredScores.length > ITEMS_PER_PAGE && (
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-lg bg-[#0d0d0d] border border-white/10 text-xs font-sans">
                       <div className="text-zinc-400 text-xs">
-                        Showing <strong className="text-white font-mono">{startIndex + 1}</strong> to <strong className="text-white font-mono">{Math.min(startIndex + ITEMS_PER_PAGE, filteredScores.length)}</strong> of <strong className="text-white font-mono">{filteredScores.length}</strong> drives
+                        Showing <strong className="text-white font-mono">{startIndex + 1}</strong> - <strong className="text-white font-mono">{Math.min(startIndex + ITEMS_PER_PAGE, filteredScores.length)}</strong> / <strong className="text-white font-mono">{filteredScores.length}</strong> drives
                       </div>
 
                       <div className="flex items-center gap-1.5">
