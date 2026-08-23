@@ -78,32 +78,36 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
     except Exception:
         pass
 
-    return ""
+import time
 
 def generate_gemini_json(client, contents, config=None):
     if not client:
         return None
     for model_name in SUPPORTED_MODELS:
-        try:
-            res_config = config or types.GenerateContentConfig(response_mime_type="application/json")
-            response = client.models.generate_content(
-                model=model_name,
-                contents=contents,
-                config=res_config
-            )
-            if response and response.text:
-                # Clean markdown json blocks if present
-                raw_text = response.text.strip()
-                if raw_text.startswith("```json"):
-                    raw_text = raw_text[7:]
-                if raw_text.startswith("```"):
-                    raw_text = raw_text[3:]
-                if raw_text.endswith("```"):
-                    raw_text = raw_text[:-3]
-                return json.loads(raw_text.strip())
-        except Exception as e:
-            print(f"Gemini API error with model {model_name}:", e)
-            continue
+        for attempt in range(2):
+            try:
+                res_config = config or types.GenerateContentConfig(response_mime_type="application/json")
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=res_config
+                )
+                if response and response.text:
+                    raw_text = response.text.strip()
+                    if raw_text.startswith("```json"):
+                        raw_text = raw_text[7:]
+                    if raw_text.startswith("```"):
+                        raw_text = raw_text[3:]
+                    if raw_text.endswith("```"):
+                        raw_text = raw_text[:-3]
+                    return json.loads(raw_text.strip())
+            except Exception as e:
+                err_str = str(e).lower()
+                print(f"Gemini API error with model {model_name} (attempt {attempt+1}):", e)
+                if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str or "rate" in err_str:
+                    time.sleep(1.5)
+                    continue
+                break
     return None
 
 def analyze_resume_with_gemini(resume_text: str, job_role: str = "Software Engineer") -> dict:

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from backend.auth import get_current_user
 from backend.database import db
 from backend.schemas import (
@@ -21,13 +21,28 @@ async def parse_pdf(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         extracted_text = extract_text_from_pdf_bytes(contents)
+        if not extracted_text or len(extracted_text.strip()) < 30:
+            raise HTTPException(
+                status_code=400,
+                detail="The uploaded PDF appears to be a scanned image or contains non-selectable text. Please export your resume as a text-selectable PDF from Google Docs, MS Word, or Canva."
+            )
         return {"text": extracted_text, "filename": file.filename}
+    except HTTPException:
+        raise
     except Exception as e:
         print("[Parse PDF error]:", e)
-        return {"text": "", "error": str(e)}
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unable to extract text from PDF: {str(e)}"
+        )
 
 @router.post("/review-resume")
 def review_resume(req: ReviewResumeRequest, current_user: dict = Depends(get_current_user)):
+    if not req.resumeText or len(req.resumeText.strip()) < 30:
+        raise HTTPException(
+            status_code=400,
+            detail="The resume text is empty or too short. Please upload a PDF with selectable text."
+        )
     result = analyze_resume_with_gemini(req.resumeText, req.jobRole or "Software Engineer")
     return {"review": result}
 

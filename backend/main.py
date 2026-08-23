@@ -34,6 +34,8 @@ app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://impulse.uck.ac.in",
+        "https://impulseucek.vercel.app",
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",

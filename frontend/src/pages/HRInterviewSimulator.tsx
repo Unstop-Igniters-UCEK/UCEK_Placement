@@ -124,9 +124,16 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
         ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/webm')
           ? 'audio/webm'
-          : 'audio/ogg';
+          : MediaRecorder.isTypeSupported('audio/mp4')
+            ? 'audio/mp4'
+            : MediaRecorder.isTypeSupported('audio/aac')
+              ? 'audio/aac'
+              : MediaRecorder.isTypeSupported('audio/wav')
+                ? 'audio/wav'
+                : '';
 
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const options = mimeType ? { mimeType } : undefined;
+      const recorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = recorder;
 
       recorder.ondataavailable = (e) => {
