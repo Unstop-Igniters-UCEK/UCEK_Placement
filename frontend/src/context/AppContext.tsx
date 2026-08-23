@@ -144,54 +144,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const token = localStorage.getItem('ucek_access_token');
     if (token && user) {
       getTestHistoryApi()
-        .then(async (remoteScores) => {
-          let localScores: TestResult[] = [];
-          try {
-            const saved = localStorage.getItem('ucek_recent_test_scores');
-            if (saved) {
-              const parsed = JSON.parse(saved);
-              if (Array.isArray(parsed)) localScores = parsed;
-            }
-          } catch (e) {
-            console.warn('Failed to parse local test scores:', e);
-          }
-
-          // Upload any local scores that are missing from remote backend
-          if (localScores.length > 0) {
-            for (const localScore of localScores) {
-              const existsInRemote = remoteScores.some(
-                r => r.id === localScore.id || (r.testTitle === localScore.testTitle && r.date === localScore.date && r.score === localScore.score)
-              );
-              if (!existsInRemote && localScore.testId) {
-                await submitTestApi(localScore.testId, {
-                  score: localScore.score,
-                  totalQuestions: localScore.totalQuestions,
-                  timeTakenSec: (localScore.timeSpentMinutes || 1) * 60,
-                  userAnswers: localScore.userAnswers,
-                  testTitle: localScore.testTitle,
-                  category: localScore.category,
-                  passed: localScore.passed,
-                  percentage: localScore.accuracy
-                }).catch(() => {});
-              }
-            }
-            const refreshed = await getTestHistoryApi().catch(() => remoteScores);
-            if (refreshed && refreshed.length > 0) remoteScores = refreshed;
-          }
-
-          const merged = [...remoteScores];
-          for (const localScore of localScores) {
-            const exists = merged.some(
-              m => m.id === localScore.id || (m.testTitle === localScore.testTitle && m.date === localScore.date && m.score === localScore.score)
-            );
-            if (!exists) {
-              merged.push(localScore);
-            }
-          }
-
-          if (merged.length > 0) {
-            setRecentScores(merged);
-            localStorage.setItem('ucek_recent_test_scores', JSON.stringify(merged));
+        .then((remoteScores) => {
+          if (remoteScores && remoteScores.length > 0) {
+            setRecentScores(remoteScores);
           }
         })
         .catch(err => console.warn('Failed to fetch test history:', err));
@@ -203,18 +158,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [roadmaps, setRoadmaps] = useState<DomainRoadmap[]>(INITIAL_ROADMAPS);
   const [mockTests, setMockTests] = useState<MockTest[]>(MOCK_TESTS);
-  const [recentScores, setRecentScores] = useState<TestResult[]>(() => {
-    try {
-      const saved = localStorage.getItem('ucek_recent_test_scores');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.warn('Failed to parse test scores from localStorage:', e);
-    }
-    return INITIAL_RECENT_SCORES;
-  });
+  const [recentScores, setRecentScores] = useState<TestResult[]>(INITIAL_RECENT_SCORES);
   const [mentorshipPair, setMentorshipPair] = useState<MentorshipPair | null>(INITIAL_MENTORSHIP);
   const [interviewQuestions] = useState<InterviewQuestion[]>(INTERVIEW_QUESTIONS);
   const [mentors] = useState<SeniorMentor[]>(SENIOR_MENTORS);
@@ -391,15 +335,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `res_${Date.now()}`,
       date: new Date().toISOString().split('T')[0]
     };
-    setRecentScores(prev => {
-      const updated = [newResult, ...prev];
-      try {
-        localStorage.setItem('ucek_recent_test_scores', JSON.stringify(updated));
-      } catch (e) {
-        console.warn('Failed to save test score to localStorage:', e);
-      }
-      return updated;
-    });
+    
+    // Optimistic UI update
+    setRecentScores(prev => [newResult, ...prev]);
 
     const token = localStorage.getItem('ucek_access_token');
     if (token) {
@@ -412,13 +350,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         category: resultData.category,
         passed: resultData.passed,
         percentage: resultData.accuracy
-      }).catch(err => console.warn('Failed to sync test score to backend:', err));
+      })
+      .then(() => {
+        // Fetch real history to get official score ID from backend
+        getTestHistoryApi().then(scores => {
+          if (scores && scores.length > 0) setRecentScores(scores);
+        }).catch(err => console.warn('Failed to refresh test history:', err));
+      })
+      .catch(err => console.warn('Failed to sync test score to backend:', err));
     }
   }, []);
 
   const clearTestHistory = useCallback(() => {
     setRecentScores([]);
-    localStorage.removeItem('ucek_recent_test_scores');
   }, []);
 
   const addQuestionToBank = useCallback((newQ: Omit<Question, 'id'>) => {
