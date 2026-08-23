@@ -267,7 +267,9 @@ npm run dev
 
 ## 📄 License
 
-This project is developed for **University College of Engineering Kariavattom (UCEK)** by the **Unstop Igniters Club**. All rights reserved.
+This project is developed for **University College of Engineering Kariavattom (UCEK)** by the **Unstop Igniters Club**. 
+
+This repository is protected under a strict proprietary **All Rights Reserved** license. Unauthorized copying, modification, redistribution, public hosting, or commercial use is strictly prohibited. See the [LICENSE](LICENSE) file for full details.
 
 ---
 
