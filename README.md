@@ -1,5 +1,7 @@
 <div align="center">
 
+![Impulse Banner](Banner.png)
+
 # 🎓 Impulse
 
 ### Campus Placement Suite — University College of Engineering Kariavattom
