@@ -21,7 +21,7 @@ import {
   INITIAL_RECENT_SCORES,
   INITIAL_RESUME_DATA
 } from '../data/mockData';
-import { loginApi, registerApi, getMeApi, logoutApi, demoLoginApi, updateProfileApi, getTestHistoryApi, submitTestApi } from '../lib/api';
+import { loginApi, registerApi, getMeApi, logoutApi, demoLoginApi, updateProfileApi, getTestHistoryApi, submitTestApi, deleteTestHistoryApi } from '../lib/api';
 
 export type Theme = 'dark' | 'light';
 
@@ -363,6 +363,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const clearTestHistory = useCallback(() => {
     setRecentScores([]);
+    const token = localStorage.getItem('ucek_access_token');
+    if (token) {
+      deleteTestHistoryApi().catch(err => console.warn('Failed to clear test history on backend:', err));
+    }
   }, []);
 
   const addQuestionToBank = useCallback((newQ: Omit<Question, 'id'>) => {

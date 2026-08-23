@@ -455,6 +455,20 @@ export async function getTestHistoryApi(): Promise<any[]> {
   }
 }
 
+export async function deleteTestHistoryApi(): Promise<void> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/tests/history/my`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (!res.ok) {
+      console.warn('Failed to delete test history from backend');
+    }
+  } catch (e) {
+    console.warn('Network error while deleting test history:', e);
+  }
+}
+
 /**
  * Submit test attempt to FastAPI backend to persist in central database.
  */

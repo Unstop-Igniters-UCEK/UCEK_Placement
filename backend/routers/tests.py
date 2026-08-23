@@ -145,6 +145,24 @@ def get_test_history(current_user: dict = Depends(get_current_user)):
     user_scores = [s for s in db.testScores if str(s.get("userId")) == str(current_user["id"])]
     return {"scores": user_scores}
 
+@router.delete("/history/my")
+def clear_test_history(current_user: dict = Depends(get_current_user)):
+    user_id = str(current_user["id"])
+    
+    # 1. Remove from in-memory / app_state JSON
+    db.testScores = [s for s in db.testScores if str(s.get("userId")) != user_id]
+    
+    # 2. Remove from Supabase relational table explicitly
+    try:
+        from backend.database import supabase_client
+        if supabase_client:
+            supabase_client.table('test_scores').delete().eq('user_id', user_id).execute()
+    except Exception as e:
+        print("[Supabase test_scores clear notice]:", e)
+        
+    db.save()
+    return {"message": "Test history cleared successfully"}
+
 @router.get("/{test_id}")
 def get_test_details(test_id: str):
     test = next((t for t in db.mockTests if t["id"] == test_id), None)
