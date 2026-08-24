@@ -102,9 +102,6 @@ def get_dashboard_stats(
             tech_score = 0
 
         ats_score = 82
-        if u_resumes_list:
-            last_r = u_resumes_list[-1]
-            ats_score = int(last_r.get("atsScore") or last_r.get("ats_score") or 82)
 
         user_rm = next((r for r in getattr(db, "userRoadmaps", []) if str(r.get("userId")) == u_id), None)
         domain_pct = 0
@@ -117,7 +114,7 @@ def get_dashboard_stats(
                         tot_t += 1
                         if isinstance(ms, dict) and ms.get("completed"):
                             done_t += 1
-            domain_pct = round((done_t / tot_t) * 100) if tot_t > 0 else int(user_rm.get("overallProgress", 0))
+            domain_pct = round((done_t / tot_t) * 100) if tot_t > 0 else 0
 
         if u_tests_list:
             calc_readiness = round((0.35 * apt_score) + (0.35 * tech_score) + (0.20 * ats_score) + (0.10 * domain_pct))

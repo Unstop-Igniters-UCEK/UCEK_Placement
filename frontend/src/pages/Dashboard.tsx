@@ -152,7 +152,7 @@ export const Dashboard: React.FC = React.memo(() => {
       }
     });
   }
-  const domainPct = totalTopics > 0 ? Math.round((doneTopics / totalTopics) * 100) : 6;
+  const domainPct = totalTopics > 0 ? Math.round((doneTopics / totalTopics) * 100) : 0;
 
   // Real Composite Readiness Score (35% Aptitude + 35% Technical + 20% ATS + 10% Roadmap)
   const calculatedReadinessScore = recentScores.length > 0
