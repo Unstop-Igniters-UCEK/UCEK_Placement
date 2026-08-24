@@ -51,13 +51,13 @@ app.add_middleware(
 
 from datetime import datetime
 
-# Healthcheck
-@app.get("/api/health")
+# Healthcheck (Supports HEAD, GET, POST for UptimeRobot free tier)
+@app.api_route("/api/health", methods=["GET", "HEAD", "POST"])
 def health_check():
     return {"status": "ok", "backend": "Python FastAPI", "platform": "UCEK Unstop Igniters"}
 
-# Keep-Alive for UptimeRobot / Cron monitoring (keeps Render container + Supabase warm 24/7)
-@app.get("/api/keep-alive")
+# Keep-Alive for UptimeRobot / Cron monitoring (Supports HEAD, GET, POST to keep Render container + Supabase warm 24/7)
+@app.api_route("/api/keep-alive", methods=["GET", "HEAD", "POST"])
 def keep_alive():
     db_status = "idle"
     try:
