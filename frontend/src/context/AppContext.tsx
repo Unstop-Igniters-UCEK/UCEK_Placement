@@ -167,38 +167,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [mentors] = useState<SeniorMentor[]>(SENIOR_MENTORS);
   const [resumeData, setResumeData] = useState<ResumeData>(INITIAL_RESUME_DATA);
 
-  // Recalculate user readiness score based on milestone completion and test scores
-  useEffect(() => {
-    if (!user) return;
-    const currentDomainRoadmap = roadmaps.find(
-      r => r.name.toLowerCase() === (user.domain || '').toLowerCase()
-    ) || roadmaps.find(r => r.id === 'swe') || roadmaps[0];
-    if (!currentDomainRoadmap) return;
 
-    let totalMilestones = 0;
-    let completedMilestones = 0;
-    currentDomainRoadmap.modules.forEach(m => {
-      m.milestones.forEach(ms => {
-        totalMilestones++;
-        if (ms.completed) completedMilestones++;
-      });
-    });
-
-    const milestoneRatio = totalMilestones > 0 ? completedMilestones / totalMilestones : 0.5;
-    
-    // Average score from test results
-    let avgTestScorePct = 75;
-    if (recentScores.length > 0) {
-      const sumPct = recentScores.reduce((acc, curr) => acc + (curr.score / curr.totalQuestions) * 100, 0);
-      avgTestScorePct = sumPct / recentScores.length;
-    }
-
-    const calculatedReadiness = Math.round(milestoneRatio * 40 + (avgTestScorePct / 100) * 60);
-
-    if (calculatedReadiness !== user.readinessScore) {
-      setUser(prev => (prev ? { ...prev, readinessScore: calculatedReadiness } : null));
-    }
-  }, [roadmaps, recentScores]);
 
   const switchDemoRole = useCallback(async (role: UserRole) => {
     try {
