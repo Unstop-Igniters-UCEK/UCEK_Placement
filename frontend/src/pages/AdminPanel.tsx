@@ -263,7 +263,7 @@ export const AdminPanel: React.FC = React.memo(() => {
 
 
                 {/* Filters */}
-                <motion.div  className="bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl p-5">
+                <motion.div  className="relative z-50 bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl p-5">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <div>
                       <label className={labelCls}>
