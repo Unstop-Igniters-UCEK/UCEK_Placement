@@ -1,6 +1,6 @@
-import { getAdminDashboardStatsApi } from '../lib/api';
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { getAdminDashboardStatsApi, getAllUsersAdminApi } from '../lib/api';
 import { AdminMockTests } from './AdminMockTests';
 import { motion, Variants } from 'framer-motion';
 import { UserRole } from '../types';
@@ -115,7 +115,7 @@ const StatCard = ({
 );
 
 export const AdminPanel: React.FC = React.memo(() => {
-  const { user, logoutUser, addQuestionToBank, updateUserRoleInAdmin, activeTab, setActiveTab, allUsers } = useApp();
+  const { user, logoutUser, allUsers, recentScores, addQuestionToBank, updateUserRoleInAdmin, activeTab, setActiveTab } = useApp();
 
   
   const [selectedYearFilter, setSelectedYearFilter] = useState('All Years');
@@ -137,39 +137,41 @@ export const AdminPanel: React.FC = React.memo(() => {
   const [addSuccess, setAddSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const [adminStats, setAdminStats] = useState<any>(null);
-
-  const fetchStats = useCallback(async () => {
-    setIsRefreshing(true);
-    const data = await getAdminDashboardStatsApi(selectedYearFilter, selectedDeptFilter);
-    setAdminStats(data);
-    setIsRefreshing(false);
-  }, [selectedYearFilter, selectedDeptFilter]);
+  // ─── Backend Data States ───
+  const [dashboardStats, setDashboardStats] = useState<any>(null);
+  const [adminUsersList, setAdminUsersList] = useState<any[]>([]);
 
   useEffect(() => {
     if (activeTab === 'admin-dashboard') {
-      fetchStats();
+      getAdminDashboardStatsApi(selectedYearFilter, selectedDeptFilter).then(data => {
+        if (data) setDashboardStats(data);
+      });
+    } else if (activeTab === 'admin-roles') {
+      getAllUsersAdminApi().then(data => {
+        if (data && data.users) setAdminUsersList(data.users);
+      });
     }
-  }, [fetchStats, activeTab]);
+  }, [activeTab, selectedYearFilter, selectedDeptFilter, isRefreshing]);
 
-  const kpis = adminStats?.kpis || {
-    totalStudents: 0,
-    totalMockTestsTaken: 0,
-    totalResumeReviews: 0,
-    totalInterviewsCompleted: 0
-  };
-
-  const studentPerformance = adminStats?.studentPerformance || [];
-  
-  const filteredStudents = useMemo(() => {
-    return studentPerformance.filter((u: any) => {
-      return !searchQuery.trim() || 
-             u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-             u.email.toLowerCase().includes(searchQuery.toLowerCase());
+  // Derived filtered users for "Student Onboarding" view
+  const filteredAdminUsersList = useMemo(() => {
+    return adminUsersList.filter(u => {
+      const matchSearch = !searchQuery.trim() || 
+                          u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          u.email.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchSearch;
     });
-  }, [studentPerformance, searchQuery]);
+  }, [adminUsersList, searchQuery]);
 
-  const handleRefresh = () => { fetchStats(); };
+  const kpis = {
+    totalStudents: dashboardStats?.kpis?.totalStudents || 0,
+    totalMockTestsTaken: dashboardStats?.kpis?.totalMockTestsTaken || 0,
+    totalResumeReviews: dashboardStats?.kpis?.totalResumeReviews || 0,
+    totalInterviewsCompleted: dashboardStats?.kpis?.totalInterviewSimulationsCompleted || dashboardStats?.kpis?.totalInterviewsCompleted || 0,
+  };
+  const filteredStudents = dashboardStats?.studentPerformance || [];
+
+  const handleRefresh = () => { setIsRefreshing(true); setTimeout(() => setIsRefreshing(false), 600); };
 
   const handleAddQuestionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,8 +340,9 @@ export const AdminPanel: React.FC = React.memo(() => {
                           </tr>
                         ) : (
                           filteredStudents.map((student: any) => {
-                            const initial = student.name.charAt(0).toUpperCase();
-                            const mockTestsAttended = student.email.includes('amarnsujith') ? 2 : 0;
+                            const initial = (student.name || 'U').charAt(0).toUpperCase();
+                            const mockTestsAttended = student.testsCompleted || 0;
+                            const interviewsCompleted = student.interviewsCompleted || 0;
                             const score = student.readinessScore || 0;
                             return (
                               <tr key={student.id} className="hover:bg-white/[0.025] transition-colors duration-100 group">
@@ -366,7 +369,9 @@ export const AdminPanel: React.FC = React.memo(() => {
                                   </span>
                                 </td>
                                 <td className="py-3.5 px-4 text-center">
-                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-semibold bg-white/[0.05] text-zinc-500 border border-white/8 tabular-nums">0</span>
+                                  <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-semibold tabular-nums ${interviewsCompleted > 0 ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 'bg-white/[0.05] text-zinc-500 border border-white/8'}`}>
+                                    {interviewsCompleted}
+                                  </span>
                                 </td>
                                 <td className="py-3.5 px-6 text-right">
                                   <div className="flex items-center justify-end gap-3">
@@ -403,7 +408,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                       <Users className="w-4 h-4 text-orange-400" />
                       <span className="font-semibold text-white text-[15px] font-heading">All accounts</span>
                     </div>
-                    <span className="text-xs text-zinc-500">{allUsers.length} registered</span>
+                    <span className="text-xs text-zinc-500">{filteredAdminUsersList.length} registered</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
@@ -417,7 +422,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/[0.05]">
-                        {allUsers.map((u: any) => (
+                        {filteredAdminUsersList.map(u => (
                           <tr key={u.id} className="hover:bg-white/[0.025] transition-colors duration-100">
                             <td className="py-3.5 px-6 font-medium text-white text-[13px] font-heading">{u.name}</td>
                             <td className="py-3.5 px-4 text-zinc-500 text-xs">{u.email}</td>

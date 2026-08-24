@@ -140,3 +140,25 @@ def update_user_role(req: UpdateRoleRequest, current_user: dict = Depends(get_cu
     db.save()
 
     return {"message": f"User role updated to {req.role}"}
+
+@router.get("/users")
+def get_all_users(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin authorization required")
+    
+    all_users = getattr(db, "users", [])
+    
+    # Return user details including role
+    users_data = []
+    for u in all_users:
+        users_data.append({
+            "id": u.get("id"),
+            "name": u.get("name", "Unknown"),
+            "email": u.get("email", ""),
+            "role": u.get("role", "mentee"),
+            "branch": u.get("branch", "N/A"),
+            "year": u.get("year", "N/A"),
+            "readinessScore": u.get("readinessScore", 75),
+        })
+
+    return {"users": users_data}

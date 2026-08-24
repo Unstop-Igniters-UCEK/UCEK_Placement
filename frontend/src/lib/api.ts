@@ -515,7 +515,7 @@ export async function submitTestApi(
 
 export const getAdminDashboardStatsApi = async (year?: string, branch?: string) => {
   try {
-    let url = BASE_URL + '/admin/dashboard-stats';
+    let url = BASE_URL + '/api/admin/dashboard-stats';
     const params = new URLSearchParams();
     if (year && year !== 'All Years') params.append('year', year);
     if (branch && branch !== 'All Departments') params.append('branch', branch);
@@ -526,6 +526,17 @@ export const getAdminDashboardStatsApi = async (year?: string, branch?: string) 
     return await res.json();
   } catch (error) {
     console.error('getAdminDashboardStatsApi Error:', error);
+    return null;
+  }
+};
+
+export const getAllUsersAdminApi = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/api/admin/users`, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch all users');
+    return await res.json();
+  } catch (error) {
+    console.error('getAllUsersAdminApi Error:', error);
     return null;
   }
 };
