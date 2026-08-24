@@ -275,7 +275,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                       <label className={labelCls}>
                         <span className="inline-flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-orange-400/70" />Department</span>
                       </label>
-                      <CustomSelect value={selectedDeptFilter} onChange={setSelectedDeptFilter} options={['All Departments', 'Computer Science & Engg', 'Electronics & Comm Engg', 'Information Technology', 'EEE', 'Mechanical', 'Biotech']} />
+                      <CustomSelect value={selectedDeptFilter} onChange={setSelectedDeptFilter} options={['All Departments', 'Computer Science & Engg', 'Electronics & Comm Engg', 'Information Technology']} />
                     </div>
                     <div className="flex items-end justify-end md:justify-start">
                       <span className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-orange-500/8 border border-orange-500/20 text-sm text-orange-400 font-medium">

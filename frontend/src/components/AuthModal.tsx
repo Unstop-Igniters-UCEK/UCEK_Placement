@@ -392,7 +392,7 @@ export const AuthModal: React.FC = React.memo(() => {
                       <CustomSelect
                         value={signupBranch}
                         onChange={setSignupBranch}
-                        options={['CSE', 'ECE', 'IT', 'EEE', 'Mechanical', 'Biotech']}
+                        options={['CSE', 'ECE', 'IT']}
                       />
                     </div>
                   </div>

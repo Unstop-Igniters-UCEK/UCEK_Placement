@@ -351,7 +351,7 @@ export const LandingPage: React.FC = React.memo(() => {
                         <CustomSelect
                           value={branch}
                           onChange={setBranch}
-                          options={['CSE', 'ECE', 'EEE', 'IT', 'Mechanical']}
+                          options={['CSE', 'ECE', 'IT']}
                         />
                       </div>
                       <div className="space-y-1">

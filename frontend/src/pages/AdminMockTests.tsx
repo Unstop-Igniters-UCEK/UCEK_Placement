@@ -55,9 +55,6 @@ const DEPT_OPTIONS = [
   'Computer Science & Engg',
   'Electronics & Comm Engg',
   'Information Technology',
-  'EEE',
-  'Mechanical',
-  'Biotech',
 ];
 const YEAR_OPTIONS = ['1st Year (2028)', '2nd Year (2027)', '3rd Year (2026)', '4th Year (2025)'];
 
