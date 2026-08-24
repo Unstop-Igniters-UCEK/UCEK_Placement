@@ -130,6 +130,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               setSelectedTargetDriveState(data.user.targetDrive);
               localStorage.setItem('ucek_selected_target_drive', data.user.targetDrive);
             }
+            if (data.user.role === 'admin') {
+              setActiveTab('admin-dashboard');
+            }
           }
         })
         .catch(err => {
@@ -218,14 +221,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
       setUser(mappedUser);
       setAuthModalOpen(false);
-      setActiveTab(mappedUser.role === 'admin' ? 'admin' : 'dashboard');
+      setActiveTab(mappedUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
     } catch {
       // Fallback for offline demo role selection
       const targetUser = allUsers.find(u => u.role === role) || DEMO_USERS.find(u => u.role === role);
       if (targetUser) {
         setUser(targetUser);
         setAuthModalOpen(false);
-        setActiveTab(targetUser.role === 'admin' ? 'admin' : 'dashboard');
+        setActiveTab(targetUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
       }
     }
   }, [allUsers]);
@@ -250,7 +253,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setUser(mappedUser);
     setAuthModalOpen(false);
-    setActiveTab(mappedUser.role === 'admin' ? 'admin' : 'dashboard');
+    setActiveTab(mappedUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
     return true;
   }, []);
 
@@ -283,7 +286,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setUser(mappedUser);
     setAuthModalOpen(false);
-    setActiveTab(mappedUser.role === 'admin' ? 'admin' : 'dashboard');
+    setActiveTab(mappedUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
     return true;
   }, []);
 

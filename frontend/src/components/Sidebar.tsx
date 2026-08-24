@@ -96,7 +96,7 @@ export const Sidebar: React.FC = React.memo(() => {
               <div className="relative z-10 shrink-0 pt-1 pb-3 px-1 flex items-center justify-between gap-3 border-b border-white/10 mb-1">
                 <div
                   onClick={() => {
-                    setActiveTab('dashboard');
+                    setActiveTab(user.role === 'admin' ? 'admin-dashboard' : 'dashboard');
                     if (window.innerWidth < 1024) setSidebarOpen(false);
                   }}
                   className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-bold shadow-lg shadow-orange-500/10 cursor-pointer hover:scale-105 transition-transform shrink-0"
