@@ -1,5 +1,12 @@
 import os
 import json
+import time
+from dotenv import load_dotenv
+from fastapi import HTTPException
+
+# Load environment variables
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+load_dotenv()
 
 try:
     # pyrefly: ignore [missing-import]
@@ -12,19 +19,27 @@ except ImportError:
     genai = None
     types = None
 
-SUPPORTED_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+SUPPORTED_MODELS = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
 
 def get_gemini_client():
     if not HAS_GENAI:
-        return None
+        raise HTTPException(
+            status_code=500,
+            detail="Google GenAI library is not installed on the backend server. Run 'pip install google-genai'."
+        )
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return None
+        raise HTTPException(
+            status_code=500,
+            detail="GEMINI_API_KEY is not configured in environment variables on the backend server (Render.com). Please add GEMINI_API_KEY under Render Environment settings."
+        )
     try:
         return genai.Client(api_key=api_key)
     except Exception as e:
-        print("Error initializing Gemini Client:", e)
-        return None
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initialize Gemini Client: {str(e)}"
+        )
 
 def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
     """Extract clean plain text from PDF bytes using PyPDF/PyPDF2 or Gemini inline PDF parser."""
@@ -50,39 +65,38 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
         pass
 
     # Gemini inline PDF parsing fallback
-    client = get_gemini_client()
-    if client and HAS_GENAI:
-        try:
-            contents = [
-                types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
-                "Extract and clean all readable plain text from this resume PDF. Return ONLY the plain text of the resume."
-            ]
-            for model_name in SUPPORTED_MODELS:
-                try:
-                    res = client.models.generate_content(model=model_name, contents=contents)
-                    if res and res.text:
-                        return res.text.strip()
-                except Exception:
-                    continue
-        except Exception as e:
-            print("Gemini PDF extraction warning:", e)
+    try:
+        client = get_gemini_client()
+        contents = [
+            types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
+            "Extract and clean all readable plain text from this resume PDF. Return ONLY the plain text of the resume."
+        ]
+        for model_name in SUPPORTED_MODELS:
+            try:
+                res = client.models.generate_content(model=model_name, contents=contents)
+                if res and res.text:
+                    return res.text.strip()
+            except Exception:
+                continue
+    except Exception as e:
+        print("Gemini PDF extraction warning:", e)
 
     # Basic regex text cleanup fallback
     try:
         import re
         raw = pdf_bytes.decode("latin1", errors="ignore")
-        # Extract stream text snippets
         found = re.findall(r"\((.*?)\)", raw)
         if found and len(found) > 10:
             return " ".join([f for f in found if len(f) > 2])
     except Exception:
         pass
 
-import time
+    return ""
 
 def generate_gemini_json(client, contents, config=None):
     if not client:
         return None
+    last_err = None
     for model_name in SUPPORTED_MODELS:
         for attempt in range(2):
             try:
@@ -102,12 +116,30 @@ def generate_gemini_json(client, contents, config=None):
                         raw_text = raw_text[:-3]
                     return json.loads(raw_text.strip())
             except Exception as e:
+                last_err = e
                 err_str = str(e).lower()
                 print(f"Gemini API error with model {model_name} (attempt {attempt+1}):", e)
+                # Fallback retry without json mime-type enforcement if failed
+                try:
+                    res_raw = client.models.generate_content(model=model_name, contents=contents)
+                    if res_raw and res_raw.text:
+                        import re
+                        match = re.search(r'\{.*\}', res_raw.text.strip(), re.DOTALL)
+                        if match:
+                            return json.loads(match.group(0))
+                except Exception as e2:
+                    print(f"Gemini raw fallback retry error with model {model_name}:", e2)
+
                 if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str or "rate" in err_str:
                     time.sleep(1.5)
                     continue
                 break
+
+    if last_err:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Gemini AI API Error ({type(last_err).__name__}): {str(last_err)}. Please verify GEMINI_API_KEY in Render.com settings."
+        )
     return None
 
 def analyze_resume_with_gemini(resume_text: str, job_role: str = "Software Engineer") -> dict:
@@ -142,71 +174,31 @@ Return ONLY a valid JSON object matching this exact structure:
   ]
 }}"""
 
-    if client:
-        result = generate_gemini_json(client, prompt)
-        if result and isinstance(result, dict):
-            improvements = result.get("improvements") or result.get("bulletImprovements") or []
-            if isinstance(improvements, list):
-                for imp in improvements:
-                    if isinstance(imp, dict):
-                        orig = imp.get("original") or imp.get("originalBullet") or ""
-                        rev = imp.get("suggested") or imp.get("revised") or imp.get("revisedBullet") or ""
-                        imp["original"] = orig
-                        imp["originalBullet"] = orig
-                        imp["revised"] = rev
-                        imp["suggested"] = rev
-                        imp["revisedBullet"] = rev
-            result["improvements"] = improvements
-            result["bulletImprovements"] = improvements
-            if "missingKeywords" not in result:
-                result["missingKeywords"] = result.get("missing_keywords") or []
-            if "strengths" not in result:
-                result["strengths"] = []
-            return result
+    result = generate_gemini_json(client, prompt)
+    if result and isinstance(result, dict):
+        improvements = result.get("improvements") or result.get("bulletImprovements") or []
+        if isinstance(improvements, list):
+            for imp in improvements:
+                if isinstance(imp, dict):
+                    orig = imp.get("original") or imp.get("originalBullet") or ""
+                    rev = imp.get("suggested") or imp.get("revised") or imp.get("revisedBullet") or ""
+                    imp["original"] = orig
+                    imp["originalBullet"] = orig
+                    imp["revised"] = rev
+                    imp["suggested"] = rev
+                    imp["revisedBullet"] = rev
+        result["improvements"] = improvements
+        result["bulletImprovements"] = improvements
+        if "missingKeywords" not in result:
+            result["missingKeywords"] = result.get("missing_keywords") or []
+        if "strengths" not in result:
+            result["strengths"] = []
+        return result
 
-    res = {
-        "overallScore": 82,
-        "atsScore": 85,
-        "impactScore": 78,
-        "formattingScore": 88,
-        "summary": "Resume analyzed against corporate placement standards.",
-        "strengths": [
-            "Strong foundation in data structures, algorithms, and full-stack web development.",
-            "Demonstrated experience with modern frontend frameworks (React, TypeScript, Tailwind CSS).",
-            "Clear technical project achievements with measurable business impact."
-        ],
-        "missingKeywords": [
-            "Docker & Containerization",
-            "CI/CD Pipelines (GitHub Actions)",
-            "System Architecture & Load Balancing",
-            "Redis Caching Strategy",
-            "Unit Testing (Jest)"
-        ],
-        "improvements": [
-            {
-                "category": "Work Experience",
-                "issue": "Lacks Quantifiable Impact & Metrics",
-                "original": "Created React UI components for campus portal.",
-                "originalBullet": "Created React UI components for campus portal.",
-                "revised": "Developed 12+ responsive React UI components, improving page render speeds by 35% across 4 primary modules.",
-                "suggested": "Developed 12+ responsive React UI components, improving page render speeds by 35% across 4 primary modules.",
-                "revisedBullet": "Developed 12+ responsive React UI components, improving page render speeds by 35% across 4 primary modules.",
-                "suggestion": "Quantified metrics demonstrate concrete business value to technical campus recruiters."
-            },
-            {
-                "category": "Projects",
-                "issue": "Missing Action Verbs & Tech Stack Details",
-                "original": "Built web platform for automated testing and resume parsing.",
-                "originalBullet": "Built web platform for automated testing and resume parsing.",
-                "revised": "Architected scalable automated testing engine in Node.js & TypeScript supporting 500+ concurrent student exam submissions.",
-                "suggested": "Architected scalable automated testing engine in Node.js & TypeScript supporting 500+ concurrent student exam submissions.",
-                "revisedBullet": "Architected scalable automated testing engine in Node.js & TypeScript supporting 500+ concurrent student exam submissions.",
-                "suggestion": "Prefix bullet points with strong action verbs (Architected, Engineered, Implemented)."
-            }
-        ]
-    }
-    res["bulletImprovements"] = res["improvements"]
-    return res
+    raise HTTPException(
+        status_code=500,
+        detail="Gemini AI failed to return structured resume analysis JSON."
+    )
 
 def match_jd_with_gemini(job_title: str, company: str, jd_text: str, resume_text: str) -> dict:
     client = get_gemini_client()
@@ -236,23 +228,14 @@ Return ONLY a valid JSON object matching this structure:
   "summary": "Candidate matches core frontend and database requirements but lacks cloud deployment keywords."
 }}"""
 
-    if client:
-        result = generate_gemini_json(client, prompt)
-        if result and isinstance(result, dict):
-            return result
+    result = generate_gemini_json(client, prompt)
+    if result and isinstance(result, dict):
+        return result
 
-    return {
-        "matchPercentage": 78,
-        "interviewChance": 72,
-        "matchingSkills": ["React.js", "JavaScript/TypeScript", "HTML/CSS", "Git", "REST APIs"],
-        "missingSkills": ["Docker Containerization", "Microservices Architecture", "Redis Caching", "CI/CD"],
-        "tailoredBullets": [
-            f"Designed and deployed responsive frontend components for {company} drive requirements using React 18 & Tailwind CSS.",
-            "Implemented REST API endpoints with structured error handling and token authentication.",
-            "Optimized state management and database query performance for concurrent user traffic."
-        ],
-        "summary": "Candidate matches core programming requirements but lacks containerization and cloud tooling."
-    }
+    raise HTTPException(
+        status_code=500,
+        detail="Gemini AI failed to process Job Description matching."
+    )
 
 def enhance_bullet_with_gemini(bullet_text: str, target_role: str = "Software Engineer") -> dict:
     client = get_gemini_client()
@@ -274,34 +257,27 @@ Return ONLY a valid JSON object matching this exact structure:
   ]
 }}"""
 
-    if client:
-        result = generate_gemini_json(client, prompt)
-        if result and isinstance(result, dict):
-            if "enhanced" not in result and "enhancedBullets" in result and len(result["enhancedBullets"]) > 0:
-                result["enhanced"] = result["enhancedBullets"][0]
-            if "original" not in result:
-                result["original"] = bullet_text
-            if "explanation" not in result:
-                result["explanation"] = "Applied STAR format with strong action verbs and quantified impact metrics."
-            return result
+    result = generate_gemini_json(client, prompt)
+    if result and isinstance(result, dict):
+        if "enhanced" not in result and "enhancedBullets" in result and len(result["enhancedBullets"]) > 0:
+            result["enhanced"] = result["enhancedBullets"][0]
+        if "original" not in result:
+            result["original"] = bullet_text
+        if "explanation" not in result:
+            result["explanation"] = "Applied STAR format with strong action verbs and quantified impact metrics."
+        return result
 
-    return {
-        "original": bullet_text,
-        "enhanced": f"Spearheaded optimization of {bullet_text}, increasing overall processing speed by 40% and cutting latency by 120ms.",
-        "explanation": "Applied STAR format with strong action verb and quantified metric.",
-        "enhancedBullets": [
-            f"Spearheaded optimization of {bullet_text}, increasing overall processing speed by 40% and cutting latency by 120ms.",
-            f"Architected modular microservices for {bullet_text}, enabling seamless horizontal scaling across cloud deployments.",
-            f"Implemented robust state management for {bullet_text}, increasing overall test coverage to 92% across deployment builds."
-        ]
-    }
+    raise HTTPException(
+        status_code=500,
+        detail="Gemini AI failed to enhance bullet point."
+    )
 
 def analyze_interview_with_gemini(question_text: str, transcript_text: str = None, audio_b64: str = None, mime_type: str = "audio/webm") -> dict:
     client = get_gemini_client()
 
     contents = []
     
-    if audio_b64 and client:
+    if audio_b64:
         try:
             import base64
             audio_bytes = base64.b64decode(audio_b64.split(",")[-1] if "," in audio_b64 else audio_b64)
@@ -333,24 +309,12 @@ Return ONLY a valid JSON object matching this structure:
 """
     contents.append(text_prompt)
 
-    if client:
-        result = generate_gemini_json(client, contents)
-        if result:
-            return result
+    result = generate_gemini_json(client, contents)
+    if result:
+        return result
 
-    return {
-        "overallScore": 82,
-        "confidenceScore": 80,
-        "technicalAccuracy": 85,
-        "aiFeedback": {
-            "strengths": [
-                "Clearly articulated the core problem and solution methodology.",
-                "Used appropriate technical vocabulary (complexity, modularity, edge cases)."
-            ],
-            "areasForImprovement": [
-                "Mention quantitative metrics and quantifiable project results.",
-                "Structure the opening using the STAR framework (Situation, Task, Action, Result)."
-            ],
-            "idealAnswerSnippet": f"When addressing '{question_text}', start by framing the context in 1 sentence, explain your technical implementation choices, and conclude with the measured impact."
-        }
-    }
+    raise HTTPException(
+        status_code=500,
+        detail="Gemini AI failed to evaluate interview recording."
+    )
+

@@ -112,6 +112,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   const [targetRole, setTargetRole] = useState('');
   const [resumeText, setResumeText] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [parsePdfLoading, setParsePdfLoading] = useState(false);
   const [parseProgress, setParseProgress] = useState(0);
   const [reviewResult, setReviewResult] = useState<ResumeReviewResult | null>(null);
@@ -128,6 +129,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   const [jdRole, setJdRole] = useState(COMPANY_DRIVES[0].role);
   const [jdText, setJdText] = useState(COMPANY_DRIVES[0].text);
   const [matchLoading, setMatchLoading] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
   const [matchResult, setMatchResult] = useState<JDMatchResult | null>(null);
 
   // RESUME SOURCE TOGGLE & CHECKBOX
@@ -142,6 +144,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   const handleRunReview = async () => {
     if (!resumeText.trim()) return;
     setReviewLoading(true);
+    setReviewError(null);
     try {
       const data = await reviewResumeApi({
         resumeText: resumeText.trim(),
@@ -159,26 +162,10 @@ export const AIResumeSuite: React.FC = React.memo(() => {
         bulletImprovements: data?.bulletImprovements || (data as any)?.improvements || []
       };
       setReviewResult(normalized);
-    } catch (err) {
-      console.warn('Review API fallback active:', err);
-      setReviewResult({
-        overallScore: 84,
-        atsScore: 88,
-        impactScore: 79,
-        formattingScore: 90,
-        summary: "Resume analyzed against top IT campus drive standards (TCS, Infosys, UST).",
-        missingKeywords: ["Docker", "CI/CD Pipelines", "System Architecture", "Unit Testing", "Microservices"],
-        strengths: ["Clear technical stack listed", "Structured educational background", "Relevant project experience"],
-        bulletImprovements: [
-          {
-            category: "Impact & Metrics",
-            issue: "Lacks quantified business outcomes",
-            original: "Worked on frontend features and APIs.",
-            revised: "Engineered 4+ high-throughput REST APIs and responsive UI, accelerating page load speeds by 35%.",
-            suggestion: "Quantify achievements using the STAR method with percentages and metric numbers."
-          }
-        ]
-      });
+    } catch (err: any) {
+      console.error('Review API Error:', err);
+      setReviewError(err?.message || 'Failed to review resume. Check backend connection and Gemini API key.');
+      setReviewResult(null);
     } finally {
       setReviewLoading(false);
     }
@@ -343,6 +330,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
     }
 
     try {
+      setMatchError(null);
       const data = await matchJDApi({
         jobTitle: jdRole,
         company: jdCompany,
@@ -350,25 +338,10 @@ export const AIResumeSuite: React.FC = React.memo(() => {
         resumeText: candidateText.trim()
       });
       setMatchResult(data);
-    } catch (err) {
-      console.warn('JD Match API fallback active:', err);
-      setMatchResult({
-        matchPercentage: 82,
-        interviewChance: 78,
-        matchingSkills: ['React', 'TypeScript', 'JavaScript', 'SQL', 'Git', 'REST APIs'],
-        missingSkills: ['Docker Containerization', 'AWS / Cloud Deployment', 'Microservices', 'Jest Unit Testing'],
-        missingKeywords: ['CI/CD', 'Agile Methodologies', 'System Architecture'],
-        suggestions: [
-          'Add Docker container deployment experience to your technical skills section.',
-          'Highlight REST API integration experience in your internship bullet points.',
-          'Quantify test coverage or performance gains in your project descriptions.'
-        ],
-        tailoredBullets: [
-          `Engineered scalable microservices for ${jdCompany} target stack requirements using Node.js and SQL.`,
-          'Integrated modern responsive UI with React and TypeScript, optimizing client-side rendering.'
-        ],
-        summary: `Candidate matches core web and database requirements for ${jdCompany} but lacks cloud deployment keywords.`
-      });
+    } catch (err: any) {
+      console.error('JD Match API Error:', err);
+      setMatchError(err?.message || 'Failed to calculate JD match. Check backend connection and Gemini API key.');
+      setMatchResult(null);
     } finally {
       setMatchLoading(false);
     }
@@ -615,7 +588,29 @@ export const AIResumeSuite: React.FC = React.memo(() => {
 
           {/* RIGHT REVIEW ANALYSIS OUTPUT CARD */}
           <motion.div variants={itemVariants} className="lg:col-span-7 mono-card p-6 space-y-6 flex flex-col justify-between min-h-[500px]">
-            {!reviewResult ? (
+            {reviewError ? (
+              <div className="py-16 text-center space-y-4 my-auto p-6 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
+                <div className="w-14 h-14 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto shadow-inner">
+                  <AlertCircle className="w-7 h-7 text-rose-400" />
+                </div>
+                <div className="space-y-2 max-w-md mx-auto">
+                  <h3 className="text-base font-bold text-rose-400 font-heading">AI Service Error</h3>
+                  <p className="text-xs text-rose-200/90 leading-relaxed font-mono bg-black/40 p-3 rounded-xl border border-rose-500/30 text-left break-words">
+                    {reviewError}
+                  </p>
+                  <p className="text-[11px] text-zinc-400">
+                    If GEMINI_API_KEY is missing, ensure your environment variables are configured on Render.com and redeployed.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRunReview()}
+                  className="px-6 py-2 text-xs font-bold text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 rounded-full cursor-pointer transition-all"
+                >
+                  Retry AI Review
+                </button>
+              </div>
+            ) : !reviewResult ? (
               <div className="py-24 text-center space-y-4 my-auto">
                 <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 flex items-center justify-center mx-auto shadow-inner">
                   <FileText className="w-8 h-8 text-zinc-400" />
@@ -1461,7 +1456,26 @@ export const AIResumeSuite: React.FC = React.memo(() => {
 
           {/* RIGHT MATCH ANALYSIS OUTPUT CARD */}
           <motion.div variants={itemVariants} className="lg:col-span-7 mono-card p-6 space-y-6 flex flex-col justify-between">
-            {!matchResult ? (
+            {matchError ? (
+              <div className="py-16 text-center space-y-4 my-auto p-6 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
+                <div className="w-14 h-14 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto shadow-inner">
+                  <AlertCircle className="w-7 h-7 text-rose-400" />
+                </div>
+                <div className="space-y-2 max-w-md mx-auto">
+                  <h3 className="text-base font-bold text-rose-400 font-heading">AI Service Error</h3>
+                  <p className="text-xs text-rose-200/90 leading-relaxed font-mono bg-black/40 p-3 rounded-xl border border-rose-500/30 text-left break-words">
+                    {matchError}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRunMatcher()}
+                  className="px-6 py-2 text-xs font-bold text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 rounded-full cursor-pointer transition-all"
+                >
+                  Retry JD Matcher
+                </button>
+              </div>
+            ) : !matchResult ? (
               <div className="py-24 text-center space-y-4 my-auto">
                 <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 flex items-center justify-center mx-auto shadow-inner">
                   <Target className="w-8 h-8 text-zinc-400" />
