@@ -270,7 +270,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={handleRefresh}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-sm text-zinc-300 font-medium transition-colors duration-150 cursor-pointer active:scale-[0.97]"
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-sm text-zinc-300 font-medium transition-colors duration-150 cursor-pointer active:scale-[0.97]"
                       >
                         <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-orange-400' : ''}`} />
                         Refresh
@@ -296,7 +296,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                       <CustomSelect value={selectedDeptFilter} onChange={setSelectedDeptFilter} options={['All Departments', 'Computer Science & Engg', 'Electronics & Comm Engg', 'Information Technology']} />
                     </div>
                     <div className="flex items-end justify-end md:justify-start">
-                      <span className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-orange-500/8 border border-orange-500/20 text-sm text-orange-400 font-medium">
+                      <span className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-orange-500/8 border border-orange-500/20 text-sm text-orange-400 font-medium">
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
                         {kpis.totalStudents} {kpis.totalStudents === 1 ? 'student' : 'students'}
                       </span>
