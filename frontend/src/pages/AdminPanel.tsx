@@ -331,7 +331,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                           value={searchQuery}
                           onChange={e => setSearchQuery(e.target.value)}
                           placeholder="Search student…"
-                          className="bg-white/[0.05] border border-white/10 text-sm text-white pl-9 pr-4 py-2 rounded-xl outline-none focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/20 transition-all placeholder-zinc-600 w-44 sm:w-56"
+                          className="bg-white/[0.05] border border-white/10 text-sm text-white pl-9 pr-4 py-2 rounded-full outline-none focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/20 transition-all placeholder-zinc-600 w-44 sm:w-56"
                         />
                       </div>
                       <span className="text-xs text-zinc-500 font-medium shrink-0 tabular-nums">{filteredStudents.length} listed</span>
@@ -409,10 +409,7 @@ export const AdminPanel: React.FC = React.memo(() => {
 
                   {/* Pagination Controls */}
                   {totalPerformancePages > 1 && (
-                    <div className="flex items-center justify-between px-6 py-4 border-t border-white/8 bg-white/[0.01]">
-                      <span className="text-xs text-zinc-500 font-medium">
-                        Showing {((performancePage - 1) * performanceRowsPerPage) + 1} to {Math.min(performancePage * performanceRowsPerPage, filteredStudents.length)} of {filteredStudents.length} entries
-                      </span>
+                    <div className="flex items-center justify-end px-6 py-4 border-t border-white/8 bg-white/[0.01]">
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => setPerformancePage(p => Math.max(1, p - 1))}
