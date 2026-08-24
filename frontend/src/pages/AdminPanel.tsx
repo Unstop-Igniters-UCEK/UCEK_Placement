@@ -199,13 +199,13 @@ export const AdminPanel: React.FC = React.memo(() => {
 
   return (
     <div className="w-full text-white font-sans max-w-[1280px] mx-auto">
-      <motion.div key={activeTab} variants={containerVariants} initial="hidden" animate="visible" className="space-y-5">
+      <motion.div key={activeTab}  className="space-y-5">
 
             {/* ── 1. Analytics view ── */}
             {activeTab === 'admin-dashboard' && (
               <>
                 {/* ── Page hero ── */}
-                <motion.div variants={itemVariants} className="relative overflow-hidden rounded-2xl bg-[#111115]/70 border border-white/8 backdrop-blur-xl px-6 pt-6 pb-5">
+                <motion.div  className="relative overflow-hidden rounded-2xl bg-[#111115]/70 border border-white/8 backdrop-blur-xl px-6 pt-6 pb-5">
                   {/* Subtle orange left accent bar */}
                   <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-orange-500 via-amber-400 to-transparent rounded-l-2xl" />
 
@@ -251,7 +251,7 @@ export const AdminPanel: React.FC = React.memo(() => {
 
 
                 {/* Filters */}
-                <motion.div variants={itemVariants} className="bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl p-5">
+                <motion.div  className="bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl p-5">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <div>
                       <label className={labelCls}>
@@ -275,7 +275,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                 </motion.div>
 
                 {/* KPI cards — single accent, distinguished by label/weight not hue */}
-                <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <motion.div  className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <StatCard label="Total students" value={totalStudentsCount} sub="Enrolled candidates" />
                   <StatCard label="Mock tests taken" value={totalMockTestsTaken} sub="Attempted assessments" />
                   <StatCard label="Resumes reviewed" value={totalResumesReviewed} sub="AI ATS scans" />
@@ -283,7 +283,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                 </motion.div>
 
                 {/* Performance table */}
-                <motion.div variants={itemVariants} className="bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl overflow-hidden">
+                <motion.div  className="bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl overflow-hidden">
                   {/* Table header */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 border-b border-white/8">
                     <div className="flex items-center gap-2.5">
@@ -382,7 +382,7 @@ export const AdminPanel: React.FC = React.memo(() => {
 
             {/* ── 2. Student Onboarding view ── */}
             {activeTab === 'admin-roles' && (
-              <motion.div variants={itemVariants} className="space-y-5">
+              <motion.div  className="space-y-5">
                 <div className="pt-1 pb-2">
                   <h1 className="text-xl font-bold text-white font-heading tracking-tight" style={{ letterSpacing: '-0.02em' }}>Student Onboarding</h1>
                   <p className="text-sm text-zinc-500 mt-0.5">Manage account roles and access permissions</p>
@@ -434,7 +434,7 @@ export const AdminPanel: React.FC = React.memo(() => {
 
             {/* ── 3. Question bank view ── */}
             {activeTab === 'admin-question-bank' && (
-              <motion.div variants={itemVariants} className="space-y-5">
+              <motion.div  className="space-y-5">
                 <div className="pt-1 pb-2 flex items-start justify-between">
                   <div>
                     <h1 className="text-xl font-bold text-white font-heading tracking-tight" style={{ letterSpacing: '-0.02em' }}>Question Bank</h1>
