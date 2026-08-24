@@ -107,10 +107,8 @@ export function App() {
               <OrangeBlackGradient />
             </div>
 
-            <main className={`flex-1 w-full relative z-10 transition-all duration-300 ${
+            <main className={`flex-1 w-full relative z-10 transition-all duration-300 p-4 sm:p-6 lg:p-8 ${
               sidebarOpen ? 'pl-0 lg:pl-72' : 'pl-0'
-            } ${
-              activeTab === 'admin' ? 'p-0' : 'p-4 sm:p-6 lg:p-8'
             }`}>
               <AnimatePresence mode="wait">
                 <motion.div
@@ -129,7 +127,7 @@ export function App() {
                       {activeTab === 'tests' && <MockTests />}
                       {activeTab === 'interview' && <HRInterviewSimulator />}
                       {activeTab === 'mentorship' && <Mentorship />}
-                      {activeTab.startsWith('admin') && <AdminPanel />}
+                      {(activeTab === 'admin-dashboard' || activeTab === 'admin-tests' || activeTab === 'admin-roles') && <AdminPanel />}
                     </Suspense>
                   </ErrorBoundary>
                 </motion.div>

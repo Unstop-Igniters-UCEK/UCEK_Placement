@@ -116,6 +116,7 @@ const StatCard = ({
 export const AdminPanel: React.FC = React.memo(() => {
   const { user, logoutUser, allUsers, recentScores, addQuestionToBank, updateUserRoleInAdmin, activeTab, setActiveTab } = useApp();
 
+  
   const [selectedYearFilter, setSelectedYearFilter] = useState('All Years');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All Departments');
   const [searchQuery, setSearchQuery] = useState('');
@@ -197,15 +198,11 @@ export const AdminPanel: React.FC = React.memo(() => {
   const labelCls = "block text-xs font-medium text-zinc-400 mb-1.5 tracking-wide";
 
   return (
-    <div className="min-h-screen bg-transparent text-white font-sans flex flex-col md:flex-row">
-
-      {/* ── Main content ── */}
-      <main className="flex-1 w-full overflow-x-hidden">
-        <div className="p-5 sm:p-7 lg:p-9 max-w-[1280px] mx-auto">
-          <motion.div key={activeTab} variants={containerVariants} initial="hidden" animate="visible" className="space-y-5">
+    <div className="w-full text-white font-sans max-w-[1280px] mx-auto">
+      <motion.div key={activeTab} variants={containerVariants} initial="hidden" animate="visible" className="space-y-5">
 
             {/* ── 1. Analytics view ── */}
-            {activeTab === 'admin' && (
+            {activeTab === 'admin-dashboard' && (
               <>
                 {/* ── Page hero ── */}
                 <motion.div variants={itemVariants} className="relative overflow-hidden rounded-2xl bg-[#111115]/70 border border-white/8 backdrop-blur-xl px-6 pt-6 pb-5">
@@ -381,7 +378,7 @@ export const AdminPanel: React.FC = React.memo(() => {
             )}
 
             {/* ── Admin Mock Tests view ── */}
-            {activeTab === 'admin-mock-tests' && <AdminMockTests />}
+            {activeTab === 'admin-tests' && <AdminMockTests />}
 
             {/* ── 2. Student Onboarding view ── */}
             {activeTab === 'admin-roles' && (
@@ -520,8 +517,6 @@ export const AdminPanel: React.FC = React.memo(() => {
             )}
 
           </motion.div>
-        </div>
-      </main>
     </div>
   );
 });
