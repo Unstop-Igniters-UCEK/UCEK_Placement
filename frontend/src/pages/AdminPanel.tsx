@@ -114,10 +114,8 @@ const StatCard = ({
 );
 
 export const AdminPanel: React.FC = React.memo(() => {
-  const { user, logoutUser, allUsers, recentScores, addQuestionToBank, updateUserRoleInAdmin, setActiveTab } = useApp();
+  const { user, logoutUser, allUsers, recentScores, addQuestionToBank, updateUserRoleInAdmin, activeTab, setActiveTab } = useApp();
 
-  const [activeAdminSubTab, setActiveAdminSubTab] = useState<'analytics' | 'roles' | 'question-bank' | 'mock-tests'>('analytics');
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [selectedYearFilter, setSelectedYearFilter] = useState('All Years');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All Departments');
   const [searchQuery, setSearchQuery] = useState('');
@@ -201,79 +199,13 @@ export const AdminPanel: React.FC = React.memo(() => {
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col md:flex-row">
 
-      {/* ── Mobile top bar ── */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-[#0d0d12]/95 border-b border-white/8 backdrop-blur-xl sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <LogoMark size={8} />
-          <span className="font-semibold text-sm text-white font-heading tracking-tight">Placement Portal</span>
-        </div>
-        <button onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)} className="p-2 rounded-xl hover:bg-white/6 text-zinc-400 hover:text-white transition-colors active:scale-95 cursor-pointer">
-          {mobileSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
-      </div>
-
-      {/* ── Sidebar ── */}
-      <aside className={`
-        w-60 fixed top-0 bottom-0 left-0 z-50 h-screen
-        bg-[#0c0c10]/96 border-r border-white/8 backdrop-blur-2xl
-        flex flex-col justify-between p-4
-        transition-transform duration-[250ms] ease-out
-        ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
-        {/* Brand */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between pt-1 pb-4 border-b border-white/8">
-            <div className="flex items-center gap-2.5">
-              <LogoMark size={9} />
-              <div>
-                <p className="font-bold text-[13px] text-white font-heading tracking-tight leading-none">Placement Portal</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">UCEK Igniters</p>
-              </div>
-            </div>
-            {mobileSidebarOpen && (
-              <button onClick={() => setMobileSidebarOpen(false)} className="text-zinc-500 hover:text-white md:hidden active:scale-95 cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Nav */}
-          <nav className="space-y-0.5">
-            <NavItem icon={LayoutDashboard} label="Dashboard" active={activeAdminSubTab === 'analytics'} onClick={() => { setActiveAdminSubTab('analytics'); setMobileSidebarOpen(false); }} />
-            <NavItem icon={CheckSquare} label="Mock Tests" active={activeAdminSubTab === 'mock-tests'} onClick={() => { setActiveAdminSubTab('mock-tests'); setMobileSidebarOpen(false); }} />
-            <NavItem icon={UserPlus} label="Student Onboarding" active={activeAdminSubTab === 'roles'} onClick={() => { setActiveAdminSubTab('roles'); setMobileSidebarOpen(false); }} />
-            <NavItem icon={Users} label="Mentorship" onClick={() => { setActiveTab('mentorship'); setMobileSidebarOpen(false); }} />
-          </nav>
-        </div>
-
-        {/* User + Logout */}
-        <div className="space-y-2 pb-1">
-          <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl">
-            <div className="w-8 h-8 rounded-lg bg-orange-500/15 border border-orange-500/25 flex items-center justify-center font-bold text-sm text-orange-400 shrink-0">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="truncate">
-              <p className="text-[13px] font-semibold text-white truncate font-heading">{user.name}</p>
-              <p className="text-[11px] text-zinc-500 truncate">Admin · TPO Cell</p>
-            </div>
-          </div>
-          <button
-            onClick={logoutUser}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-rose-400 border border-rose-500/20 bg-rose-500/8 hover:bg-rose-500/14 text-sm font-medium transition-colors duration-150 cursor-pointer active:scale-[0.98]"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Sign out</span>
-          </button>
-        </div>
-      </aside>
-
       {/* ── Main content ── */}
-      <main className="flex-1 w-full md:ml-60 min-h-screen overflow-x-hidden">
+      <main className="flex-1 w-full overflow-x-hidden">
         <div className="p-5 sm:p-7 lg:p-9 max-w-[1280px] mx-auto">
-          <motion.div key={activeAdminSubTab} variants={containerVariants} initial="hidden" animate="visible" className="space-y-5">
+          <motion.div key={activeTab} variants={containerVariants} initial="hidden" animate="visible" className="space-y-5">
 
             {/* ── 1. Analytics view ── */}
-            {activeAdminSubTab === 'analytics' && (
+            {activeTab === 'admin' && (
               <>
                 {/* ── Page hero ── */}
                 <motion.div variants={itemVariants} className="relative overflow-hidden rounded-2xl bg-[#111115]/70 border border-white/8 backdrop-blur-xl px-6 pt-6 pb-5">
@@ -449,10 +381,10 @@ export const AdminPanel: React.FC = React.memo(() => {
             )}
 
             {/* ── Admin Mock Tests view ── */}
-            {activeAdminSubTab === 'mock-tests' && <AdminMockTests />}
+            {activeTab === 'admin-mock-tests' && <AdminMockTests />}
 
             {/* ── 2. Student Onboarding view ── */}
-            {activeAdminSubTab === 'roles' && (
+            {activeTab === 'admin-roles' && (
               <motion.div variants={itemVariants} className="space-y-5">
                 <div className="pt-1 pb-2">
                   <h1 className="text-xl font-bold text-white font-heading tracking-tight" style={{ letterSpacing: '-0.02em' }}>Student Onboarding</h1>
@@ -504,7 +436,7 @@ export const AdminPanel: React.FC = React.memo(() => {
             )}
 
             {/* ── 3. Question bank view ── */}
-            {activeAdminSubTab === 'question-bank' && (
+            {activeTab === 'admin-question-bank' && (
               <motion.div variants={itemVariants} className="space-y-5">
                 <div className="pt-1 pb-2 flex items-start justify-between">
                   <div>

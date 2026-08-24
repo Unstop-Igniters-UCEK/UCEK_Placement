@@ -13,7 +13,8 @@ import {
   Users,
   ShieldCheck,
   GraduationCap,
-  X
+  X,
+  UserPlus
 } from 'lucide-react';
 
 export const Sidebar: React.FC = React.memo(() => {
@@ -21,22 +22,36 @@ export const Sidebar: React.FC = React.memo(() => {
 
   if (!user) return null;
 
-  const navItems = user.role === 'admin' ? [
-    { id: 'admin', label: 'Admin Dashboard', icon: ShieldCheck },
-    { id: 'dashboard', label: 'Student View', icon: LayoutDashboard },
-    { id: 'roadmap', label: 'Domain Roadmap', icon: Compass },
-    { id: 'resumes', label: 'AI Resume Suite', icon: FileText },
-    { id: 'tests', label: 'Mock Tests', icon: CheckSquare },
-    { id: 'interview', label: 'HR Interview', icon: Mic },
-    { id: 'mentorship', label: 'Mentorship', icon: Users },
-  ] : [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'roadmap', label: 'Domain Roadmap', icon: Compass },
-    { id: 'resumes', label: 'AI Resume Suite', icon: FileText },
-    { id: 'tests', label: 'Mock Tests', icon: CheckSquare },
-    { id: 'interview', label: 'HR Interview', icon: Mic },
-    { id: 'mentorship', label: 'Mentorship', icon: Users },
-  ];
+  let navItems = [];
+
+  if (user.role === 'admin' && activeTab.startsWith('admin')) {
+    navItems = [
+      { id: 'admin', label: 'Analytics Dashboard', icon: LayoutDashboard },
+      { id: 'admin-mock-tests', label: 'Mock Tests', icon: CheckSquare },
+      { id: 'admin-roles', label: 'Student Onboarding', icon: UserPlus },
+      { id: 'mentorship', label: 'Mentorship', icon: Users },
+      { id: 'dashboard', label: 'Exit to Student View', icon: GraduationCap },
+    ];
+  } else if (user.role === 'admin') {
+    navItems = [
+      { id: 'admin', label: 'Admin Dashboard', icon: ShieldCheck },
+      { id: 'dashboard', label: 'Student View', icon: LayoutDashboard },
+      { id: 'roadmap', label: 'Domain Roadmap', icon: Compass },
+      { id: 'resumes', label: 'AI Resume Suite', icon: FileText },
+      { id: 'tests', label: 'Mock Tests', icon: CheckSquare },
+      { id: 'interview', label: 'HR Interview', icon: Mic },
+      { id: 'mentorship', label: 'Mentorship', icon: Users },
+    ];
+  } else {
+    navItems = [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'roadmap', label: 'Domain Roadmap', icon: Compass },
+      { id: 'resumes', label: 'AI Resume Suite', icon: FileText },
+      { id: 'tests', label: 'Mock Tests', icon: CheckSquare },
+      { id: 'interview', label: 'HR Interview', icon: Mic },
+      { id: 'mentorship', label: 'Mentorship', icon: Users },
+    ];
+  }
 
   return (
     <>

@@ -129,7 +129,7 @@ export function App() {
                       {activeTab === 'tests' && <MockTests />}
                       {activeTab === 'interview' && <HRInterviewSimulator />}
                       {activeTab === 'mentorship' && <Mentorship />}
-                      {activeTab === 'admin' && <AdminPanel />}
+                      {activeTab.startsWith('admin') && <AdminPanel />}
                     </Suspense>
                   </ErrorBoundary>
                 </motion.div>
