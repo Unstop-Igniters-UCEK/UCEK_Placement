@@ -44,11 +44,82 @@ def review_resume(req: ReviewResumeRequest, current_user: dict = Depends(get_cur
             detail="The resume text is empty or too short. Please upload a PDF with selectable text."
         )
     result = analyze_resume_with_gemini(req.resumeText, req.jobRole or "Software Engineer")
+
+    # Persist resume review record for student history and admin analytics dashboard
+    ats_score = 85
+    if isinstance(result, dict) and "atsScore" in result:
+        try:
+            ats_score = int(result["atsScore"])
+        except Exception:
+            ats_score = 85
+
+    record = {
+        "id": f"res_{uuid.uuid4().hex[:8]}",
+        "userId": current_user.get("id"),
+        "userName": current_user.get("name", "Student"),
+        "userEmail": current_user.get("email", ""),
+        "userBranch": current_user.get("branch", "CSE"),
+        "userYear": current_user.get("year", "4th Year"),
+        "jobRole": req.jobRole or "Software Engineer",
+        "atsScore": ats_score,
+        "overallScore": ats_score,
+        "timestamp": datetime.utcnow().isoformat(),
+        "date": datetime.utcnow().strftime("%Y-%m-%d")
+    }
+
+    if not hasattr(db, "resumeReviews") or db.resumeReviews is None:
+        db.resumeReviews = []
+    db.resumeReviews.append(record)
+
+    if not hasattr(db, "resumes") or db.resumes is None:
+        db.resumes = []
+    db.resumes.append(record)
+
+    db.save()
+
+    from backend.database import supabase_client
+    if supabase_client:
+        try:
+            supabase_client.table("resumes").upsert({
+                "id": record["id"],
+                "user_id": current_user.get("id"),
+                "ats_score": ats_score,
+                "uploaded_at": record["timestamp"]
+            }).execute()
+        except Exception as err:
+            if "PGRST205" not in str(err):
+                print("[Supabase resume insert notice]:", err)
+
     return {"review": result}
 
 @router.post("/match-jd")
 def match_jd(req: MatchJDRequest, current_user: dict = Depends(get_current_user)):
     result = match_jd_with_gemini(req.jobTitle, req.company, req.jdText, req.resumeText)
+
+    match_pct = 80
+    if isinstance(result, dict) and "matchPercentage" in result:
+        try:
+            match_pct = int(result["matchPercentage"])
+        except Exception:
+            match_pct = 80
+
+    record = {
+        "id": f"jdm_{uuid.uuid4().hex[:8]}",
+        "userId": current_user.get("id"),
+        "userName": current_user.get("name", "Student"),
+        "userEmail": current_user.get("email", ""),
+        "jobTitle": req.jobTitle,
+        "company": req.company,
+        "matchPercentage": match_pct,
+        "timestamp": datetime.utcnow().isoformat(),
+        "date": datetime.utcnow().strftime("%Y-%m-%d")
+    }
+
+    if not hasattr(db, "jdMatches") or db.jdMatches is None:
+        db.jdMatches = []
+    db.jdMatches.append(record)
+    db.save()
+
     return {"match": result}
 
 @router.post("/enhance-bullet")

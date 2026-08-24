@@ -40,16 +40,24 @@ def get_dashboard_stats(
             (clean_b in ["bio", "bt"] and "bio" in u.get("branch", "").lower())
         ]
 
-    student_ids = set(u.get("id") for u in students)
+    student_ids = set(str(u.get("id")) for u in students)
 
-    test_scores = getattr(db, "testScores", [])
-    resume_reviews = getattr(db, "resumeReviews", []) + getattr(db, "resumes", [])
-    interview_responses = getattr(db, "interviewResponses", [])
+    test_scores = getattr(db, "testScores", []) or []
+    raw_resumes = (getattr(db, "resumeReviews", []) or []) + (getattr(db, "resumes", []) or [])
 
-    if (year and year != "All") or (branch and branch != "All"):
-        filtered_tests = [s for s in test_scores if s.get("userId") in student_ids]
-        filtered_resumes = [r for r in resume_reviews if r.get("userId") in student_ids]
-        filtered_interviews = [i for i in interview_responses if i.get("userId") in student_ids]
+    # Deduplicate resume reviews by ID
+    all_res_map = {}
+    for r in raw_resumes:
+        r_id = str(r.get("id") or id(r))
+        all_res_map[r_id] = r
+    resume_reviews = list(all_res_map.values())
+
+    interview_responses = getattr(db, "interviewResponses", []) or []
+
+    if (year and year != "All" and year != "All Years") or (branch and branch != "All" and branch != "All Departments"):
+        filtered_tests = [s for s in test_scores if str(s.get("userId")) in student_ids]
+        filtered_resumes = [r for r in resume_reviews if str(r.get("userId")) in student_ids]
+        filtered_interviews = [i for i in interview_responses if str(i.get("userId")) in student_ids]
         
         total_mock_tests = len(filtered_tests)
         total_resume_reviews = len(filtered_resumes)
@@ -61,9 +69,10 @@ def get_dashboard_stats(
 
     student_performance = []
     for u in students:
-        u_id = u.get("id")
-        u_tests = len([s for s in test_scores if s.get("userId") == u_id])
-        u_interviews = len([i for i in interview_responses if i.get("userId") == u_id])
+        u_id = str(u.get("id"))
+        u_tests = len([s for s in test_scores if str(s.get("userId")) == u_id])
+        u_resumes = len([r for r in resume_reviews if str(r.get("userId")) == u_id])
+        u_interviews = len([i for i in interview_responses if str(i.get("userId")) == u_id])
         
         student_performance.append({
             "id": u_id,
@@ -73,6 +82,7 @@ def get_dashboard_stats(
             "year": u.get("year", "N/A"),
             "readinessScore": u.get("readinessScore", 75),
             "testsCompleted": u_tests,
+            "resumesReviewed": u_resumes,
             "interviewsCompleted": u_interviews
         })
 
