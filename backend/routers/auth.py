@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, Response, Depends, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from backend.database import db, hash_password, verify_password, supabase_client
+from backend.database import db, hash_password, verify_password, supabase_client, calculate_user_readiness
 from backend.auth import create_access_token, create_refresh_token, decode_token, get_current_user, ALLOWED_EMAIL_DOMAIN
 from backend.schemas import (
     RegisterRequest, LoginRequest, ForgotPasswordRequest,
@@ -282,7 +282,7 @@ def get_me(current_user: dict = Depends(get_current_user)):
         "domainInterest": current_user["domainInterest"],
         "hasSelectedDomain": current_user.get("hasSelectedDomain", False),
         "isVerified": current_user.get("isVerified", True),
-        "readinessScore": current_user.get("readinessScore", 75),
+        "readinessScore": calculate_user_readiness(current_user["id"]),
         "bio": current_user.get("bio"),
         "linkedInUrl": current_user.get("linkedInUrl"),
         "githubUrl": current_user.get("githubUrl"),

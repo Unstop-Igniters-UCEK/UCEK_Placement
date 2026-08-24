@@ -503,3 +503,66 @@ class Database:
             self.users.append(admin_user)
 
 db = Database()
+
+def calculate_user_readiness(user_id: str) -> int:
+    u_id = str(user_id)
+    test_scores = getattr(db, "testScores", []) or []
+    raw_resumes = (getattr(db, "resumeReviews", []) or []) + (getattr(db, "resumes", []) or [])
+    all_res_map = {str(r.get("id") or id(r)): r for r in raw_resumes}
+    resume_reviews = list(all_res_map.values())
+    user_roadmaps = getattr(db, "userRoadmaps", []) or []
+
+    u_tests = [s for s in test_scores if str(s.get("userId")) == u_id]
+    u_resumes = [r for r in resume_reviews if str(r.get("userId")) == u_id]
+
+    def get_test_pct(s):
+        if not s:
+            return 0
+        if isinstance(s.get("accuracy"), (int, float)) and s["accuracy"] > 0:
+            return float(s["accuracy"])
+        tot = max(1, int(s.get("total") or s.get("totalQuestions") or 10))
+        score_val = float(s.get("score", 0))
+        if "percentage" in s and s["percentage"] is not None:
+            return float(s["percentage"])
+        return (score_val / tot) * 100
+
+    apt_tests = [s for s in u_tests if "aptitude" in str(s.get("category", "")).lower() or "company" in str(s.get("category", "")).lower()]
+    tech_tests = [s for s in u_tests if "technical" in str(s.get("category", "")).lower() or "coding" in str(s.get("category", "")).lower()]
+
+    if apt_tests:
+        apt_score = round(sum(get_test_pct(s) for s in apt_tests) / len(apt_tests))
+    elif u_tests:
+        apt_score = round(sum(get_test_pct(s) for s in u_tests) / len(u_tests))
+    else:
+        apt_score = 0
+
+    if tech_tests:
+        tech_score = round(sum(get_test_pct(s) for s in tech_tests) / len(tech_tests))
+    elif u_tests:
+        tech_score = round(sum(get_test_pct(s) for s in u_tests) / len(u_tests))
+    else:
+        tech_score = 0
+
+    if u_resumes:
+        ats_score = int(u_resumes[-1].get("atsScore") or u_resumes[-1].get("ats_score") or 82)
+    else:
+        ats_score = 82
+
+    user_rm = next((r for r in user_roadmaps if str(r.get("userId")) == u_id), None)
+    tot_t = 0
+    done_t = 0
+    if user_rm and isinstance(user_rm.get("modules"), list):
+        for m in user_rm["modules"]:
+            if isinstance(m, dict) and isinstance(m.get("milestones"), list):
+                for ms in m["milestones"]:
+                    tot_t += 1
+                    if isinstance(ms, dict) and ms.get("completed"):
+                        done_t += 1
+    domain_pct = round((done_t / tot_t) * 100) if tot_t > 0 else int(user_rm.get("overallProgress", 0) if user_rm else 0)
+
+    if u_tests:
+        calc_readiness = round((0.35 * apt_score) + (0.35 * tech_score) + (0.20 * ats_score) + (0.10 * domain_pct))
+    else:
+        calc_readiness = round((0.20 * ats_score) + (0.10 * domain_pct))
+
+    return min(100, max(0, calc_readiness))

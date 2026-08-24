@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from backend.database import db
+from backend.database import db, calculate_user_readiness
 from backend.auth import get_current_user
 from backend.schemas import CreateQuestionRequest, UpdateRoleRequest
 
@@ -74,54 +74,7 @@ def get_dashboard_stats(
         u_resumes_list = [r for r in resume_reviews if str(r.get("userId")) == u_id]
         u_interviews_list = [i for i in interview_responses if str(i.get("userId")) == u_id]
 
-        def get_test_percentage(s):
-            if not s:
-                return 0
-            if isinstance(s.get("accuracy"), (int, float)) and s["accuracy"] > 0:
-                return float(s["accuracy"])
-            tot = max(1, int(s.get("total") or s.get("totalQuestions") or 10))
-            if "percentage" in s and s["percentage"] is not None:
-                return float(s["percentage"])
-            return (float(s.get("score", 0)) / tot) * 100
-
-        apt_tests = [s for s in u_tests_list if "aptitude" in str(s.get("category", "")).lower() or "company" in str(s.get("category", "")).lower()]
-        tech_tests = [s for s in u_tests_list if "technical" in str(s.get("category", "")).lower() or "coding" in str(s.get("category", "")).lower()]
-
-        if apt_tests:
-            apt_score = round(sum(get_test_percentage(s) for s in apt_tests) / len(apt_tests))
-        elif u_tests_list:
-            apt_score = round(sum(get_test_percentage(s) for s in u_tests_list) / len(u_tests_list))
-        else:
-            apt_score = 0
-
-        if tech_tests:
-            tech_score = round(sum(get_test_percentage(s) for s in tech_tests) / len(tech_tests))
-        elif u_tests_list:
-            tech_score = round(sum(get_test_percentage(s) for s in u_tests_list) / len(u_tests_list))
-        else:
-            tech_score = 0
-
-        ats_score = 82
-
-        user_rm = next((r for r in getattr(db, "userRoadmaps", []) if str(r.get("userId")) == u_id), None)
-        domain_pct = 0
-        if user_rm and isinstance(user_rm.get("modules"), list):
-            tot_t = 0
-            done_t = 0
-            for m in user_rm["modules"]:
-                if isinstance(m, dict) and isinstance(m.get("milestones"), list):
-                    for ms in m["milestones"]:
-                        tot_t += 1
-                        if isinstance(ms, dict) and ms.get("completed"):
-                            done_t += 1
-            domain_pct = round((done_t / tot_t) * 100) if tot_t > 0 else 0
-
-        if u_tests_list:
-            calc_readiness = round((0.35 * apt_score) + (0.35 * tech_score) + (0.20 * ats_score) + (0.10 * domain_pct))
-        else:
-            calc_readiness = round((0.20 * ats_score) + (0.10 * domain_pct))
-
-        dynamic_readiness = min(100, max(0, calc_readiness))
+        dynamic_readiness = calculate_user_readiness(u_id)
         u["readinessScore"] = dynamic_readiness
 
         student_performance.append({

@@ -159,7 +159,7 @@ export const Dashboard: React.FC = React.memo(() => {
     ? Math.round((0.35 * aptitudeScore) + (0.35 * technicalScore) + (0.20 * atsScore) + (0.10 * domainPct))
     : Math.round((0.20 * atsScore) + (0.10 * domainPct));
 
-  const score = Math.min(100, Math.max(0, calculatedReadinessScore));
+  const score = typeof user?.readinessScore === 'number' ? user.readinessScore : Math.min(100, Math.max(0, calculatedReadinessScore));
 
   const testsTaken = recentScores.length;
   const testsPassed = recentScores.filter(s => s && s.passed).length;
