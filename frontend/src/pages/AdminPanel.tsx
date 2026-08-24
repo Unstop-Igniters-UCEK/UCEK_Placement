@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useRef } from 'react';
+import { getAdminDashboardStatsApi } from '../lib/api';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { AdminMockTests } from './AdminMockTests';
 import { motion, Variants } from 'framer-motion';
@@ -114,7 +115,7 @@ const StatCard = ({
 );
 
 export const AdminPanel: React.FC = React.memo(() => {
-  const { user, logoutUser, allUsers, recentScores, addQuestionToBank, updateUserRoleInAdmin, activeTab, setActiveTab } = useApp();
+  const { user, logoutUser, addQuestionToBank, updateUserRoleInAdmin, activeTab, setActiveTab, allUsers } = useApp();
 
   
   const [selectedYearFilter, setSelectedYearFilter] = useState('All Years');
@@ -136,30 +137,39 @@ export const AdminPanel: React.FC = React.memo(() => {
   const [addSuccess, setAddSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const [adminStats, setAdminStats] = useState<any>(null);
+
+  const fetchStats = useCallback(async () => {
+    setIsRefreshing(true);
+    const data = await getAdminDashboardStatsApi(selectedYearFilter, selectedDeptFilter);
+    setAdminStats(data);
+    setIsRefreshing(false);
+  }, [selectedYearFilter, selectedDeptFilter]);
+
+  useEffect(() => {
+    if (activeTab === 'admin-dashboard') {
+      fetchStats();
+    }
+  }, [fetchStats, activeTab]);
+
+  const kpis = adminStats?.kpis || {
+    totalStudents: 0,
+    totalMockTestsTaken: 0,
+    totalResumeReviews: 0,
+    totalInterviewsCompleted: 0
+  };
+
+  const studentPerformance = adminStats?.studentPerformance || [];
+  
   const filteredStudents = useMemo(() => {
-    return allUsers.filter(u => {
-      const matchYear = selectedYearFilter === 'All Years' || u.year?.toLowerCase().includes(selectedYearFilter.toLowerCase());
-      const matchDept =
-        selectedDeptFilter === 'All Departments' ||
-        u.branch?.toLowerCase().includes(selectedDeptFilter.toLowerCase()) ||
-        (selectedDeptFilter === 'Computer Science & Engg' && u.branch === 'CSE') ||
-        (selectedDeptFilter === 'Electronics & Comm Engg' && u.branch === 'ECE') ||
-        (selectedDeptFilter === 'Information Technology' && u.branch === 'IT');
-      const matchSearch = !searchQuery.trim() || u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchYear && matchDept && matchSearch;
+    return studentPerformance.filter((u: any) => {
+      return !searchQuery.trim() || 
+             u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+             u.email.toLowerCase().includes(searchQuery.toLowerCase());
     });
-  }, [allUsers, selectedYearFilter, selectedDeptFilter, searchQuery]);
+  }, [studentPerformance, searchQuery]);
 
-  const totalStudentsCount = filteredStudents.length;
-  const totalMockTestsTaken = useMemo(() =>
-    filteredStudents.reduce((acc, curr) => {
-      const n = recentScores.filter(s => s.id === curr.id).length;
-      return acc + (n > 0 ? n : curr.email.includes('amarnsujith') ? 2 : 0);
-    }, 0), [filteredStudents, recentScores]);
-  const totalResumesReviewed = useMemo(() => totalStudentsCount * 2 + 2, [totalStudentsCount]);
-  const totalInterviewsPracticed = useMemo(() => Math.max(8, totalStudentsCount), [totalStudentsCount]);
-
-  const handleRefresh = () => { setIsRefreshing(true); setTimeout(() => setIsRefreshing(false), 600); };
+  const handleRefresh = () => { fetchStats(); };
 
   const handleAddQuestionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -268,7 +278,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                     <div className="flex items-end justify-end md:justify-start">
                       <span className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-orange-500/8 border border-orange-500/20 text-sm text-orange-400 font-medium">
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-                        {totalStudentsCount} {totalStudentsCount === 1 ? 'student' : 'students'}
+                        {kpis.totalStudents} {kpis.totalStudents === 1 ? 'student' : 'students'}
                       </span>
                     </div>
                   </div>
@@ -276,10 +286,10 @@ export const AdminPanel: React.FC = React.memo(() => {
 
                 {/* KPI cards — single accent, distinguished by label/weight not hue */}
                 <motion.div  className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <StatCard label="Total students" value={totalStudentsCount} sub="Enrolled candidates" />
-                  <StatCard label="Mock tests taken" value={totalMockTestsTaken} sub="Attempted assessments" />
-                  <StatCard label="Resumes reviewed" value={totalResumesReviewed} sub="AI ATS scans" />
-                  <StatCard label="Interviews practiced" value={totalInterviewsPracticed} sub="Mock sessions" />
+                  <StatCard label="Total students" value={kpis.totalStudents} sub="Enrolled candidates" />
+                  <StatCard label="Mock tests taken" value={kpis.totalMockTestsTaken} sub="Attempted assessments" />
+                  <StatCard label="Resumes reviewed" value={kpis.totalResumeReviews} sub="AI ATS scans" />
+                  <StatCard label="Interviews practiced" value={kpis.totalInterviewsCompleted} sub="Mock sessions" />
                 </motion.div>
 
                 {/* Performance table */}
@@ -327,7 +337,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                             <td colSpan={6} className="py-14 text-center text-zinc-600 text-sm">No students match the selected filters.</td>
                           </tr>
                         ) : (
-                          filteredStudents.map(student => {
+                          filteredStudents.map((student: any) => {
                             const initial = student.name.charAt(0).toUpperCase();
                             const mockTestsAttended = student.email.includes('amarnsujith') ? 2 : 0;
                             const score = student.readinessScore || 0;
@@ -407,7 +417,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/[0.05]">
-                        {allUsers.map(u => (
+                        {allUsers.map((u: any) => (
                           <tr key={u.id} className="hover:bg-white/[0.025] transition-colors duration-100">
                             <td className="py-3.5 px-6 font-medium text-white text-[13px] font-heading">{u.name}</td>
                             <td className="py-3.5 px-4 text-zinc-500 text-xs">{u.email}</td>

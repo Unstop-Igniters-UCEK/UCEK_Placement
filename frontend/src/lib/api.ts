@@ -2,10 +2,10 @@
  * api.ts — Central API service for the UCEK Placement Platform frontend.
  * All requests to the FastAPI backend go through this file.
  *
- * Base URL is set via VITE_API_BASE_URL in .env (e.g. http://localhost:8000)
+ * Base URL is set via VITE_BASE_URL_URL in .env (e.g. http://localhost:8000)
  */
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const BASE_URL = import.meta.env.VITE_BASE_URL_URL || 'http://localhost:8000';
 
 /** Retrieve JWT token stored in localStorage by the auth flow. */
 function getToken(): string | null {
@@ -511,4 +511,22 @@ export async function submitTestApi(
   }
 }
 
+
+
+export const getAdminDashboardStatsApi = async (year?: string, branch?: string) => {
+  try {
+    let url = BASE_URL + '/admin/dashboard-stats';
+    const params = new URLSearchParams();
+    if (year && year !== 'All Years') params.append('year', year);
+    if (branch && branch !== 'All Departments') params.append('branch', branch);
+    if (params.toString()) url += '?' + params.toString();
+    
+    const res = await fetch(url, { headers: authHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch admin stats');
+    return await res.json();
+  } catch (error) {
+    console.error('getAdminDashboardStatsApi Error:', error);
+    return null;
+  }
+};
 
