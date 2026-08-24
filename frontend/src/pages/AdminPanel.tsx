@@ -22,7 +22,9 @@ import {
   UserPlus,
   Menu,
   X,
-  RotateCw
+  RotateCw,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 /* ─── Shared logo mark — matches student dashboard header ─── */
@@ -121,6 +123,7 @@ export const AdminPanel: React.FC = React.memo(() => {
   const [selectedYearFilter, setSelectedYearFilter] = useState('All Years');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All Departments');
   const [searchQuery, setSearchQuery] = useState('');
+  const [performancePage, setPerformancePage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   /* Question Bank form */
@@ -169,7 +172,22 @@ export const AdminPanel: React.FC = React.memo(() => {
     totalResumeReviews: dashboardStats?.kpis?.totalResumeReviews || 0,
     totalInterviewsCompleted: dashboardStats?.kpis?.totalInterviewSimulationsCompleted || dashboardStats?.kpis?.totalInterviewsCompleted || 0,
   };
-  const filteredStudents = dashboardStats?.studentPerformance || [];
+  const filteredStudents = useMemo(() => {
+    const students = dashboardStats?.studentPerformance || [];
+    return students.filter((u: any) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (u.name?.toLowerCase().includes(q)) || (u.email?.toLowerCase().includes(q));
+    });
+  }, [dashboardStats?.studentPerformance, searchQuery]);
+
+  useEffect(() => {
+    setPerformancePage(1);
+  }, [searchQuery]);
+
+  const performanceRowsPerPage = 5;
+  const totalPerformancePages = Math.max(1, Math.ceil(filteredStudents.length / performanceRowsPerPage));
+  const paginatedStudents = filteredStudents.slice((performancePage - 1) * performanceRowsPerPage, performancePage * performanceRowsPerPage);
 
   const handleRefresh = () => { setIsRefreshing(true); setTimeout(() => setIsRefreshing(false), 600); };
 
@@ -339,7 +357,7 @@ export const AdminPanel: React.FC = React.memo(() => {
                             <td colSpan={6} className="py-14 text-center text-zinc-600 text-sm">No students match the selected filters.</td>
                           </tr>
                         ) : (
-                          filteredStudents.map((student: any) => {
+                          paginatedStudents.map((student: any) => {
                             const initial = (student.name || 'U').charAt(0).toUpperCase();
                             const mockTestsAttended = student.testsCompleted || 0;
                             const interviewsCompleted = student.interviewsCompleted || 0;
@@ -388,6 +406,34 @@ export const AdminPanel: React.FC = React.memo(() => {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Pagination Controls */}
+                  {totalPerformancePages > 1 && (
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-white/8 bg-white/[0.01]">
+                      <span className="text-xs text-zinc-500 font-medium">
+                        Showing {((performancePage - 1) * performanceRowsPerPage) + 1} to {Math.min(performancePage * performanceRowsPerPage, filteredStudents.length)} of {filteredStudents.length} entries
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setPerformancePage(p => Math.max(1, p - 1))}
+                          disabled={performancePage === 1}
+                          className="p-1.5 rounded-lg border border-white/10 bg-white/[0.05] hover:bg-white/10 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span className="text-xs font-semibold text-white px-2">
+                          {performancePage} / {totalPerformancePages}
+                        </span>
+                        <button
+                          onClick={() => setPerformancePage(p => Math.min(totalPerformancePages, p + 1))}
+                          disabled={performancePage === totalPerformancePages}
+                          className="p-1.5 rounded-lg border border-white/10 bg-white/[0.05] hover:bg-white/10 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               </>
             )}
