@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAdminDashboardStatsApi, getAllUsersAdminApi } from '../lib/api';
 import { AdminMockTests } from './AdminMockTests';
@@ -144,17 +144,26 @@ export const AdminPanel: React.FC = React.memo(() => {
   const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [adminUsersList, setAdminUsersList] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (activeTab === 'admin-dashboard') {
-      getAdminDashboardStatsApi(selectedYearFilter, selectedDeptFilter).then(data => {
+  const fetchAdminData = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      if (activeTab === 'admin-dashboard') {
+        const data = await getAdminDashboardStatsApi(selectedYearFilter, selectedDeptFilter);
         if (data) setDashboardStats(data);
-      });
-    } else if (activeTab === 'admin-roles') {
-      getAllUsersAdminApi().then(data => {
+      } else if (activeTab === 'admin-roles') {
+        const data = await getAllUsersAdminApi();
         if (data && data.users) setAdminUsersList(data.users);
-      });
+      }
+    } catch (err) {
+      console.warn('Failed to fetch admin dashboard stats:', err);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 400);
     }
-  }, [activeTab, selectedYearFilter, selectedDeptFilter, isRefreshing]);
+  }, [activeTab, selectedYearFilter, selectedDeptFilter]);
+
+  useEffect(() => {
+    fetchAdminData();
+  }, [fetchAdminData]);
 
   // Derived filtered users for "Student Onboarding" view
   const filteredAdminUsersList = useMemo(() => {
@@ -189,7 +198,9 @@ export const AdminPanel: React.FC = React.memo(() => {
   const totalPerformancePages = Math.max(1, Math.ceil(filteredStudents.length / performanceRowsPerPage));
   const paginatedStudents = filteredStudents.slice((performancePage - 1) * performanceRowsPerPage, performancePage * performanceRowsPerPage);
 
-  const handleRefresh = () => { setIsRefreshing(true); setTimeout(() => setIsRefreshing(false), 600); };
+  const handleRefresh = () => {
+    fetchAdminData();
+  };
 
   const handleAddQuestionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
