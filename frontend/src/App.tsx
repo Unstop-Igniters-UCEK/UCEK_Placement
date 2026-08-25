@@ -8,6 +8,8 @@ import OrangeBlackGradient from './components/OrangeBlackGradient';
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
 import Lenis from 'lenis';
 
+import Maintenance from "./pages/Maintenance";
+
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Lazy loaded page modules to reduce initial JavaScript parse time
@@ -19,7 +21,17 @@ const HRInterviewSimulator = lazy(() => import('./pages/HRInterviewSimulator'));
 const Mentorship = lazy(() => import('./pages/Mentorship'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 
+const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
+
 export function App() {
+  if (isMaintenanceMode) {
+    return <Maintenance />;
+  }
+
+  return <AppContent />;
+}
+
+function AppContent() {
   const { activeTab, user, sidebarOpen } = useApp();
   const lenisRef = useRef<Lenis | null>(null);
 
