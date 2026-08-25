@@ -100,7 +100,7 @@ export default function Maintenance() {
 
   return (
     <div className="min-h-screen bg-[#000000] text-white font-sans relative overflow-x-hidden flex flex-col justify-between selection:bg-orange-500/30 selection:text-orange-200">
-      
+
       {/* ── Background Layer: Canvas PixelBlast / Orange Black Gradient ── */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <OrangeBlackGradient />
@@ -111,7 +111,7 @@ export default function Maintenance() {
       {/* ── Top Header Navigation Bar ── */}
       <header className="relative z-20 w-full border-b border-white/10 bg-[#000000]/60 backdrop-blur-xl px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          
+
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 p-[1px] shadow-[0_0_20px_rgba(249,115,22,0.4)]">
@@ -150,7 +150,7 @@ export default function Maintenance() {
 
       {/* ── Main Hero & Content Body ── */}
       <main className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16 flex-1 flex flex-col justify-center space-y-12">
-        
+
         {/* Hero Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
