@@ -58,13 +58,22 @@ export interface Question {
 export interface MockTest {
   id: string;
   title: string;
-  category: 'Aptitude' | 'Company Drive' | 'Technical' | 'Verbal';
+  category: 'Aptitude' | 'Company Drive' | 'Technical' | 'Verbal' | 'Departmental' | string;
   companyTag?: string;
+  company_tag?: string;
   durationMinutes: number;
+  durationMins?: number;
+  duration_mins?: number;
   questionCount: number;
+  totalQuestions?: number;
   passPercentage: number;
+  pass_percentage?: number;
   description: string;
-  questions: Question[];
+  questions: any[];
+  targetDept?: string;
+  target_dept?: string;
+  targetYear?: string;
+  target_year?: string;
 }
 
 export interface TestResult {

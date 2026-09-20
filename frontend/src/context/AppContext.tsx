@@ -362,14 +362,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   }, []);
 
-  const publishTest = useCallback((test: Omit<MockTest, 'id' | 'questions' | 'passPercentage'>) => {
+  const publishTest = useCallback((test: any) => {
     const newTest: MockTest = {
-      ...test,
-      id: `custom_${Date.now()}`,
-      questions: [],
-      passPercentage: 70,
+      id: test.id || `custom_${Date.now()}`,
+      title: test.title || "Departmental Assessment",
+      category: test.category || 'Departmental',
+      durationMinutes: test.durationMinutes || test.durationMins || test.duration || 30,
+      questionCount: test.questionCount || test.totalQuestions || (Array.isArray(test.questions) ? test.questions.length : 0),
+      description: test.description || `Departmental assessment drive.`,
+      companyTag: test.companyTag || test.company_tag || test.targetDept || "Department Core",
+      questions: Array.isArray(test.questions) ? test.questions : [],
+      passPercentage: test.passPercentage || test.pass_percentage || 60,
+      targetDept: test.targetDept || test.target_dept || "All",
+      targetYear: test.targetYear || test.target_year || "All"
     };
-    setMockTests(prev => [newTest, ...prev]);
+    setMockTests(prev => [newTest, ...prev.filter(t => t.id !== newTest.id)]);
   }, []);
 
   const addMentorshipLog = useCallback((topic: string, feedback: string, actionItems: string[]) => {

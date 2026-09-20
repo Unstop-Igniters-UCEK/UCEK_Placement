@@ -844,7 +844,7 @@ export const Dashboard: React.FC = React.memo(() => {
 
                               {/* OPTIONS LIST */}
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                                {q.options.map((optionText, optIdx) => {
+                                {q.options.map((optionText: string, optIdx: number) => {
                                   const isThisCorrect = optIdx === q.correctOption;
                                   const isThisUserSelected = optIdx === userSelectedOpt;
 
