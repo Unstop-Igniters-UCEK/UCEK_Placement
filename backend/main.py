@@ -11,6 +11,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from backend.routers import auth, user, roadmap, tests, mentorship, ai_suite, admin
+from backend.routers.onboarding_router import onboarding_router
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -84,6 +85,7 @@ app.include_router(tests.router)
 app.include_router(mentorship.router)
 app.include_router(ai_suite.router)
 app.include_router(admin.router)
+app.include_router(onboarding_router)
 
 if __name__ == "__main__":
     import uvicorn

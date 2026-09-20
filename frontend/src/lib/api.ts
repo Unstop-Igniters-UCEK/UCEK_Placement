@@ -594,6 +594,98 @@ export async function submitQuiz(
   return res.json();
 }
 
+
+// ─── Student Onboarding / Batch User Provisioning API ────────────────────────
+
+export interface BatchCreateUsersPayload {
+  emails: string[];
+  names?: Record<string, string>;
+  year?: string;
+  branch?: string;
+}
+
+export interface BatchCreateUsersResponse {
+  message: string;
+  createdCount: number;
+  skippedCount: number;
+  defaultPassword: string;
+  createdUsers: Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    year: string;
+    branch: string;
+    readinessScore?: number;
+  }>;
+}
+
+export async function batchCreateUsers(
+  payload: BatchCreateUsersPayload
+): Promise<BatchCreateUsersResponse> {
+  const res = await fetch(`${BASE_URL}/api/admin/users/batch-create`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      parseErrorMessage(
+        err,
+        `Failed to provision student accounts (${res.status})`
+      )
+    );
+  }
+
+  return res.json();
+}
+
+export interface BatchCSVUser {
+  Name?: string;
+  email_id: string;
+  password?: string;
+  dept: string;
+  year?: string;
+}
+
+export interface BatchCSVCreateResponse {
+  message: string;
+  createdCount: number;
+  skippedCount: number;
+  createdUsers: Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    year: string;
+    branch: string;
+  }>;
+}
+
+export async function batchCSVCreateUsers(
+  users: BatchCSVUser[]
+): Promise<BatchCSVCreateResponse> {
+  const res = await fetch(`${BASE_URL}/api/admin/users/batch-csv-create`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ users }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      parseErrorMessage(
+        err,
+        `Failed to provision CSV student batch (${res.status})`
+      )
+    );
+  }
+
+  return res.json();
+}
+
 export const api = {
   getTests,
   uploadCSVTest,
