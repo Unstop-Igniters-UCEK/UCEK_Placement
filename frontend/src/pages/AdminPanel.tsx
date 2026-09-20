@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useApp } from '../context/AppContext';
 import { getAdminDashboardStatsApi, getAllUsersAdminApi } from '../lib/api';
 import { AdminMockTests } from './AdminMockTests';
+import { StudentOnboardingView } from './StudentOnboardingView';
 import { motion, Variants } from 'framer-motion';
 import { UserRole } from '../types';
 import { CustomSelect } from '../components/CustomSelect';
@@ -451,16 +452,14 @@ export const AdminPanel: React.FC = React.memo(() => {
 
             {/* ── 2. Student Onboarding view ── */}
             {activeTab === 'admin-roles' && (
-              <motion.div  className="space-y-5">
-                <div className="pt-1 pb-2">
-                  <h1 className="text-xl font-bold text-white font-heading tracking-tight" style={{ letterSpacing: '-0.02em' }}>Student Onboarding</h1>
-                  <p className="text-sm text-zinc-500 mt-0.5">Manage account roles and access permissions</p>
-                </div>
-                <div className="bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl overflow-hidden">
+              <motion.div className="space-y-6">
+                <StudentOnboardingView />
+
+                <div className="bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl overflow-hidden mt-6">
                   <div className="px-6 py-4 border-b border-white/8 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <Users className="w-4 h-4 text-orange-400" />
-                      <span className="font-semibold text-white text-[15px] font-heading">All accounts</span>
+                      <span className="font-semibold text-white text-[15px] font-heading">All accounts & Roles</span>
                     </div>
                     <span className="text-xs text-zinc-500">{filteredAdminUsersList.length} registered</span>
                   </div>
