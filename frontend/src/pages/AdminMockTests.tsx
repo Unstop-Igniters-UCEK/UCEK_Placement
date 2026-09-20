@@ -88,6 +88,8 @@ export const AdminMockTests: React.FC = () => {
 
   /* ── Filtered tests ── */
   const filteredTests = mockTests.filter(t => {
+    const qCount = t.totalQuestions || t.questionCount || (t.questions ? t.questions.length : 0);
+    if (qCount <= 0) return false;
     if (activeFilter === 'All') return true;
     if (activeFilter === 'Company Drive') return t.category === 'Company Drive';
     if (activeFilter === 'Departmental') return t.category === 'Technical' && !t.companyTag;
@@ -145,7 +147,7 @@ export const AdminMockTests: React.FC = () => {
     else if (targetYear.includes("4th")) yearCode = "4th Year";
 
     try {
-      await api.uploadCSVTest({
+      const res = await api.uploadCSVTest({
         title: testTitle,
         duration: Number(duration),
         target_dept: deptCode,
@@ -153,14 +155,20 @@ export const AdminMockTests: React.FC = () => {
         questions: parsedQuestions
       });
 
-      publishTest({
-        title: testTitle,
-        category: 'Technical',
-        durationMinutes: duration,
-        questionCount: parsedQuestions.length,
-        description: `Departmental assessment for ${targetDept} (${targetYear}).`,
-        companyTag: undefined,
-      });
+      if (res && res.test) {
+        publishTest(res.test);
+      } else {
+        publishTest({
+          title: testTitle,
+          category: 'Departmental',
+          durationMinutes: duration,
+          questionCount: parsedQuestions.length,
+          description: `Departmental assessment for ${targetDept} (${targetYear}).`,
+          companyTag: deptCode,
+          targetDept: deptCode,
+          targetYear: yearCode
+        });
+      }
 
       setPublishing(false);
       setPublishSuccess(true);

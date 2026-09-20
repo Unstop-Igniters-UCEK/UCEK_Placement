@@ -215,20 +215,50 @@ class Database:
             try:
                 mt_res = supabase_client.table("mock_tests").select("*").execute()
                 if mt_res.data and len(mt_res.data) > 0:
-                    self.mockTests = []
+                    existing_by_id = {str(t.get("id")): t for t in self.mockTests if t.get("id")}
+                    loaded_tests = []
                     for t in mt_res.data:
-                        self.mockTests.append({
-                            "id": str(t.get("id")),
-                            "title": str(t.get("title", "")),
-                            "category": str(t.get("category", "")),
-                            "companyTag": str(t.get("company_tag") or t.get("companyTag") or "General Placement"),
-                            "company_tag": str(t.get("company_tag") or t.get("companyTag") or "General Placement"),
-                            "durationMinutes": int(t.get("duration_mins") or t.get("durationMinutes") or 30),
-                            "duration_mins": int(t.get("duration_mins") or t.get("durationMinutes") or 30),
-                            "passPercentage": int(t.get("pass_percentage") or t.get("passPercentage") or 70),
-                            "pass_percentage": int(t.get("pass_percentage") or t.get("passPercentage") or 70),
-                            "questions": t.get("question_ids") or t.get("questions") or []
-                        })
+                        tid = str(t.get("id"))
+                        prev = existing_by_id.get(tid, {})
+                        q_ids = t.get("question_ids") or t.get("questions") or prev.get("questionIds") or prev.get("questions") or prev.get("question_ids") or []
+                        dur = int(t.get("duration_mins") or t.get("durationMinutes") or prev.get("durationMins") or prev.get("durationMinutes") or 30)
+                        target_dept = t.get("target_dept") or t.get("targetDept") or prev.get("targetDept") or "All"
+                        target_year = t.get("target_year") or t.get("targetYear") or prev.get("targetYear") or "All"
+                        comp_tag = t.get("company_tag") or t.get("companyTag") or prev.get("companyTag") or "Department Core"
+                        pass_pct = int(t.get("pass_percentage") or t.get("passPercentage") or prev.get("passPercentage") or 60)
+
+                        # Filter out empty 0-question dummy tests
+                        if len(q_ids) > 0:
+                            loaded_tests.append({
+                                "id": tid,
+                                "title": str(t.get("title") or prev.get("title") or "Mock Assessment"),
+                                "category": str(t.get("category") or prev.get("category") or "Departmental"),
+                                "companyTag": comp_tag,
+                                "company_tag": comp_tag,
+                                "durationMins": dur,
+                                "durationMinutes": dur,
+                                "duration_mins": dur,
+                                "passPercentage": pass_pct,
+                                "pass_percentage": pass_pct,
+                                "questionIds": q_ids,
+                                "questions": q_ids,
+                                "question_ids": q_ids,
+                                "totalQuestions": len(q_ids),
+                                "targetDept": target_dept,
+                                "target_dept": target_dept,
+                                "targetYear": target_year,
+                                "target_year": target_year,
+                                "description": prev.get("description") or f"Departmental assessment for {target_dept} ({target_year})."
+                            })
+                    
+                    # Merge any valid non-empty tests from app_state that were not in mock_tests relational table
+                    loaded_ids = {t["id"] for t in loaded_tests}
+                    for prev_t in self.mockTests:
+                        prev_q_ids = prev_t.get("questionIds") or prev_t.get("questions") or prev_t.get("question_ids") or []
+                        if prev_t.get("id") and str(prev_t["id"]) not in loaded_ids and len(prev_q_ids) > 0:
+                            loaded_tests.append(prev_t)
+
+                    self.mockTests = loaded_tests
                     print(f"[Supabase] Loaded {len(self.mockTests)} mock tests directly from Supabase mock_tests table.")
             except Exception as e:
                 print("[Supabase mock_tests table load notice]:", e)
@@ -403,17 +433,35 @@ class Database:
             # Sync to mock_tests table
             try:
                 for test in self.mockTests:
-                    supabase_client.table("mock_tests").upsert({
+                    q_ids = test.get("questionIds") or test.get("questions") or test.get("question_ids") or []
+                    dur = int(test.get("durationMins") or test.get("durationMinutes") or test.get("duration_mins") or 30)
+                    pass_pct = int(test.get("passPercentage") or test.get("pass_percentage") or 60)
+
+                    payload = {
                         "id": str(test.get("id")),
                         "title": str(test.get("title", "")),
                         "category": str(test.get("category", "")),
                         "company_tag": str(test.get("companyTag") or test.get("company_tag") or "General Placement"),
-                        "duration_mins": int(test.get("durationMinutes") or test.get("duration_mins") or 30),
-                        "pass_percentage": int(test.get("passPercentage") or test.get("pass_percentage") or 70),
-                        "question_ids": test.get("questions") or test.get("question_ids") or []
-                    }, on_conflict="id").execute()
+                        "duration_mins": dur,
+                        "pass_percentage": pass_pct,
+                        "question_ids": q_ids
+                    }
+                    if test.get("targetDept") or test.get("target_dept"):
+                        payload["target_dept"] = test.get("targetDept") or test.get("target_dept")
+                    if test.get("targetYear") or test.get("target_year"):
+                        payload["target_year"] = test.get("targetYear") or test.get("target_year")
+
+                    try:
+                        supabase_client.table("mock_tests").upsert(payload, on_conflict="id").execute()
+                    except Exception as err:
+                        if "target_dept" in str(err) or "target_year" in str(err) or "PGRST204" in str(err):
+                            payload.pop("target_dept", None)
+                            payload.pop("target_year", None)
+                            supabase_client.table("mock_tests").upsert(payload, on_conflict="id").execute()
+                        else:
+                            print("[Supabase mock_tests table save notice]:", err)
             except Exception as e:
-                print("[Supabase mock_tests table save notice]:", e)
+                print("[Supabase mock_tests table outer save notice]:", e)
 
             # Sync to mentorships table
             try:

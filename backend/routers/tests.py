@@ -7,91 +7,82 @@ from backend.schemas import SubmitTestRequest, UploadCSVTestRequest
 
 router = APIRouter(prefix="/api/tests", tags=["tests"])
 
-def map_dept_name(dept_raw: str) -> str:
-    if not dept_raw:
-        return "All"
-    d = dept_raw.strip().lower()
-    if d in ["all", "all departments"]:
-        return "All"
-    if d in ["cs", "cse", "computer science", "computer science & engg", "computer science (cse)"]:
-        return "Computer Science & Engg"
-    if d in ["it", "information technology", "information technology (it)"]:
-        return "Information Technology"
-    if d in ["ece", "ec", "electronics", "electronics & comm engg", "electronics & communication (ece)"]:
-        return "Electronics & Comm Engg"
-    if d in ["eee", "electrical", "electrical & electronics"]:
-        return "Electrical & Electronics"
-    if d in ["mech", "me", "mechanical", "mechanical engg"]:
-        return "Mechanical Engg"
-    if d in ["civil", "ce"]:
-        return "Civil Engg"
-    return dept_raw.strip()
+import re
 
-def get_dept_code(s: str) -> str:
-    if not s:
-        return "all"
-    st = s.strip().lower()
-    if st in ["all", ""]:
-        return "all"
-    if "cs" in st or "computer" in st:
-        return "cs"
-    if "it" in st or "information" in st:
-        return "it"
-    if "ece" in st or "electronics" in st:
-        return "ece"
-    if "eee" in st or "electrical" in st:
-        return "eee"
-    if "mech" in st or "me" in st:
-        return "mech"
-    if "civil" in st or "ce" in st:
-        return "civil"
-    return st
+def map_target_dept(dept_str: str) -> str:
+    """Normalize input department strings to canonical labels."""
+    d = str(dept_str or '').strip().lower()
+    if d in ['all', 'all departments', '']:
+        return 'All'
+    if 'comp' in d or re.search(r'\bcs\b|\bcse\b', d):
+        return 'Computer Science & Engg'
+    if ('electr' in d and 'comm' in d) or re.search(r'\bec\b|\bece\b', d):
+        return 'Electronics & Comm Engg'
+    if 'info' in d or re.search(r'\bit\b', d):
+        return 'Information Technology'
+    if 'electr' in d or re.search(r'\beee\b', d):
+        return 'Electrical & Electronics Engg'
+    if 'mech' in d or re.search(r'\bme\b', d):
+        return 'Mechanical Engg'
+    if 'civil' in d or re.search(r'\bce\b', d):
+        return 'Civil Engg'
+    return dept_str.strip()
+
+def map_target_year(year_str: str) -> str:
+    """Normalize input year strings to canonical labels."""
+    y = str(year_str or '').strip().lower()
+    if y in ['all', 'all years', '']:
+        return 'All'
+    if '1' in y or 'first' in y:
+        return '1st Year'
+    if '2' in y or 'second' in y:
+        return '2nd Year'
+    if '3' in y or 'third' in y:
+        return '3rd Year'
+    if '4' in y or 'fourth' in y:
+        return '4th Year'
+    return year_str.strip()
 
 def is_dept_match(t_dept: str, user_branch: str) -> bool:
-    t_code = get_dept_code(t_dept)
-    if t_code == "all":
+    norm_target = map_target_dept(t_dept)
+    if norm_target == 'All':
         return True
-    if not user_branch or user_branch.strip() == "":
+    if not user_branch or not str(user_branch).strip():
         return False
-    u_code = get_dept_code(user_branch)
-    return t_code == u_code
-
-def get_year_code(s: str) -> str:
-    if not s:
-        return "all"
-    st = s.strip().lower()
-    if st in ["all", ""]:
-        return "all"
-    if "1st" in st or "1" in st or "2030" in st:
-        return "1"
-    if "2nd" in st or "2" in st or "2029" in st:
-        return "2"
-    if "3rd" in st or "3" in st or "2028" in st:
-        return "3"
-    if "4th" in st or "4" in st or "2027" in st:
-        return "4"
-    return st
+    norm_user = map_target_dept(user_branch)
+    return norm_target == norm_user
 
 def is_year_match(t_year: str, user_year: str) -> bool:
-    t_code = get_year_code(t_year)
-    if t_code == "all":
+    norm_target = map_target_year(t_year)
+    if norm_target == 'All':
         return True
-    if not user_year or user_year.strip() == "":
+    if not user_year or not str(user_year).strip():
         return False
-    u_code = get_year_code(user_year)
-    return t_code == u_code
+    norm_user = map_target_year(user_year)
+    return norm_target == norm_user
 
 @router.get("")
 def get_tests(current_user: dict = Depends(get_current_user)):
+    # Filter out empty 0-question dummy tests
+    valid_tests = []
+    for test in db.mockTests:
+        q_ids = test.get("questionIds") or test.get("questions") or test.get("question_ids") or []
+        tot = test.get("totalQuestions") or len(q_ids)
+        if tot > 0 and len(q_ids) > 0:
+            valid_tests.append(test)
+
+    # Sync cleaned array back to db
+    db.mockTests = valid_tests
+
     user_role = current_user.get("role", "mentee")
     if user_role == "admin":
-        return {"tests": db.mockTests}
+        return {"tests": valid_tests}
 
     user_branch = current_user.get("branch", "")
     user_year = current_user.get("year", "")
 
     filtered = []
-    for test in db.mockTests:
+    for test in valid_tests:
         t_dept = test.get("targetDept")
         t_year = test.get("targetYear")
 
@@ -107,14 +98,17 @@ def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_
 
     raw_dept = req.target_dept or req.targetDept or "All"
     raw_year = req.target_year or req.targetYear or "All"
-    mapped_dept = map_dept_name(raw_dept)
+    mapped_dept = map_target_dept(raw_dept)
+    mapped_year = map_target_year(raw_year)
 
     question_ids = []
+    created_questions = []
     for q in req.questions:
         q_id = f"q_{uuid.uuid4().hex[:8]}"
         q_obj = {
             "id": q_id,
             "title": q.question or q.title or "Untitled Question",
+            "question": q.question or q.title or "Untitled Question",
             "type": "Technical" if mapped_dept != "All" else "Aptitude",
             "difficulty": "Medium",
             "options": q.options,
@@ -123,6 +117,7 @@ def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_
         }
         db.questions.append(q_obj)
         question_ids.append(q_id)
+        created_questions.append(q_obj)
 
     test_id = f"test_{uuid.uuid4().hex[:8]}"
     new_test = {
@@ -130,13 +125,21 @@ def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_
         "title": req.title,
         "category": "Departmental",
         "companyTag": mapped_dept if mapped_dept != "All" else "Department Core",
+        "company_tag": mapped_dept if mapped_dept != "All" else "Department Core",
         "durationMins": req.duration,
+        "durationMinutes": req.duration,
+        "duration_mins": req.duration,
         "questionIds": question_ids,
+        "questions": question_ids,
+        "question_ids": question_ids,
         "totalQuestions": len(question_ids),
         "passPercentage": 60,
+        "pass_percentage": 60,
         "description": f"Departmental assessment for {mapped_dept} ({raw_year}).",
         "targetDept": mapped_dept,
-        "targetYear": raw_year
+        "target_dept": mapped_dept,
+        "targetYear": raw_year,
+        "target_year": raw_year
     }
 
     db.mockTests.append(new_test)
@@ -173,19 +176,35 @@ def clear_test_history(current_user: dict = Depends(get_current_user)):
 
 @router.get("/{test_id}")
 def get_test_details(test_id: str):
-    test = next((t for t in db.mockTests if t["id"] == test_id), None)
+    test = next((t for t in db.mockTests if str(t.get("id")) == str(test_id)), None)
     if not test:
         raise HTTPException(status_code=404, detail="Mock test not found")
 
-    raw_questions = [q for q in db.questions if q["id"] in test.get("questionIds", [])]
-    
+    q_ids = test.get("questionIds") or test.get("questions") or test.get("question_ids") or []
+    raw_questions = []
+
+    # Extract question objects from db.questions or embedded list
+    if isinstance(q_ids, list):
+        for item in q_ids:
+            if isinstance(item, dict):
+                raw_questions.append(item)
+            elif isinstance(item, str):
+                found_q = next((q for q in db.questions if str(q.get("id")) == item), None)
+                if found_q:
+                    raw_questions.append(found_q)
+
+    # Fallback if no questions matched by ID
+    if not raw_questions:
+        raw_questions = [q for q in db.questions if str(q.get("id")) in [str(x) for x in q_ids if isinstance(x, str)]]
+
     # Hide correctOptionIndex and explanation for security before test submission
     public_questions = []
     for q in raw_questions:
+        q_text = q.get("title") or q.get("question") or "Question"
         public_questions.append({
-            "id": q.get("id"),
-            "title": q.get("title", ""),
-            "question": q.get("title") or q.get("question", ""),
+            "id": str(q.get("id")),
+            "title": q_text,
+            "question": q_text,
             "options": q.get("options", []),
             "type": q.get("type", "Technical"),
             "difficulty": q.get("difficulty", "Medium"),
@@ -196,12 +215,21 @@ def get_test_details(test_id: str):
 
 @router.post("/{test_id}/submit")
 def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depends(get_current_user)):
-    test = next((t for t in db.mockTests if t["id"] == test_id), None)
+    test = next((t for t in db.mockTests if str(t.get("id")) == str(test_id)), None)
     
     test_title = req.testTitle or (test["title"] if test else "Mock Assessment Drive")
     category = req.category or (test.get("category") if test else "Company Drive")
     
-    questions = [q for q in db.questions if q["id"] in test.get("questionIds", [])] if test else []
+    q_ids = test.get("questionIds") or test.get("questions") or test.get("question_ids") or [] if test else []
+    questions = []
+    if isinstance(q_ids, list):
+        for item in q_ids:
+            if isinstance(item, dict):
+                questions.append(item)
+            elif isinstance(item, str):
+                found_q = next((q for q in db.questions if str(q.get("id")) == item), None)
+                if found_q:
+                    questions.append(found_q)
     
     # Normalize user answers input (accepts answers dict {qId: optIdx} or userAnswers list)
     user_ans_dict: Dict[str, int] = {}
@@ -228,6 +256,7 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
             "question": q.get("title") or q.get("question", ""),
             "options": q.get("options", []),
             "selectedOption": selected_idx,
+            "userAnswer": selected_idx,
             "correctOptionIndex": correct_idx,
             "isCorrect": is_correct,
             "explanation": q.get("explanation", "")

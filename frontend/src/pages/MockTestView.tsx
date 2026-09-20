@@ -299,6 +299,7 @@ export const MockTestView: React.FC = () => {
 
   // Start Assessment
   const handleStartAssessment = async (test: any) => {
+    const totalSec = (test.durationMins || test.durationMinutes || 30) * 60;
     setLoadingTestDetails(true);
     setActiveTest(test);
     setExamSubmitted(false);
@@ -306,6 +307,7 @@ export const MockTestView: React.FC = () => {
     setUserAnswers({});
     setReviewFlags({});
     setCurrentQIdx(0);
+    setTimeLeftSec(totalSec);
 
     try {
       const details = await api.getTestDetails(test.id);
@@ -318,13 +320,12 @@ export const MockTestView: React.FC = () => {
       setTestQuestions(test.questions || []);
     } finally {
       setLoadingTestDetails(false);
-      setTimeLeftSec((test.durationMins || test.durationMinutes || 30) * 60);
     }
   };
 
   // Timer effect
   useEffect(() => {
-    if (!activeTest || examSubmitted) return;
+    if (!activeTest || examSubmitted || loadingTestDetails) return;
     if (timeLeftSec <= 0) {
       handleFinalSubmitExam();
       return;
@@ -333,11 +334,11 @@ export const MockTestView: React.FC = () => {
       setTimeLeftSec(prev => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [activeTest, examSubmitted, timeLeftSec]);
+  }, [activeTest, examSubmitted, loadingTestDetails, timeLeftSec]);
 
   // Submit Quiz
   const handleFinalSubmitExam = async () => {
-    if (!activeTest || submittingExam || examSubmitted) return;
+    if (!activeTest || submittingExam || examSubmitted || loadingTestDetails) return;
     setSubmittingExam(true);
 
     const durationTotalSec = (activeTest.durationMins || activeTest.durationMinutes || 30) * 60;
@@ -382,6 +383,8 @@ export const MockTestView: React.FC = () => {
 
   // Filtering catalog
   const filteredCatalog = tests.filter(t => {
+    const qCount = t.totalQuestions || t.questionCount || (t.questionIds ? t.questionIds.length : (t.questions ? t.questions.length : 0));
+    if (qCount <= 0) return false;
     if (selectedCategory === 'All') return true;
     if (selectedCategory === 'Departmental') return t.category === 'Departmental' || t.targetDept !== 'All';
     if (selectedCategory === 'Aptitude') return t.category === 'Aptitude';
@@ -625,45 +628,56 @@ export const MockTestView: React.FC = () => {
                   {/* Question Review Breakdown */}
                   <div className="text-left space-y-4 pt-4 border-t border-white/10">
                     <h4 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
-                      Question Review Breakdown
+                      Question Review Breakdown ({examResult.review?.length || 0} Questions)
                     </h4>
-                    {examResult.review && examResult.review.map((item: any, idx: number) => (
-                      <div key={idx} className="p-4 rounded-xl bg-[#09090b] border border-white/10 space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-xs font-bold text-white">
-                            {idx + 1}. {item.question || item.title}
-                          </p>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                            item.userAnswer === item.correctOptionIndex ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
-                          }`}>
-                            {item.userAnswer === item.correctOptionIndex ? 'Correct' : 'Incorrect'}
-                          </span>
-                        </div>
+                    <div className="max-h-[55vh] overflow-y-auto pr-2 space-y-4">
+                      {examResult.review && examResult.review.map((item: any, idx: number) => {
+                        const selectedIdx = item.selectedOption !== undefined ? item.selectedOption : (item.userAnswer !== undefined ? item.userAnswer : -1);
+                        const isCorrect = item.isCorrect !== undefined ? item.isCorrect : (selectedIdx === item.correctOptionIndex);
+                        const userAnsText = selectedIdx >= 0 && item.options && item.options[selectedIdx] !== undefined ? item.options[selectedIdx] : 'Not answered';
+                        const correctAnsText = item.options && item.options[item.correctOptionIndex] !== undefined ? item.options[item.correctOptionIndex] : '';
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                          <div className="text-zinc-400">
-                            Your answer: <span className="text-white font-semibold">{item.options[item.userAnswer] || 'Not answered'}</span>
-                          </div>
-                          <div className="text-emerald-400">
-                            Correct answer: <span className="font-semibold">{item.options[item.correctOptionIndex]}</span>
-                          </div>
-                        </div>
+                        return (
+                          <div key={idx} className="p-4 rounded-xl bg-[#09090b] border border-white/10 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-xs font-bold text-white">
+                                {idx + 1}. {item.question || item.title}
+                              </p>
+                              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded ${
+                                isCorrect ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                              }`}>
+                                {isCorrect ? 'Correct' : 'Incorrect'}
+                              </span>
+                            </div>
 
-                        {item.explanation && (
-                          <div className="text-[11px] text-zinc-400 p-2.5 rounded-lg bg-[#121217] border border-white/10 leading-relaxed">
-                            <strong className="text-orange-400">Explanation:</strong> {item.explanation}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                              <div className="text-zinc-400">
+                                Your answer: <span className={`font-semibold ${selectedIdx >= 0 ? (isCorrect ? 'text-emerald-400' : 'text-rose-400') : 'text-zinc-400'}`}>{userAnsText}</span>
+                              </div>
+                              <div className="text-emerald-400">
+                                Correct answer: <span className="font-semibold">{correctAnsText}</span>
+                              </div>
+                            </div>
+
+                            {item.explanation && (
+                              <div className="text-[11px] text-zinc-400 p-2.5 rounded-lg bg-[#121217] border border-white/10 leading-relaxed">
+                                <strong className="text-orange-400">Explanation:</strong> {item.explanation}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    ))}
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  <button
-                    onClick={() => setActiveTest(null)}
-                    className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white"
-                  >
-                    Close Review
-                  </button>
+                  <div className="pt-4 border-t border-white/10 flex justify-center">
+                    <button
+                      onClick={() => setActiveTest(null)}
+                      className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all cursor-pointer"
+                    >
+                      Close Review & Back to Catalog
+                    </button>
+                  </div>
                 </div>
               ) : testQuestions.length > 0 ? (
                 /* Question Taker View */
@@ -769,7 +783,21 @@ export const MockTestView: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              ) : null}
+              ) : (
+                <div className="bg-[#121217] border border-white/10 rounded-2xl p-8 text-center space-y-4">
+                  <AlertCircle className="w-10 h-10 text-amber-400 mx-auto" />
+                  <h3 className="text-lg font-bold text-white">No Questions Available</h3>
+                  <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                    This quiz does not have active question items loaded. Please check back later or contact your administrator.
+                  </p>
+                  <button
+                    onClick={() => setActiveTest(null)}
+                    className="px-5 py-2.5 rounded-xl bg-white/10 text-xs font-bold text-white hover:bg-white/20 cursor-pointer"
+                  >
+                    Back to Catalog
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
