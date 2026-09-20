@@ -11,13 +11,21 @@ def map_dept_name(dept_raw: str) -> str:
     if not dept_raw:
         return "All"
     d = dept_raw.strip().lower()
+    if d in ["all", "all departments"]:
+        return "All"
     if d in ["cs", "cse", "computer science", "computer science & engg", "computer science (cse)"]:
         return "Computer Science & Engg"
     if d in ["it", "information technology", "information technology (it)"]:
         return "Information Technology"
-    if d in ["ece", "electronics", "electronics & comm engg", "electronics & communication (ece)"]:
+    if d in ["ece", "ec", "electronics", "electronics & comm engg", "electronics & communication (ece)"]:
         return "Electronics & Comm Engg"
-    return "All"
+    if d in ["eee", "electrical", "electrical & electronics"]:
+        return "Electrical & Electronics"
+    if d in ["mech", "me", "mechanical", "mechanical engg"]:
+        return "Mechanical Engg"
+    if d in ["civil", "ce"]:
+        return "Civil Engg"
+    return dept_raw.strip()
 
 def get_dept_code(s: str) -> str:
     if not s:
@@ -169,8 +177,22 @@ def get_test_details(test_id: str):
     if not test:
         raise HTTPException(status_code=404, detail="Mock test not found")
 
-    questions = [q for q in db.questions if q["id"] in test.get("questionIds", [])]
-    return {"test": test, "questions": questions}
+    raw_questions = [q for q in db.questions if q["id"] in test.get("questionIds", [])]
+    
+    # Hide correctOptionIndex and explanation for security before test submission
+    public_questions = []
+    for q in raw_questions:
+        public_questions.append({
+            "id": q.get("id"),
+            "title": q.get("title", ""),
+            "question": q.get("title") or q.get("question", ""),
+            "options": q.get("options", []),
+            "type": q.get("type", "Technical"),
+            "difficulty": q.get("difficulty", "Medium"),
+            "companyTag": q.get("companyTag", "General")
+        })
+
+    return {"test": test, "questions": public_questions}
 
 @router.post("/{test_id}/submit")
 def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depends(get_current_user)):
@@ -181,29 +203,40 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
     
     questions = [q for q in db.questions if q["id"] in test.get("questionIds", [])] if test else []
     
-    if req.score is not None:
-        score = req.score
-    else:
-        score = 0
-        for ans in (req.userAnswers or []):
-            q = next((item for item in questions if item["id"] == ans.questionId), None)
-            if q and q.get("correctOptionIndex") == ans.selectedOption:
-                score += 1
-
-    total = req.totalQuestions if req.totalQuestions is not None else (len(questions) if len(questions) > 0 else 10)
-    percentage = req.percentage if req.percentage is not None else (round((score / total) * 100) if total > 0 else 0)
-    
-    if req.passed is not None:
-        passed = req.passed
-    elif test:
-        passed = score >= test.get("passingMarks", round(total * 0.6))
-    else:
-        passed = percentage >= 60
-
-    user_ans_dict = {}
-    if req.userAnswers:
+    # Normalize user answers input (accepts answers dict {qId: optIdx} or userAnswers list)
+    user_ans_dict: Dict[str, int] = {}
+    if req.answers is not None:
+        user_ans_dict = req.answers
+    elif req.userAnswers:
         for ans in req.userAnswers:
             user_ans_dict[ans.questionId] = ans.selectedOption
+
+    score = 0
+    review_list = []
+
+    for q in questions:
+        q_id = str(q.get("id"))
+        correct_idx = q.get("correctOptionIndex", 0)
+        selected_idx = user_ans_dict.get(q_id, -1)
+        is_correct = (selected_idx == correct_idx)
+        if is_correct:
+            score += 1
+            
+        review_list.append({
+            "id": q_id,
+            "title": q.get("title") or q.get("question", ""),
+            "question": q.get("title") or q.get("question", ""),
+            "options": q.get("options", []),
+            "selectedOption": selected_idx,
+            "correctOptionIndex": correct_idx,
+            "isCorrect": is_correct,
+            "explanation": q.get("explanation", "")
+        })
+
+    total = len(questions) if len(questions) > 0 else (req.totalQuestions or 10)
+    percentage = round((score / total) * 100) if total > 0 else 0
+    pass_mark = test.get("passPercentage", 60) if test else 60
+    passed = percentage >= pass_mark
 
     new_score = {
         "id": f"score_{uuid.uuid4().hex[:8]}",
@@ -227,6 +260,10 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
 
     return {
         "message": "Test submitted successfully",
-        "result": new_score,
-        "testQuestions": questions
+        "score": score,
+        "totalQuestions": total,
+        "percentage": percentage,
+        "passed": passed,
+        "review": review_list,
+        "result": new_score
     }

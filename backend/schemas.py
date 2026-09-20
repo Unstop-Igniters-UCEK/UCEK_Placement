@@ -67,6 +67,7 @@ class UserAnswer(BaseModel):
     selectedOption: int
 
 class SubmitTestRequest(BaseModel):
+    answers: Optional[Dict[str, int]] = None
     userAnswers: Optional[List[UserAnswer]] = []
     timeTakenSec: Optional[int] = 0
     score: Optional[int] = None
