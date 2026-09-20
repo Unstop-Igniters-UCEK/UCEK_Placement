@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   FileCheck2,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 
 /* ─── Motion ──────────────────────────────────────────────────── */
@@ -53,12 +54,19 @@ const inputCls =
 const labelCls = 'block text-xs font-semibold text-zinc-300 mb-1.5 tracking-wide';
 
 /* ─── DEPT options ────────────────────────────────────────────── */
+import { api } from '../lib/api';
+import { parseCSVQuestions } from './MockTestView';
+
 const DEPT_OPTIONS = [
-  'Computer Science & Engg',
-  'Electronics & Comm Engg',
-  'Information Technology',
+  'All Departments',
+  'CS (Computer Science & Engg)',
+  'IT (Information Technology)',
+  'ECE (Electronics & Comm)',
+  'EEE (Electrical & Electronics)',
+  'Mechanical',
+  'Civil'
 ];
-const YEAR_OPTIONS = ['1st Year (2028)', '2nd Year (2027)', '3rd Year (2026)', '4th Year (2025)'];
+const YEAR_OPTIONS = ['All Years', '1st Year', '2nd Year', '3rd Year', '4th Year'];
 
 export const AdminMockTests: React.FC = () => {
   const { mockTests, publishTest } = useApp();
@@ -67,8 +75,10 @@ export const AdminMockTests: React.FC = () => {
   const [testTitle, setTestTitle] = useState('');
   const [duration, setDuration] = useState(30);
   const [targetDept, setTargetDept] = useState(DEPT_OPTIONS[0]);
-  const [targetYear, setTargetYear] = useState(YEAR_OPTIONS[3]);
+  const [targetYear, setTargetYear] = useState(YEAR_OPTIONS[4]);
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [parsedQuestions, setParsedQuestions] = useState<any[]>([]);
+  const [csvError, setCsvError] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -86,25 +96,83 @@ export const AdminMockTests: React.FC = () => {
     return true;
   });
 
-  const handlePublish = (e: React.FormEvent) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setCsvFile(null);
+      setParsedQuestions([]);
+      setCsvError(null);
+      return;
+    }
+    setCsvFile(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const { questions, error } = parseCSVQuestions(text);
+      if (error) {
+        setCsvError(error);
+        setParsedQuestions([]);
+      } else {
+        setCsvError(null);
+        setParsedQuestions(questions);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!testTitle.trim()) return;
+    if (parsedQuestions.length === 0) {
+      setCsvError("Please select a valid CSV file with questions.");
+      return;
+    }
     setPublishing(true);
-    setTimeout(() => {
+    setCsvError(null);
+
+    let deptCode = "All";
+    if (targetDept.includes("CS")) deptCode = "CS";
+    else if (targetDept.includes("IT")) deptCode = "IT";
+    else if (targetDept.includes("ECE")) deptCode = "ECE";
+    else if (targetDept.includes("EEE")) deptCode = "EEE";
+    else if (targetDept.includes("Mechanical")) deptCode = "Mechanical";
+    else if (targetDept.includes("Civil")) deptCode = "Civil";
+
+    let yearCode = "All";
+    if (targetYear.includes("1st")) yearCode = "1st Year";
+    else if (targetYear.includes("2nd")) yearCode = "2nd Year";
+    else if (targetYear.includes("3rd")) yearCode = "3rd Year";
+    else if (targetYear.includes("4th")) yearCode = "4th Year";
+
+    try {
+      await api.uploadCSVTest({
+        title: testTitle,
+        duration: Number(duration),
+        target_dept: deptCode,
+        target_year: yearCode,
+        questions: parsedQuestions
+      });
+
       publishTest({
         title: testTitle,
         category: 'Technical',
         durationMinutes: duration,
-        questionCount: 0,
+        questionCount: parsedQuestions.length,
         description: `Departmental assessment for ${targetDept} (${targetYear}).`,
         companyTag: undefined,
       });
+
       setPublishing(false);
       setPublishSuccess(true);
       setTestTitle('');
       setCsvFile(null);
-      setTimeout(() => setPublishSuccess(false), 3000);
-    }, 400);
+      setParsedQuestions([]);
+      if (fileRef.current) fileRef.current.value = '';
+      setTimeout(() => setPublishSuccess(false), 4000);
+    } catch (err: any) {
+      setPublishing(false);
+      setCsvError(err?.message || "Failed to publish test via API");
+    }
   };
 
   return (
@@ -234,10 +302,18 @@ export const AdminMockTests: React.FC = () => {
                   </span>
                 </div>
                 <UploadCloud className="w-4 h-4 text-zinc-500 group-hover:text-orange-400 transition-colors" />
-                <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={e => setCsvFile(e.target.files?.[0] ?? null)} />
+                <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
               </div>
             </div>
           </div>
+
+          {/* Error Message */}
+          {csvError && (
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{csvError}</span>
+            </div>
+          )}
 
           {/* Format Helper Banner */}
           <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/10 space-y-1">
@@ -250,9 +326,13 @@ export const AdminMockTests: React.FC = () => {
           {/* Action Row */}
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-2 text-xs font-medium">
-              {csvFile ? (
-                <span className="text-emerald-400 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" /> Ready to parse ({csvFile.name})
+              {parsedQuestions.length > 0 && !csvError ? (
+                <span className="text-emerald-400 flex items-center gap-1.5 font-semibold">
+                  <CheckCircle2 className="w-4 h-4" /> Ready to publish {parsedQuestions.length} question(s)
+                </span>
+              ) : csvFile ? (
+                <span className="text-amber-400 flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4" /> Parsing CSV...
                 </span>
               ) : (
                 <span className="text-zinc-500 flex items-center gap-1.5">
@@ -263,11 +343,11 @@ export const AdminMockTests: React.FC = () => {
 
             <button
               type="submit"
-              disabled={publishing}
+              disabled={publishing || parsedQuestions.length === 0}
               className="btn-primary px-6 py-2.5 rounded-xl text-xs font-bold text-black flex items-center gap-2 transition-all cursor-pointer shadow-lg active:scale-95 disabled:opacity-50 font-button"
             >
-              <Plus className="w-4 h-4" />
-              <span>{publishing ? 'Publishing Drive...' : 'Publish Quiz'}</span>
+              {publishing ? <Loader2 className="w-4 h-4 animate-spin text-black" /> : <Plus className="w-4 h-4" />}
+              <span>{publishing ? 'Publishing Drive...' : 'Publish & Assign Quiz'}</span>
             </button>
           </div>
         </form>

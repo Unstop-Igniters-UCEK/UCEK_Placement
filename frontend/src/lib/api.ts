@@ -541,3 +541,66 @@ export const getAllUsersAdminApi = async () => {
   }
 };
 
+// ─── Quiz Assignment & Exam Hub API Methods ───
+
+export async function getTests(): Promise<{ tests: any[] }> {
+  const res = await fetch(`${BASE_URL}/api/tests`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch tests');
+  return res.json();
+}
+
+export async function uploadCSVTest(data: {
+  title: string;
+  duration: number;
+  target_dept: string;
+  target_year: string;
+  questions: any[];
+}): Promise<any> {
+  const res = await fetch(`${BASE_URL}/api/tests/upload-csv-test`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to upload CSV test' }));
+    throw new Error(err.detail || 'Failed to upload CSV test');
+  }
+  return res.json();
+}
+
+export async function getTestDetails(testId: string): Promise<{ test: any; questions: any[] }> {
+  const res = await fetch(`${BASE_URL}/api/tests/${testId}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch test details');
+  return res.json();
+}
+
+export async function submitQuiz(
+  testId: string,
+  data: { answers: Record<string, number>; timeTakenSec: number }
+): Promise<any> {
+  const res = await fetch(`${BASE_URL}/api/tests/${testId}/submit`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to submit quiz' }));
+    throw new Error(err.detail || 'Failed to submit quiz');
+  }
+  return res.json();
+}
+
+export const api = {
+  getTests,
+  uploadCSVTest,
+  getTestDetails,
+  submitQuiz,
+};
+
+
+
+
