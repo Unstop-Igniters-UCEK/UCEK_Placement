@@ -416,6 +416,63 @@ export const AIResumeSuite: React.FC = React.memo(() => {
     document.body.removeChild(element);
   };
 
+  const handlePrintPdf = () => {
+    const previewEl = document.getElementById('resume-preview-document');
+    if (!previewEl) {
+      window.print();
+      return;
+    }
+
+    const printWin = window.open('', '_blank', 'width=850,height=1100');
+    if (!printWin) {
+      window.print();
+      return;
+    }
+
+    const docContent = previewEl.innerHTML;
+    const titleName = resumeData.personal.fullName || user?.name || 'Student';
+
+    printWin.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <title>${titleName} - Resume</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @page { size: A4 portrait; margin: 0; }
+    *, ::before, ::after { box-sizing: border-box; }
+    body {
+      background: #ffffff !important;
+      color: #000000 !important;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    #print-container {
+      width: 100%;
+      background: #ffffff !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="print-container">
+    ${docContent}
+  </div>
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.focus();
+        window.print();
+        setTimeout(function() { window.close(); }, 500);
+      }, 300);
+    };
+  </script>
+</body>
+</html>`);
+    printWin.document.close();
+  };
+
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.04 } }
@@ -776,7 +833,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* LEFT INPUT FORM EDITORS (Responsive Container) */}
-            <div className="lg:col-span-7 space-y-6 h-auto lg:h-[760px] lg:max-h-[760px] overflow-visible lg:overflow-y-auto pr-0 lg:pr-3.5 custom-scrollbar">
+            <div className="lg:col-span-7 space-y-6">
               {/* 1. PERSONAL HEADER INFORMATION & PROFESSIONAL SUMMARY */}
               <div className="mono-card p-4 sm:p-6 space-y-4">
                 <h3 className="font-bold text-xs text-orange-400 uppercase tracking-wider font-heading">Personal Header Information & Summary</h3>
@@ -1339,7 +1396,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => window.print()}
+                    onClick={handlePrintPdf}
                     className="btn-primary px-3.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <Printer className="w-3.5 h-3.5 text-black" />
@@ -1351,104 +1408,278 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               {/* RENDERED PREVIEW DOCUMENT PANE (Target of @media print) */}
               <div
                 id="resume-preview-document"
-                className="bg-white text-black p-6 rounded-2xl shadow-2xl space-y-4 font-sans text-xs min-h-[680px] leading-normal select-text"
+                className={`bg-white text-black rounded-2xl shadow-2xl font-sans text-xs min-h-[680px] leading-normal select-text overflow-hidden ${
+                  builderTemplate === 'modern' ? 'p-0' : 'p-6 space-y-4'
+                }`}
               >
-                {/* 1. HEADER */}
-                <div className="text-center border-b pb-3 border-gray-200">
-                  <h1 className="text-xl font-bold uppercase text-gray-900 tracking-wide">{resumeData.personal.fullName || 'HITESH'}</h1>
-                  <p className="text-[11px] text-gray-600 pt-0.5">
-                    {resumeData.personal.email} • {resumeData.personal.phone} • {resumeData.personal.location}
-                  </p>
-                  <p className="text-[11px] text-blue-700 pt-0.5">
-                    {resumeData.personal.linkedIn} • {resumeData.personal.github}
-                  </p>
-                </div>
+                {builderTemplate === 'modern' ? (
+                  /* MODERN EXEC TEMPLATE MATCHING USER SCREENSHOT */
+                  <div className="w-full text-black bg-white">
+                    {/* TOP SLANTED OLIVE GREEN BANNER HEADER */}
+                    <div className="bg-[#6b7036] text-white pt-8 pb-7 px-6 relative overflow-hidden">
+                      <div className="flex items-center justify-between pl-20 relative z-10">
+                        {/* Profile Picture Overhang */}
+                        <div className="absolute -left-2 -bottom-5 w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-zinc-200 shadow-lg shrink-0">
+                          <img
+                            src={user?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200"}
+                            alt="Profile Avatar"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="w-full text-right">
+                          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-wider uppercase text-white font-heading">
+                            {resumeData.personal.fullName || 'BRIAN LEE'}
+                          </h1>
+                        </div>
+                      </div>
+                    </div>
 
-                {/* 2. PROFESSIONAL SUMMARY */}
-                {resumeData.personal.summary && (
-                  <div>
-                    <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1">Professional Summary</h2>
-                    <p className="text-[11px] text-gray-700">{resumeData.personal.summary}</p>
+                    {/* TWO-COLUMN LAYOUT BODY */}
+                    <div className="grid grid-cols-12 gap-0 border-t-2 border-white">
+                      {/* LEFT COLUMN: CONTACT, KEY SKILLS, CERTIFICATIONS */}
+                      <div className="col-span-4 bg-[#f8f8f4] p-5 border-r border-gray-200 space-y-6">
+                        {/* CONTACT */}
+                        <div className="space-y-2">
+                          <h3 className="font-bold text-xs uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 font-heading">
+                            CONTACT
+                          </h3>
+                          <div className="space-y-2 text-[11px] text-gray-700 font-sans">
+                            {resumeData.personal.phone && (
+                              <p className="flex items-center gap-2">
+                                <span className="text-gray-900">📞</span> {resumeData.personal.phone}
+                              </p>
+                            )}
+                            {resumeData.personal.email && (
+                              <p className="flex items-center gap-2 truncate">
+                                <span className="text-gray-900">✉️</span> {resumeData.personal.email}
+                              </p>
+                            )}
+                            {resumeData.personal.linkedIn && (
+                              <p className="flex items-center gap-2 truncate">
+                                <span className="text-gray-900">🔗</span> {resumeData.personal.linkedIn}
+                              </p>
+                            )}
+                            {resumeData.personal.location && (
+                              <p className="flex items-center gap-2">
+                                <span className="text-gray-900">📍</span> {resumeData.personal.location}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* KEY SKILLS */}
+                        {resumeData.skills.length > 0 && (
+                          <div className="space-y-2">
+                            <h3 className="font-bold text-xs uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 font-heading">
+                              KEY SKILLS
+                            </h3>
+                            <div className="space-y-2">
+                              {resumeData.skills.map(sk => (
+                                <div key={sk.id} className="text-[11px]">
+                                  <strong className="text-gray-900 block font-semibold">{sk.category}</strong>
+                                  <ul className="list-disc list-inside text-gray-700 space-y-0.5 pt-0.5">
+                                    {sk.items.split(',').map((item, idx) => (
+                                      <li key={idx} className="truncate">{item.trim()}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* CERTIFICATIONS */}
+                        {resumeData.certifications.length > 0 && (
+                          <div className="space-y-2">
+                            <h3 className="font-bold text-xs uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 font-heading">
+                              CERTIFICATIONS
+                            </h3>
+                            <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-1">
+                              {resumeData.certifications.map((c, idx) => (
+                                <li key={idx}>{c}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* RIGHT COLUMN: ABOUT ME, PROFESSIONAL EXPERIENCE, TECHNICAL PROJECTS, EDUCATION */}
+                      <div className="col-span-8 p-5 space-y-6 bg-white">
+                        {/* ABOUT ME */}
+                        {resumeData.personal.summary && (
+                          <div className="space-y-1.5">
+                            <h3 className="font-bold text-xs uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 font-heading">
+                              ABOUT ME
+                            </h3>
+                            <p className="text-[11px] text-gray-700 leading-relaxed text-justify">
+                              {resumeData.personal.summary}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* PROFESSIONAL EXPERIENCE */}
+                        {resumeData.experience.length > 0 && (
+                          <div className="space-y-3">
+                            <h3 className="font-bold text-xs uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 font-heading">
+                              PROFESSIONAL EXPERIENCE
+                            </h3>
+                            {resumeData.experience.map(exp => (
+                              <div key={exp.id} className="space-y-1">
+                                <h4 className="text-[11px] font-bold text-gray-900">{exp.position}</h4>
+                                <p className="text-[10px] text-gray-600 font-mono">
+                                  {exp.company} | {exp.startDate} - {exp.endDate}
+                                </p>
+                                <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5 pt-0.5">
+                                  {exp.bullets.map((b, idx) => (
+                                    <li key={idx}>{b}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* TECHNICAL PROJECTS */}
+                        {resumeData.projects.length > 0 && (
+                          <div className="space-y-3">
+                            <h3 className="font-bold text-xs uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 font-heading">
+                              TECHNICAL PROJECTS
+                            </h3>
+                            {resumeData.projects.map(proj => (
+                              <div key={proj.id} className="space-y-1">
+                                <div className="flex justify-between items-baseline text-[11px]">
+                                  <h4 className="font-bold text-gray-900">{proj.title}</h4>
+                                  <span className="text-[10px] text-gray-600 font-mono">{proj.techStack}</span>
+                                </div>
+                                <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
+                                  {proj.bullets.map((b, idx) => (
+                                    <li key={idx}>{b}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* EDUCATION */}
+                        {resumeData.education.length > 0 && (
+                          <div className="space-y-2">
+                            <h3 className="font-bold text-xs uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 font-heading">
+                              EDUCATION
+                            </h3>
+                            {resumeData.education.map(ed => (
+                              <div key={ed.id} className="flex justify-between text-[11px]">
+                                <div>
+                                  <strong className="text-gray-900">{ed.institution}</strong> — {ed.degree} in {ed.fieldOfStudy}
+                                </div>
+                                <div className="text-gray-600 font-mono text-[10px]">{ed.startDate} - {ed.endDate} | GPA: {ed.gpa}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                )}
-
-                {/* 3. TECHNICAL SKILLS */}
-                {resumeData.skills.length > 0 && (
-                  <div>
-                    <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Technical Skills</h2>
-                    {resumeData.skills.map(sk => (
-                      <p key={sk.id} className="text-[11px] text-gray-800">
-                        <strong>{sk.category}:</strong> {sk.items}
+                ) : (
+                  <>
+                    {/* 1. HEADER */}
+                    <div className="text-center border-b pb-3 border-gray-200">
+                      <h1 className="text-xl font-bold uppercase text-gray-900 tracking-wide">{resumeData.personal.fullName || 'HITESH'}</h1>
+                      <p className="text-[11px] text-gray-600 pt-0.5">
+                        {resumeData.personal.email} • {resumeData.personal.phone} • {resumeData.personal.location}
                       </p>
-                    ))}
-                  </div>
-                )}
+                      <p className="text-[11px] text-blue-700 pt-0.5">
+                        {resumeData.personal.linkedIn} • {resumeData.personal.github}
+                      </p>
+                    </div>
 
-                {/* 4. TECHNICAL PROJECTS */}
-                {resumeData.projects.length > 0 && (
-                  <div>
-                    <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Technical Projects</h2>
-                    {resumeData.projects.map(proj => (
-                      <div key={proj.id} className="space-y-1 mb-2">
-                        <div className="flex justify-between text-[11px]">
-                          <strong className="text-gray-900">{proj.title}</strong>
-                          <span className="text-gray-600 font-mono text-[10px]">{proj.techStack}</span>
-                        </div>
+                    {/* 2. PROFESSIONAL SUMMARY */}
+                    {resumeData.personal.summary && (
+                      <div>
+                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1">Professional Summary</h2>
+                        <p className="text-[11px] text-gray-700">{resumeData.personal.summary}</p>
+                      </div>
+                    )}
+
+                    {/* 3. TECHNICAL SKILLS */}
+                    {resumeData.skills.length > 0 && (
+                      <div>
+                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Technical Skills</h2>
+                        {resumeData.skills.map(sk => (
+                          <p key={sk.id} className="text-[11px] text-gray-800">
+                            <strong>{sk.category}:</strong> {sk.items}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 4. TECHNICAL PROJECTS */}
+                    {resumeData.projects.length > 0 && (
+                      <div>
+                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Technical Projects</h2>
+                        {resumeData.projects.map(proj => (
+                          <div key={proj.id} className="space-y-1 mb-2">
+                            <div className="flex justify-between text-[11px]">
+                              <strong className="text-gray-900">{proj.title}</strong>
+                              <span className="text-gray-600 font-mono text-[10px]">{proj.techStack}</span>
+                            </div>
+                            <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
+                              {proj.bullets.map((b, i) => (
+                                <li key={i}>{b}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 5. EXPERIENCE & LEADERSHIP */}
+                    {resumeData.experience.length > 0 && (
+                      <div>
+                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Experience & Leadership</h2>
+                        {resumeData.experience.map(exp => (
+                          <div key={exp.id} className="space-y-1 mb-2">
+                            <div className="flex justify-between text-[11px]">
+                              <strong className="text-gray-900">{exp.position} — {exp.company}</strong>
+                              <span className="text-gray-600 font-mono text-[10px]">{exp.startDate} - {exp.endDate}</span>
+                            </div>
+                            <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
+                              {exp.bullets.map((b, i) => (
+                                <li key={i}>{b}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 6. EDUCATION */}
+                    {resumeData.education.length > 0 && (
+                      <div>
+                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Education</h2>
+                        {resumeData.education.map(ed => (
+                          <div key={ed.id} className="flex justify-between text-[11px] mb-1">
+                            <div>
+                              <strong className="text-gray-900">{ed.institution}</strong> — {ed.degree} in {ed.fieldOfStudy}
+                            </div>
+                            <div className="text-gray-600 font-mono text-[10px]">{ed.startDate} - {ed.endDate} | GPA: {ed.gpa}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 7. CERTIFICATIONS & ACHIEVEMENTS */}
+                    {resumeData.certifications.length > 0 && (
+                      <div>
+                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Certifications & Key Achievements</h2>
                         <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
-                          {proj.bullets.map((b, i) => (
-                            <li key={i}>{b}</li>
+                          {resumeData.certifications.map((c, i) => (
+                            <li key={i}>{c}</li>
                           ))}
                         </ul>
                       </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 5. EXPERIENCE & LEADERSHIP */}
-                {resumeData.experience.length > 0 && (
-                  <div>
-                    <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Experience & Leadership</h2>
-                    {resumeData.experience.map(exp => (
-                      <div key={exp.id} className="space-y-1 mb-2">
-                        <div className="flex justify-between text-[11px]">
-                          <strong className="text-gray-900">{exp.position} — {exp.company}</strong>
-                          <span className="text-gray-600 font-mono text-[10px]">{exp.startDate} - {exp.endDate}</span>
-                        </div>
-                        <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
-                          {exp.bullets.map((b, i) => (
-                            <li key={i}>{b}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 6. EDUCATION */}
-                {resumeData.education.length > 0 && (
-                  <div>
-                    <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Education</h2>
-                    {resumeData.education.map(ed => (
-                      <div key={ed.id} className="flex justify-between text-[11px] mb-1">
-                        <div>
-                          <strong className="text-gray-900">{ed.institution}</strong> — {ed.degree} in {ed.fieldOfStudy}
-                        </div>
-                        <div className="text-gray-600 font-mono text-[10px]">{ed.startDate} - {ed.endDate} | GPA: {ed.gpa}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 7. CERTIFICATIONS & ACHIEVEMENTS */}
-                {resumeData.certifications.length > 0 && (
-                  <div>
-                    <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Certifications & Key Achievements</h2>
-                    <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
-                      {resumeData.certifications.map((c, i) => (
-                        <li key={i}>{c}</li>
-                      ))}
-                    </ul>
-                  </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

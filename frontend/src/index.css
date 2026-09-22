@@ -331,49 +331,47 @@
     filter: none !important;
     backdrop-filter: none !important;
     box-shadow: none !important;
+    text-shadow: none !important;
+    background-color: transparent !important;
   }
 
-  html, body {
+  html, body, #root, main, div, section, article {
     background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #000000 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    overflow: hidden !important;
+  }
+
+  /* Hide navigation, sidebars, buttons, headers, footers */
+  nav, header, sidebar, aside, button, footer, canvas, svg,
+  [class*="gradient"], .fixed, .absolute {
+    display: none !important;
   }
 
   body * {
     visibility: hidden !important;
   }
 
-  nav, header, sidebar, aside, button, footer {
-    display: none !important;
-  }
-
   #resume-preview-document, #resume-preview-document * {
     visibility: visible !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
   }
 
   #resume-preview-document {
-    position: fixed !important;
+    position: absolute !important;
     left: 0 !important;
     top: 0 !important;
-    right: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
     min-height: 0 !important;
     height: auto !important;
-    page-break-after: avoid !important;
-    break-after: avoid !important;
   }
 
   #resume-preview-document h1 {
@@ -398,25 +396,10 @@
   #resume-preview-document p,
   #resume-preview-document li,
   #resume-preview-document div,
-  #resume-preview-document span {
+  #resume-preview-document span,
+  #resume-preview-document strong {
     font-size: 10pt !important;
     line-height: 1.35 !important;
     color: #111111 !important;
-  }
-
-  #resume-preview-document .space-y-4 > * + * {
-    margin-top: 6px !important;
-  }
-
-  #resume-preview-document .space-y-2 > * + * {
-    margin-top: 4px !important;
-  }
-
-  #resume-preview-document .mb-2 {
-    margin-bottom: 4px !important;
-  }
-
-  #resume-preview-document .pb-3 {
-    padding-bottom: 4px !important;
   }
 }
