@@ -157,6 +157,7 @@ export interface ResumeData {
     linkedIn: string;
     github: string;
     summary: string;
+    avatar?: string;
   };
   education: {
     id: string;

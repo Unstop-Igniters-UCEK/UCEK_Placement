@@ -448,14 +448,12 @@ export const AIResumeSuite: React.FC = React.memo(() => {
       color: #000000 !important;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       margin: 0;
-      padding: 10mm 10mm;
+      padding: 0;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
     #print-container {
       width: 100%;
-      max-width: 210mm;
-      margin: 0 auto;
       background: #ffffff !important;
       color: #000000 !important;
     }
@@ -463,11 +461,15 @@ export const AIResumeSuite: React.FC = React.memo(() => {
       border-radius: 0 !important;
       box-shadow: none !important;
       border: none !important;
+      width: 100% !important;
+    }
+    .ats-print-padding {
+      padding: 10mm 12mm !important;
     }
   </style>
 </head>
 <body>
-  <div id="print-container">
+  <div id="print-container" class="${builderTemplate === 'ats' ? 'ats-print-padding' : ''}">
     ${docContent}
   </div>
   <script>
@@ -849,6 +851,63 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               {/* 1. PERSONAL HEADER INFORMATION & PROFESSIONAL SUMMARY */}
               <div className="mono-card p-4 sm:p-6 space-y-4">
                 <h3 className="font-bold text-xs text-orange-400 uppercase tracking-wider font-heading">Personal Header Information & Summary</h3>
+                {/* PROFILE PHOTO UPLOADER (FOR MODERN EXEC TEMPLATE) */}
+                <div className="p-3 bg-[#121212] rounded-xl border border-white/10 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full border-2 border-orange-500/50 overflow-hidden bg-zinc-800 shrink-0">
+                      <img
+                        src={resumeData.personal.avatar || user?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200"}
+                        alt="Resume Photo Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-white block">Modern Exec Profile Photo</span>
+                      <span className="text-[10px] text-zinc-400 block">Upload custom headshot image (PNG / JPG)</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="px-3 py-1.5 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/40 text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const base64 = event.target?.result as string;
+                              if (base64) {
+                                setResumeData({
+                                  ...resumeData,
+                                  personal: { ...resumeData.personal, avatar: base64 }
+                                });
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    {resumeData.personal.avatar && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updatedPersonal = { ...resumeData.personal };
+                          delete updatedPersonal.avatar;
+                          setResumeData({ ...resumeData, personal: updatedPersonal });
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white text-xs font-medium border border-white/10"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="text"
@@ -1427,29 +1486,27 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                 {builderTemplate === 'modern' ? (
                   /* MODERN EXEC TEMPLATE MATCHING USER SCREENSHOT */
                   <div className="w-full text-black bg-white">
-                    {/* TOP SLANTED OLIVE GREEN BANNER HEADER */}
-                    <div className="bg-[#6b7036] text-white pt-8 pb-7 px-6 relative overflow-hidden">
-                      <div className="flex items-center justify-between pl-20 relative z-10">
-                        {/* Profile Picture Overhang */}
-                        <div className="absolute -left-2 -bottom-5 w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-zinc-200 shadow-lg shrink-0">
-                          <img
-                            src={user?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200"}
-                            alt="Profile Avatar"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="w-full text-right">
-                          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-wider uppercase text-white font-heading">
-                            {resumeData.personal.fullName || 'BRIAN LEE'}
-                          </h1>
-                        </div>
+                    {/* TOP OLIVE GREEN BANNER HEADER */}
+                    <div className="bg-[#6b7036] text-white pt-9 pb-8 px-6 relative min-h-[96px] flex items-center justify-between">
+                      {/* Profile Picture Overhang - Perfectly centered in left sidebar section */}
+                      <div className="absolute left-6 -bottom-8 w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-zinc-200 shadow-md shrink-0 z-20">
+                        <img
+                          src={resumeData.personal.avatar || user?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200"}
+                          alt="Profile Avatar"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="w-full text-right z-10">
+                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-wider uppercase text-white font-heading">
+                          {resumeData.personal.fullName || 'BRIAN LEE'}
+                        </h1>
                       </div>
                     </div>
 
                     {/* TWO-COLUMN LAYOUT BODY */}
                     <div className="grid grid-cols-12 gap-0 border-t-2 border-white">
                       {/* LEFT COLUMN: CONTACT, KEY SKILLS, CERTIFICATIONS */}
-                      <div className="col-span-4 bg-[#f8f8f4] p-5 border-r border-gray-200 space-y-6">
+                      <div className="col-span-4 bg-[#f8f8f4] px-5 pt-14 pb-6 border-r border-gray-200 space-y-6">
                         {/* CONTACT */}
                         <div className="space-y-2">
                           <h3 className="font-bold text-xs uppercase tracking-wider text-gray-900 border-b border-gray-300 pb-1 font-heading">
