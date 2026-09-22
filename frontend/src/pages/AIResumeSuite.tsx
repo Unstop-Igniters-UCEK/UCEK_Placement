@@ -435,23 +435,34 @@ export const AIResumeSuite: React.FC = React.memo(() => {
     printWin.document.write(`<!DOCTYPE html>
 <html>
 <head>
-  <title>${titleName} - Resume</title>
+  <title></title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @page { size: A4 portrait; margin: 0; }
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
     *, ::before, ::after { box-sizing: border-box; }
-    body {
+    html, body {
       background: #ffffff !important;
       color: #000000 !important;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       margin: 0;
-      padding: 0;
+      padding: 10mm 10mm;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
     #print-container {
       width: 100%;
+      max-width: 210mm;
+      margin: 0 auto;
       background: #ffffff !important;
+      color: #000000 !important;
+    }
+    #print-container > div {
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
     }
   </style>
 </head>
@@ -462,6 +473,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   <script>
     window.onload = function() {
       setTimeout(function() {
+        document.title = "";
         window.focus();
         window.print();
         setTimeout(function() { window.close(); }, 500);
@@ -1616,12 +1628,12 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                     {/* 4. TECHNICAL PROJECTS */}
                     {resumeData.projects.length > 0 && (
                       <div>
-                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Technical Projects</h2>
+                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5 font-heading">Technical Projects</h2>
                         {resumeData.projects.map(proj => (
                           <div key={proj.id} className="space-y-1 mb-2">
-                            <div className="flex justify-between text-[11px]">
-                              <strong className="text-gray-900">{proj.title}</strong>
-                              <span className="text-gray-600 font-mono text-[10px]">{proj.techStack}</span>
+                            <div className="flex justify-between items-baseline text-[11px] gap-2">
+                              <strong className="text-gray-900 leading-snug">{proj.title}</strong>
+                              <span className="text-gray-600 font-mono text-[10px] whitespace-nowrap shrink-0 ml-auto">{proj.techStack}</span>
                             </div>
                             <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
                               {proj.bullets.map((b, i) => (
@@ -1636,12 +1648,12 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                     {/* 5. EXPERIENCE & LEADERSHIP */}
                     {resumeData.experience.length > 0 && (
                       <div>
-                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Experience & Leadership</h2>
+                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5 font-heading">Experience & Leadership</h2>
                         {resumeData.experience.map(exp => (
                           <div key={exp.id} className="space-y-1 mb-2">
-                            <div className="flex justify-between text-[11px]">
-                              <strong className="text-gray-900">{exp.position} — {exp.company}</strong>
-                              <span className="text-gray-600 font-mono text-[10px]">{exp.startDate} - {exp.endDate}</span>
+                            <div className="flex justify-between items-baseline text-[11px] gap-2">
+                              <strong className="text-gray-900 leading-snug">{exp.position} — {exp.company}</strong>
+                              <span className="text-gray-600 font-mono text-[10px] whitespace-nowrap shrink-0 ml-auto">{exp.startDate} - {exp.endDate}</span>
                             </div>
                             <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
                               {exp.bullets.map((b, i) => (
@@ -1656,13 +1668,13 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                     {/* 6. EDUCATION */}
                     {resumeData.education.length > 0 && (
                       <div>
-                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Education</h2>
+                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5 font-heading">Education</h2>
                         {resumeData.education.map(ed => (
-                          <div key={ed.id} className="flex justify-between text-[11px] mb-1">
-                            <div>
+                          <div key={ed.id} className="flex justify-between items-baseline text-[11px] mb-1 gap-2">
+                            <div className="leading-snug">
                               <strong className="text-gray-900">{ed.institution}</strong> — {ed.degree} in {ed.fieldOfStudy}
                             </div>
-                            <div className="text-gray-600 font-mono text-[10px]">{ed.startDate} - {ed.endDate} | GPA: {ed.gpa}</div>
+                            <div className="text-gray-600 font-mono text-[10px] whitespace-nowrap shrink-0 ml-auto">{ed.startDate} - {ed.endDate} | GPA: {ed.gpa}</div>
                           </div>
                         ))}
                       </div>
@@ -1671,7 +1683,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                     {/* 7. CERTIFICATIONS & ACHIEVEMENTS */}
                     {resumeData.certifications.length > 0 && (
                       <div>
-                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5">Certifications & Key Achievements</h2>
+                        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-800 border-b border-gray-200 pb-0.5 mb-1.5 font-heading">Certifications & Key Achievements</h2>
                         <ul className="list-disc list-inside text-[11px] text-gray-700 space-y-0.5">
                           {resumeData.certifications.map((c, i) => (
                             <li key={i}>{c}</li>
