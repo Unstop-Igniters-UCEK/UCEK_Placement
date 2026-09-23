@@ -59,7 +59,7 @@ interface AppContextType {
   switchDemoRole: (role: UserRole) => void;
   loginUser: (email: string, password?: string, role?: string) => Promise<boolean>;
   signupUser: (newUser: Omit<User, 'id' | 'readinessScore'> & { password?: string; adminSecurityCode?: string }) => Promise<boolean>;
-  updateUserDomain: (domainName: string) => Promise<boolean>;
+  updateUserDomain: (domainName: string, phoneNumber?: string) => Promise<boolean>;
   logoutUser: () => void;
   toggleMilestone: (domainId: string, moduleId: string, milestoneId: string) => void;
   saveTestResult: (result: Omit<TestResult, 'id' | 'date'>) => void;
@@ -259,17 +259,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   }, []);
 
-  const updateUserDomain = useCallback(async (domainName: string): Promise<boolean> => {
+  const updateUserDomain = useCallback(async (domainName: string, phoneNumber?: string): Promise<boolean> => {
     try {
-      const updatedUser = await updateProfileApi({ domainInterest: domainName, hasSelectedDomain: true });
+      const payload: any = { domainInterest: domainName, hasSelectedDomain: true };
+      if (phoneNumber) payload.bio = phoneNumber;
+      const updatedUser = await updateProfileApi(payload);
       setUser(prev => prev ? {
         ...prev,
         domain: updatedUser.domainInterest || updatedUser.domain || domainName,
-        hasSelectedDomain: true
+        hasSelectedDomain: true,
+        bio: updatedUser.bio || prev.bio || (phoneNumber ? phoneNumber : undefined)
       } : null);
       return true;
     } catch {
-      setUser(prev => prev ? { ...prev, domain: domainName, hasSelectedDomain: true } : null);
+      setUser(prev => prev ? { 
+        ...prev, 
+        domain: domainName, 
+        hasSelectedDomain: true, 
+        bio: phoneNumber || prev.bio 
+      } : null);
       return true;
     }
   }, []);

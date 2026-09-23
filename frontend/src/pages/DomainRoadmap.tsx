@@ -18,7 +18,10 @@ import {
   ArrowRight,
   Check,
   X,
-  ShieldCheck
+  ShieldCheck,
+  Palette,
+  PenTool,
+  Video
 } from 'lucide-react';
 
 const DOMAIN_OPTIONS = [
@@ -39,14 +42,6 @@ const DOMAIN_OPTIONS = [
     description: 'Deep dive into Machine Learning algorithms, Data Preprocessing, Feature Engineering, Neural Networks & Generative AI.'
   },
   {
-    id: 'data_analytics_bi',
-    name: 'Data Analytics & BI',
-    tagline: 'Excel, SQL, Power BI, & Data Storytelling',
-    icon: Sparkles,
-    color: 'from-fuchsia-500 to-purple-600',
-    description: 'Master data analysis, interactive dashboard creation, business intelligence tools, and data-driven storytelling.'
-  },
-  {
     id: 'dev',
     name: 'Backend & Cloud Engineering',
     tagline: 'APIs, Databases, Cloud Services, & CI/CD',
@@ -63,14 +58,6 @@ const DOMAIN_OPTIONS = [
     description: 'Defend systems against threats, analyze logs in a SOC, and master incident response and cloud security.'
   },
   {
-    id: 'elec',
-    name: 'Core Electronics & Embedded',
-    tagline: 'Microcontrollers, Digital Circuits, & IoT',
-    icon: Compass,
-    color: 'from-blue-500 to-cyan-500',
-    description: 'Build foundations in Microcontroller Programming, RTOS, Sensor Interfacing, Embedded C, and Circuit Systems.'
-  },
-  {
     id: 'ui',
     name: 'UI/UX & Product Design',
     tagline: 'Figma, Design Systems, & User Research',
@@ -79,29 +66,38 @@ const DOMAIN_OPTIONS = [
     description: 'Craft user-centric interfaces, design systems, wireframes, interactive prototypes, and usability testing workflows.'
   },
   {
-    id: 'vlsi',
-    name: 'VLSI & Chip Design',
-    tagline: 'Verilog, ASIC Design, & FPGA Systems',
-    icon: Award,
+    id: 'graphics',
+    name: 'Graphics',
+    tagline: 'Visual Composition, Layouts, & Branding',
+    icon: Palette,
     color: 'from-emerald-500 to-teal-500',
-    description: 'Understand RTL Synthesis, Verilog/SystemVerilog programming, FPGA prototyping, and Digital IC Verification.'
+    description: 'Master the art of visual storytelling, typography, color theory, and digital graphics creation.'
   },
   {
-    id: 'mgmt',
-    name: 'Management & Consulting',
-    tagline: 'Case Studies, Financial Analysis, & Strategy',
-    icon: Clock,
-    color: 'from-sky-500 to-blue-600',
-    description: 'Develop structured problem-solving skills, business case analysis, product management fundamentals, and corporate strategy.'
+    id: 'design',
+    name: 'Design',
+    tagline: 'Creative Direction, Illustrations, & Media',
+    icon: PenTool,
+    color: 'from-blue-500 to-cyan-500',
+    description: 'Explore foundational design principles, digital illustration, and overarching creative direction.'
+  },
+  {
+    id: 'video',
+    name: 'Video Editing',
+    tagline: 'Premiere Pro, After Effects, & Motion Graphics',
+    icon: Video,
+    color: 'from-rose-500 to-pink-600',
+    description: 'Learn non-linear editing, color grading, visual effects, and dynamic motion graphics.'
   }
 ];
 
 export const DomainRoadmap: React.FC = React.memo(() => {
-  const { roadmaps, toggleMilestone, user, updateUserDomain } = useApp();
+  const { roadmaps, toggleMilestone, user, updateUserDomain, setActiveTab } = useApp();
 
-  const [isSelectModalOpen, setIsSelectModalOpen] = useState<boolean>(false);
+  const [isSelectModalOpen, setIsSelectModalOpen] = useState<boolean>(true);
   const [pendingDomain, setPendingDomain] = useState<typeof DOMAIN_OPTIONS[0] | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
 
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({
     swe_year_1: true,
@@ -123,14 +119,12 @@ export const DomainRoadmap: React.FC = React.memo(() => {
     mgmt_mod_1: true
   });
 
-  // Automatically trigger Domain Selection Popup on first-time visit if user has not confirmed domain
+  // Modal is always open by default now on this page
   useEffect(() => {
-    if (user) {
-      const localConfirmed = localStorage.getItem(`ucek_domain_confirmed_${user.id}`) === 'true';
-      if (!user.hasSelectedDomain && !localConfirmed) {
-        setIsSelectModalOpen(true);
-      } else {
-        setIsSelectModalOpen(false);
+    if (user?.bio && user?.domain) {
+      const existingDomain = DOMAIN_OPTIONS.find(d => d.name.toLowerCase() === user.domain?.toLowerCase());
+      if (existingDomain) {
+        setPendingDomain(existingDomain);
       }
     }
   }, [user]);
@@ -156,14 +150,29 @@ export const DomainRoadmap: React.FC = React.memo(() => {
 
   const handleConfirmDomain = async () => {
     if (!pendingDomain) return;
+
+    // If returning user and they are viewing their already-selected domain, just go to dashboard
+    if (user?.bio && pendingDomain.name.toLowerCase() === user.domain?.toLowerCase()) {
+      setPendingDomain(null);
+      setIsSelectModalOpen(false);
+      setActiveTab('dashboard');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      await updateUserDomain(pendingDomain.name);
+      if (!user?.bio && phoneNumber) {
+        await updateUserDomain(pendingDomain.name, phoneNumber);
+      } else {
+        await updateUserDomain(pendingDomain.name);
+      }
+      
       if (user) {
         localStorage.setItem(`ucek_domain_confirmed_${user.id}`, 'true');
       }
       setPendingDomain(null);
       setIsSelectModalOpen(false);
+      setActiveTab('dashboard');
     } catch (e) {
       console.error('Failed to update domain:', e);
     } finally {
@@ -350,18 +359,17 @@ export const DomainRoadmap: React.FC = React.memo(() => {
             >
               {/* FIXED PINNED HEADER */}
               <div className="shrink-0 p-5 sm:p-6 border-b border-white/10 bg-[#000000] relative text-center space-y-1.5 z-20">
-                {/* Close button if user already has a domain selected */}
-                {user?.hasSelectedDomain && (
-                  <button
-                    onClick={() => {
-                      setPendingDomain(null);
-                      setIsSelectModalOpen(false);
-                    }}
-                    className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-zinc-400 hover:text-white flex items-center justify-center transition-all cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                {/* Close button unconditionally shown */}
+                <button
+                  onClick={() => {
+                    setPendingDomain(null);
+                    setIsSelectModalOpen(false);
+                    setActiveTab('dashboard');
+                  }}
+                  className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-zinc-400 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
 
                 <div className="w-10 h-10 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
                   {!pendingDomain ? <Compass className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5 text-orange-400" />}
@@ -425,29 +433,44 @@ export const DomainRoadmap: React.FC = React.memo(() => {
                   /* STEP 2: CONFIRMATION STEP */
                   <div className="space-y-5 text-center max-w-md mx-auto py-2 pb-4">
                     <div className="p-4 rounded-2xl bg-[#222627] border border-white/10 text-left space-y-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-orange-400 font-mono">Included Roadmap</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-orange-400 font-mono">Domain Selected</span>
                       <h4 className="text-sm font-bold text-white">{pendingDomain.name}</h4>
-                      <p className="text-xs text-zinc-300 leading-relaxed">{pendingDomain.description}</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-sm text-zinc-300">
+                        {!user?.bio 
+                          ? "Great choice! Please provide your phone number so our placement coordinators and mentors can reach out to you with specific opportunities and guidance for this path."
+                          : "You have already registered your interest in this path. Our placement coordinators have been notified and will reach out to you."}
+                      </p>
+
+                      {!user?.bio && (
+                        <input
+                          type="tel"
+                          placeholder="Enter your 10-digit phone number"
+                          value={phoneNumber}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            if (val.length <= 10) setPhoneNumber(val);
+                          }}
+                          maxLength={10}
+                          className="w-full px-4 py-3 bg-zinc-900 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-orange-500 transition-colors"
+                        />
+                      )}
                     </div>
 
                     <div className="pt-2 flex items-center gap-3">
                       <button
-                        onClick={() => setPendingDomain(null)}
-                        className="btn-secondary flex-1 py-3 text-xs font-bold rounded-full cursor-pointer"
-                      >
-                        Back to All Domains
-                      </button>
-                      <button
                         onClick={handleConfirmDomain}
-                        disabled={isSaving}
-                        className="btn-primary flex-1 py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-1.5 shadow-xl"
+                        disabled={isSaving || (!user?.bio && phoneNumber.length !== 10)}
+                        className="btn-primary w-full py-3 text-sm font-bold rounded-full cursor-pointer flex items-center justify-center gap-1.5 shadow-xl disabled:opacity-50"
                       >
                         {isSaving ? (
                           <span>Saving...</span>
                         ) : (
                           <>
                             <Check className="w-4 h-4 text-black" />
-                            <span>Confirm & Unlock Path</span>
+                            <span>Got it</span>
                           </>
                         )}
                       </button>
