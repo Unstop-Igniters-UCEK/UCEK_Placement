@@ -149,12 +149,15 @@ function AppContent() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-          className={`w-full bg-[#000000] border-t border-white/10 py-4 text-xs font-mono transition-all duration-300 relative z-20 ${user && sidebarOpen ? 'pl-0 lg:pl-72' : 'pl-0'
+          className={`w-full bg-transparent border-t border-white/10 py-4 text-xs transition-all duration-300 relative z-20 ${user && sidebarOpen ? 'pl-0 lg:pl-72' : 'pl-0'
             }`}
         >
           <div className="max-w-[1600px] mx-auto px-4 sm:px-6 text-center">
-            <span className="font-bold text-zinc-300 tracking-[0.2em] uppercase text-[11px] font-mono">
-              Unstop Igniters Club UCEK
+            <span
+              className="font-medium text-zinc-300 tracking-[0.2em] uppercase text-[11px]"
+              style={{ fontFamily: "'Poppins', sans-serif" }}
+            >
+              UNSTOP IGNITERS CLUB UCEK
             </span>
           </div>
         </motion.footer>
