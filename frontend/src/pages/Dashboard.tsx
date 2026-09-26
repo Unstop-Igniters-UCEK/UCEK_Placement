@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
+import BlurText from '../components/BlurText';
 import { getSpeechAnalyticsApi, SpeechAnalyticsResponse } from '../lib/api';
 import { TestResult } from '../types';
 import {
@@ -49,7 +50,7 @@ export const Dashboard: React.FC = React.memo(() => {
 
   const [driveFilter, setDriveFilter] = useState<'all' | 'Company Drive' | 'Aptitude' | 'Technical'>('all');
   const [selectedReviewResult, setSelectedReviewResult] = useState<TestResult | null>(null);
-  
+
   // Pagination State (Limit of 3 items per page)
   const [currentPage, setCurrentPage] = useState<number>(1);
   const ITEMS_PER_PAGE = 3;
@@ -74,7 +75,7 @@ export const Dashboard: React.FC = React.memo(() => {
     if (user) {
       getSpeechAnalyticsApi().then(data => {
         setSpeechAnalytics(data);
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }, [user]);
 
@@ -203,14 +204,14 @@ export const Dashboard: React.FC = React.memo(() => {
       >
         {/* 2-COLUMN ASYMMETRIC EXECUTIVE BENTO GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          
+
           {/* LEFT COLUMN: HERO COMMAND CENTER + 3 PILLARS + HISTORY TABLE (8 COLUMNS) */}
           <div className="lg:col-span-8 space-y-6">
-            
+
             {/* EXECUTIVE HERO COMMAND CENTER (NAKED HEADER) */}
             <motion.div variants={itemVariants} className="py-1 relative">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-                
+
                 {/* Profile Brief & Target Info */}
                 <div className="space-y-3 flex-1">
                   <div>
@@ -218,11 +219,16 @@ export const Dashboard: React.FC = React.memo(() => {
                     <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-heading mt-0.5 flex items-center gap-3">
                       {user.name}
                     </h1>
-                    
+
                     {/* MOTIVATIONAL QUOTE */}
-                    <p className="text-xs sm:text-sm text-zinc-300/90 leading-snug font-normal max-w-xl md:max-w-2xl tracking-normal italic border-l-2 border-orange-500/70 pl-3.5 my-2 line-clamp-2">
-                      “Success in placement comes from relentless consistency. Every roadmap milestone cleared and mock drive completed brings you closer to your dream engineering role.”
-                    </p>
+                    <div className="text-xs sm:text-sm text-zinc-300/90 leading-snug font-normal max-w-xl md:max-w-2xl tracking-normal italic border-l-2 border-orange-500/70 pl-3.5 my-2">
+                      <BlurText
+                        text="Success in placement comes from relentless consistency. Every roadmap milestone cleared and mock drive completed brings you closer to your dream engineering role."
+                        delay={20}
+                        animateBy="words"
+                        direction="bottom"
+                      />
+                    </div>
                   </div>
 
                   {/* Target Drive, Domain Badge & Quick Action Links */}
@@ -246,7 +252,7 @@ export const Dashboard: React.FC = React.memo(() => {
                   <div className="absolute top-2 right-2">
                     <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
                   </div>
-                  
+
                   <div className="relative w-28 h-28 flex items-center justify-center">
                     <svg className="w-full h-full transform -rotate-90 filter drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]" viewBox="0 0 100 100">
                       <circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.06)" strokeWidth="8" fill="transparent" />
@@ -290,7 +296,7 @@ export const Dashboard: React.FC = React.memo(() => {
 
             {/* 3 PREPARATION BENTO PILLARS */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              
+
               {/* PILLAR 1: DOMAIN ROADMAP */}
               <motion.div
                 variants={itemVariants}
@@ -383,7 +389,7 @@ export const Dashboard: React.FC = React.memo(() => {
                   <div className="w-full bg-zinc-900/90 rounded-full h-1.5 overflow-hidden p-0.5 border border-white/10">
                     <div
                       className="bg-gradient-to-r from-orange-500 to-amber-400 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(249,115,22,0.4)]"
-                      style={{ width: `${testsTaken > 0 ? (testsPassed/testsTaken)*100 : 80}%` }}
+                      style={{ width: `${testsTaken > 0 ? (testsPassed / testsTaken) * 100 : 80}%` }}
                     />
                   </div>
                   <span className="text-[10px] text-zinc-400 font-medium block text-right">Avg Accuracy: 74%</span>
@@ -410,11 +416,10 @@ export const Dashboard: React.FC = React.memo(() => {
                       <button
                         key={tab}
                         onClick={() => setDriveFilter(tab)}
-                        className={`px-3.5 py-1.5 rounded-full font-medium transition-all cursor-pointer active:scale-[0.97] ${
-                          driveFilter === tab
+                        className={`px-3.5 py-1.5 rounded-full font-medium transition-all cursor-pointer active:scale-[0.97] ${driveFilter === tab
                             ? 'bg-[#000000] text-white shadow-sm font-semibold border border-white/10'
                             : 'text-zinc-400 hover:text-zinc-200'
-                        }`}
+                          }`}
                       >
                         {tab === 'all' ? 'All Drives' : tab.replace(' Drive', '')}
                       </button>
@@ -565,11 +570,10 @@ export const Dashboard: React.FC = React.memo(() => {
                               key={pageNum}
                               type="button"
                               onClick={() => setCurrentPage(pageNum)}
-                              className={`w-7 h-7 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                                safeCurrentPage === pageNum
+                              className={`w-7 h-7 rounded-full text-xs font-bold transition-all cursor-pointer ${safeCurrentPage === pageNum
                                   ? 'bg-orange-500 text-black shadow-md shadow-orange-500/20'
                                   : 'bg-[#141414] text-zinc-400 hover:text-white hover:bg-zinc-800 border border-white/10'
-                              }`}
+                                }`}
                             >
                               {pageNum}
                             </button>
@@ -596,11 +600,11 @@ export const Dashboard: React.FC = React.memo(() => {
 
           {/* RIGHT COLUMN: PRO AI HR SPEECH SIMULATOR SIDEBAR CONSOLE (4 COLUMNS) */}
           <div className="lg:col-span-4 space-y-6">
-            
+
             {/* HR SPEECH SIMULATOR MODULE */}
             <motion.div variants={itemVariants} className="mono-card p-5 sm:p-6 space-y-5 relative overflow-hidden">
               <div className="space-y-5 relative z-10">
-                
+
                 {/* Voice Engine Header */}
                 <div className="flex items-center justify-between border-b border-white/10 pb-3">
                   <div className="flex items-center gap-3">
@@ -692,225 +696,225 @@ export const Dashboard: React.FC = React.memo(() => {
               data-lenis-prevent="true"
               onClick={() => setSelectedReviewResult(null)}
             >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 12 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="mono-card p-6 max-w-3xl w-full max-h-[88vh] overflow-y-auto custom-scrollbar relative space-y-6 shadow-2xl border border-white/10 bg-[#0d0d0d]"
-              onClick={e => e.stopPropagation()}
-            >
-              {/* MODAL HEADER */}
-              <div className="flex items-start justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0">
-                    <Briefcase className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="mono-badge text-[10px] uppercase font-bold text-orange-400 bg-orange-500/10 border-orange-500/20">
-                        {selectedReviewResult.category || 'Company Drive'}
-                      </span>
-                      <span className="text-[10px] text-zinc-400 font-mono">Attempt #{String(selectedReviewResult.id || '').slice(0, 8)}</span>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 12 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="mono-card p-6 max-w-3xl w-full max-h-[88vh] overflow-y-auto custom-scrollbar relative space-y-6 shadow-2xl border border-white/10 bg-[#0d0d0d]"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* MODAL HEADER */}
+                <div className="flex items-start justify-between border-b border-white/10 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0">
+                      <Briefcase className="w-5 h-5" />
                     </div>
-                    <h2 className="text-xl font-bold text-white font-heading mt-1">
-                      {selectedReviewResult.testTitle || 'Mock Assessment Drive'}
-                    </h2>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setSelectedReviewResult(null)}
-                  className="w-8 h-8 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:border-white/20 transition-colors cursor-pointer"
-                  title="Close"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* PERFORMANCE BENTO METRICS GRID */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {/* Card 1: Status */}
-                <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
-                  <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Status</span>
-                  <div>
-                    {String(selectedReviewResult.testTitle || '').includes('DISQUALIFIED') ? (
-                      <span className="px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold inline-flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3 text-rose-400" /> Disqualified
-                      </span>
-                    ) : selectedReviewResult.passed ? (
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold inline-flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> Passed
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[11px] font-bold inline-flex items-center gap-1">
-                        <RotateCcw className="w-3 h-3" /> Retry
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Card 2: Score */}
-                <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
-                  <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Score</span>
-                  <span className="font-extrabold text-white text-base block font-heading">
-                    {selectedReviewResult.score ?? 0} <span className="text-xs text-zinc-400 font-normal">/ {selectedReviewResult.totalQuestions ?? 0}</span>
-                  </span>
-                </div>
-
-                {/* Card 3: Accuracy */}
-                <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
-                  <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Accuracy</span>
-                  <span className="font-extrabold text-orange-400 text-base block font-heading">
-                    {selectedReviewResult.accuracy ?? 0}%
-                  </span>
-                </div>
-
-                {/* Card 4: Date */}
-                <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
-                  <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Date Attempted</span>
-                  <span className="font-semibold text-zinc-200 text-xs block font-mono">
-                    {selectedReviewResult.date || 'Today'}
-                  </span>
-                </div>
-              </div>
-
-              {/* DETAILED QUESTION BREAKDOWN & ANSWERS */}
-              {(() => {
-                const selTitleLower = String(selectedReviewResult.testTitle || '').toLowerCase();
-                const matchingTest = (mockTests || []).find(
-                  t => t && (t.id === selectedReviewResult.testId || (t.title && t.title.toLowerCase() === selTitleLower))
-                ) || mockTests[0];
-
-                const questionsList = matchingTest?.questions || [];
-
-                return (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                      <h3 className="text-sm font-bold text-white font-heading flex items-center gap-2">
-                        <CheckSquare className="w-4 h-4 text-orange-400" />
-                        Detailed Question Analysis & Explanations
-                      </h3>
-                      <span className="text-[10px] text-zinc-400 font-mono">{questionsList.length} Questions</span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="mono-badge text-[10px] uppercase font-bold text-orange-400 bg-orange-500/10 border-orange-500/20">
+                          {selectedReviewResult.category || 'Company Drive'}
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-mono">Attempt #{String(selectedReviewResult.id || '').slice(0, 8)}</span>
+                      </div>
+                      <h2 className="text-xl font-bold text-white font-heading mt-1">
+                        {selectedReviewResult.testTitle || 'Mock Assessment Drive'}
+                      </h2>
                     </div>
+                  </div>
 
-                    {questionsList.length > 0 ? (
-                      <div className="space-y-4">
-                        {questionsList.map((q, idx) => {
-                          const userSelectedOpt = selectedReviewResult.userAnswers?.[q.id] ?? selectedReviewResult.userAnswers?.[`q${idx + 1}`];
-                          const isCorrect = userSelectedOpt === q.correctOption;
+                  <button
+                    onClick={() => setSelectedReviewResult(null)}
+                    className="w-8 h-8 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:border-white/20 transition-colors cursor-pointer"
+                    title="Close"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
 
-                          return (
-                            <div key={q.id || idx} className="p-4 rounded-xl bg-[#141414] border border-white/10 space-y-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-white font-mono">Q{idx + 1}.</span>
-                                    <span className="mono-badge text-[10px] py-0.5 px-2 bg-zinc-900 border-white/10 text-zinc-300">
-                                      {q.type}
-                                    </span>
-                                    <span className="text-[10px] text-zinc-400 capitalize font-mono">[{q.difficulty}]</span>
-                                  </div>
-                                  <p className="text-xs text-zinc-200 font-medium leading-relaxed">
-                                    {q.title}
-                                  </p>
-                                </div>
+                {/* PERFORMANCE BENTO METRICS GRID */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {/* Card 1: Status */}
+                  <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Status</span>
+                    <div>
+                      {String(selectedReviewResult.testTitle || '').includes('DISQUALIFIED') ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold inline-flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3 text-rose-400" /> Disqualified
+                        </span>
+                      ) : selectedReviewResult.passed ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold inline-flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Passed
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[11px] font-bold inline-flex items-center gap-1">
+                          <RotateCcw className="w-3 h-3" /> Retry
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-                                <div className="shrink-0">
-                                  {userSelectedOpt !== undefined ? (
-                                    isCorrect ? (
-                                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
-                                        <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Correct
+                  {/* Card 2: Score */}
+                  <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Score</span>
+                    <span className="font-extrabold text-white text-base block font-heading">
+                      {selectedReviewResult.score ?? 0} <span className="text-xs text-zinc-400 font-normal">/ {selectedReviewResult.totalQuestions ?? 0}</span>
+                    </span>
+                  </div>
+
+                  {/* Card 3: Accuracy */}
+                  <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Accuracy</span>
+                    <span className="font-extrabold text-orange-400 text-base block font-heading">
+                      {selectedReviewResult.accuracy ?? 0}%
+                    </span>
+                  </div>
+
+                  {/* Card 4: Date */}
+                  <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Date Attempted</span>
+                    <span className="font-semibold text-zinc-200 text-xs block font-mono">
+                      {selectedReviewResult.date || 'Today'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* DETAILED QUESTION BREAKDOWN & ANSWERS */}
+                {(() => {
+                  const selTitleLower = String(selectedReviewResult.testTitle || '').toLowerCase();
+                  const matchingTest = (mockTests || []).find(
+                    t => t && (t.id === selectedReviewResult.testId || (t.title && t.title.toLowerCase() === selTitleLower))
+                  ) || mockTests[0];
+
+                  const questionsList = matchingTest?.questions || [];
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                        <h3 className="text-sm font-bold text-white font-heading flex items-center gap-2">
+                          <CheckSquare className="w-4 h-4 text-orange-400" />
+                          Detailed Question Analysis & Explanations
+                        </h3>
+                        <span className="text-[10px] text-zinc-400 font-mono">{questionsList.length} Questions</span>
+                      </div>
+
+                      {questionsList.length > 0 ? (
+                        <div className="space-y-4">
+                          {questionsList.map((q, idx) => {
+                            const userSelectedOpt = selectedReviewResult.userAnswers?.[q.id] ?? selectedReviewResult.userAnswers?.[`q${idx + 1}`];
+                            const isCorrect = userSelectedOpt === q.correctOption;
+
+                            return (
+                              <div key={q.id || idx} className="p-4 rounded-xl bg-[#141414] border border-white/10 space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-white font-mono">Q{idx + 1}.</span>
+                                      <span className="mono-badge text-[10px] py-0.5 px-2 bg-zinc-900 border-white/10 text-zinc-300">
+                                        {q.type}
                                       </span>
-                                    ) : (
-                                      <span className="px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-bold flex items-center gap-1">
-                                        <X className="w-3 h-3 text-rose-400" /> Incorrect
-                                      </span>
-                                    )
-                                  ) : (
-                                    <span className="px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 text-zinc-400 text-[10px] font-bold">
-                                      Completed
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* OPTIONS LIST */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                                {q.options.map((optionText: string, optIdx: number) => {
-                                  const isThisCorrect = optIdx === q.correctOption;
-                                  const isThisUserSelected = optIdx === userSelectedOpt;
-
-                                  let optStyle = "bg-[#0d0d0d] border-white/5 text-zinc-300";
-                                  if (isThisCorrect) {
-                                    optStyle = "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-semibold";
-                                  } else if (isThisUserSelected && !isThisCorrect) {
-                                    optStyle = "bg-rose-500/10 border-rose-500/40 text-rose-300 font-medium";
-                                  }
-
-                                  return (
-                                    <div
-                                      key={optIdx}
-                                      className={`p-2.5 rounded-lg border flex items-center justify-between gap-2 ${optStyle}`}
-                                    >
-                                      <span className="leading-snug">{optionText}</span>
-                                      {isThisCorrect && (
-                                        <span className="text-[10px] font-bold text-emerald-400 shrink-0 font-mono">✓ Correct</span>
-                                      )}
-                                      {isThisUserSelected && !isThisCorrect && (
-                                        <span className="text-[10px] font-bold text-rose-400 shrink-0 font-mono">✗ Your Choice</span>
-                                      )}
+                                      <span className="text-[10px] text-zinc-400 capitalize font-mono">[{q.difficulty}]</span>
                                     </div>
-                                  );
-                                })}
-                              </div>
+                                    <p className="text-xs text-zinc-200 font-medium leading-relaxed">
+                                      {q.title}
+                                    </p>
+                                  </div>
 
-                              {/* EXPLANATION */}
-                              {q.explanation && (
-                                <div className="p-3 rounded-lg bg-[#0d0d0d] border border-orange-500/20 text-xs text-zinc-300 space-y-1">
-                                  <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block font-mono">Explanation</span>
-                                  <p className="text-zinc-300 leading-relaxed">{q.explanation}</p>
+                                  <div className="shrink-0">
+                                    {userSelectedOpt !== undefined ? (
+                                      isCorrect ? (
+                                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+                                          <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Correct
+                                        </span>
+                                      ) : (
+                                        <span className="px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-bold flex items-center gap-1">
+                                          <X className="w-3 h-3 text-rose-400" /> Incorrect
+                                        </span>
+                                      )
+                                    ) : (
+                                      <span className="px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 text-zinc-400 text-[10px] font-bold">
+                                        Completed
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="p-6 rounded-xl bg-[#141414] border border-white/10 text-center space-y-2">
-                        <p className="text-xs text-zinc-300">Detailed question log preview for this assessment drive.</p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
 
-              {/* MODAL FOOTER */}
-              <div className="flex items-center justify-between border-t border-white/10 pt-4 gap-3">
-                <button
-                  onClick={() => setSelectedReviewResult(null)}
-                  className="px-5 py-2.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white transition-all cursor-pointer"
-                >
-                  Close Review
-                </button>
+                                {/* OPTIONS LIST */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                  {q.options.map((optionText: string, optIdx: number) => {
+                                    const isThisCorrect = optIdx === q.correctOption;
+                                    const isThisUserSelected = optIdx === userSelectedOpt;
 
-                <button
-                  onClick={() => {
-                    setSelectedReviewResult(null);
-                    setActiveTab('tests');
-                  }}
-                  className="btn-primary py-2.5 px-6 text-xs font-bold rounded-full cursor-pointer flex items-center gap-2 shadow-lg"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-black" />
-                  <span>Retake Drive in Mock Suite</span>
-                </button>
-              </div>
+                                    let optStyle = "bg-[#0d0d0d] border-white/5 text-zinc-300";
+                                    if (isThisCorrect) {
+                                      optStyle = "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-semibold";
+                                    } else if (isThisUserSelected && !isThisCorrect) {
+                                      optStyle = "bg-rose-500/10 border-rose-500/40 text-rose-300 font-medium";
+                                    }
+
+                                    return (
+                                      <div
+                                        key={optIdx}
+                                        className={`p-2.5 rounded-lg border flex items-center justify-between gap-2 ${optStyle}`}
+                                      >
+                                        <span className="leading-snug">{optionText}</span>
+                                        {isThisCorrect && (
+                                          <span className="text-[10px] font-bold text-emerald-400 shrink-0 font-mono">✓ Correct</span>
+                                        )}
+                                        {isThisUserSelected && !isThisCorrect && (
+                                          <span className="text-[10px] font-bold text-rose-400 shrink-0 font-mono">✗ Your Choice</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* EXPLANATION */}
+                                {q.explanation && (
+                                  <div className="p-3 rounded-lg bg-[#0d0d0d] border border-orange-500/20 text-xs text-zinc-300 space-y-1">
+                                    <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block font-mono">Explanation</span>
+                                    <p className="text-zinc-300 leading-relaxed">{q.explanation}</p>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-6 rounded-xl bg-[#141414] border border-white/10 text-center space-y-2">
+                          <p className="text-xs text-zinc-300">Detailed question log preview for this assessment drive.</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* MODAL FOOTER */}
+                <div className="flex items-center justify-between border-t border-white/10 pt-4 gap-3">
+                  <button
+                    onClick={() => setSelectedReviewResult(null)}
+                    className="px-5 py-2.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white transition-all cursor-pointer"
+                  >
+                    Close Review
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setSelectedReviewResult(null);
+                      setActiveTab('tests');
+                    }}
+                    className="btn-primary py-2.5 px-6 text-xs font-bold rounded-full cursor-pointer flex items-center gap-2 shadow-lg"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-black" />
+                    <span>Retake Drive in Mock Suite</span>
+                  </button>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>,
-      document.body
-    )}
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 });
