@@ -20,7 +20,7 @@ import {
 export const Sidebar: React.FC = React.memo(() => {
   const { user, logoutUser, activeTab, setActiveTab, sidebarOpen, setSidebarOpen } = useApp();
 
-  if (!user) return null;
+  if (!user || user.role !== 'admin') return null;
 
   const navItems = user.role === 'admin' ? [
     { id: 'admin-dashboard', label: 'Admin Dashboard', icon: LayoutDashboard },

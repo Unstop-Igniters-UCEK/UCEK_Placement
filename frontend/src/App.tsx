@@ -2,6 +2,7 @@ import React, { useEffect, useRef, lazy, Suspense } from 'react';
 import { useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
+import { StudentNavHeader } from './components/StudentNavHeader';
 import { LandingPage } from './pages/LandingPage';
 import { AuthModal } from './components/AuthModal';
 import OrangeBlackGradient from './components/OrangeBlackGradient';
@@ -97,8 +98,11 @@ function AppContent() {
         {/* Header shown only on Landing Page / Unauthenticated */}
         {!user && <Header />}
 
-        {/* Static Sidebar shown for Logged-In User */}
-        {user && <Sidebar />}
+        {/* Sidebar shown only for Logged-In Admin */}
+        {user && user.role === 'admin' && <Sidebar />}
+
+        {/* Student Dashboard Header + Horizontal Pill Navigation */}
+        {user && user.role !== 'admin' && <StudentNavHeader />}
 
         {/* Main Content Area */}
         {!user ? (
@@ -109,15 +113,17 @@ function AppContent() {
           <>
             {/* Dashboard 21st.dev Static Orange-Black Gradient Background Layer */}
             <div
-              className={`fixed inset-0 z-0 opacity-100 overflow-hidden transform-gpu pointer-events-none transition-all duration-300 ${sidebarOpen ? 'pl-0 lg:pl-72' : 'pl-0'
-                }`}
+              className={`fixed inset-0 z-0 opacity-100 overflow-hidden transform-gpu pointer-events-none transition-all duration-300 ${
+                user.role === 'admin' && sidebarOpen ? 'pl-0 lg:pl-72' : 'pl-0'
+              }`}
               style={{ transform: 'translateZ(0)' }}
             >
               <OrangeBlackGradient />
             </div>
 
-            <main className={`flex-1 w-full relative z-10 transition-all duration-300 p-4 sm:p-6 lg:p-8 ${sidebarOpen ? 'pl-0 lg:pl-72' : 'pl-0'
-              }`}>
+            <main className={`flex-1 w-full relative z-10 transition-all duration-300 p-4 sm:p-6 lg:p-8 ${
+              user.role === 'admin' && sidebarOpen ? 'pl-0 lg:pl-72' : 'pl-0'
+            }`}>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}

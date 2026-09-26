@@ -213,15 +213,8 @@ export const Dashboard: React.FC = React.memo(() => {
                 
                 {/* Profile Brief & Target Info */}
                 <div className="space-y-3 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="mono-badge">
-                      <GraduationCap className="w-3.5 h-3.5 text-orange-400" />
-                      Batch {user.year} • {user.branch}
-                    </span>
-                  </div>
-
                   <div>
-                    <span className="text-xs font-semibold text-zinc-400 tracking-wide">Welcome Back,</span>
+                    <span className="text-sm sm:text-base font-medium text-zinc-400 tracking-wide">Welcome Back,</span>
                     <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-heading mt-0.5 flex items-center gap-3">
                       {user.name}
                     </h1>
