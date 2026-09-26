@@ -22,8 +22,8 @@ export const Header: React.FC = React.memo(() => {
             <GraduationCap className="w-6 h-6 text-black" />
           </div>
           <span
-            className="text-xl sm:text-2xl font-bold text-white tracking-tight group-hover:text-orange-400 transition-colors"
-            style={{ fontFamily: "'Poppins', sans-serif" }}
+            className="text-xl sm:text-2xl font-normal text-white tracking-tight group-hover:text-orange-400 transition-colors"
+            style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400 }}
           >
             Impulse
           </span>
