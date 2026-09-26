@@ -33,8 +33,8 @@ export const AuthModal: React.FC = React.memo(() => {
   // Signup form state
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
-  const [signupYear, setSignupYear] = useState('4th Year');
-  const [signupBranch, setSignupBranch] = useState('CSE');
+  const [signupYear, setSignupYear] = useState('');
+  const [signupBranch, setSignupBranch] = useState('');
   const [signupDomain, setSignupDomain] = useState('Software Engineering');
   const [signupPassword, setSignupPassword] = useState('');
   const [adminSecurityCode, setAdminSecurityCode] = useState('');
@@ -56,6 +56,8 @@ export const AuthModal: React.FC = React.memo(() => {
     setOtpCode('');
     setNewPassword('');
     setAdminSecurityCode('');
+    setSignupYear('');
+    setSignupBranch('');
     setErrorMsg(null);
     setSuccessMsg(null);
   };
@@ -96,6 +98,14 @@ export const AuthModal: React.FC = React.memo(() => {
     }
     if (selectedRole === 'admin' && !adminSecurityCode.trim()) {
       setErrorMsg('Please enter the secret Admin Security Passcode.');
+      return;
+    }
+    if (!signupBranch) {
+      setErrorMsg('Please select your Branch.');
+      return;
+    }
+    if (!signupYear) {
+      setErrorMsg(selectedRole === 'admin' ? 'Please select your Designation.' : 'Please select your Year.');
       return;
     }
 
@@ -162,14 +172,14 @@ export const AuthModal: React.FC = React.memo(() => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+          transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md font-sans"
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            initial={{ opacity: 0, scale: 0.96, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 8 }}
-            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+            exit={{ opacity: 0, scale: 0.97, y: 8 }}
+            transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
             style={{ transformOrigin: 'center' }}
             className="relative w-full max-w-sm bg-[#0d0d12]/95 border border-white/15 backdrop-blur-2xl rounded-3xl shadow-2xl overflow-hidden text-white font-sans"
           >
@@ -203,7 +213,7 @@ export const AuthModal: React.FC = React.memo(() => {
                   setAuthModalOpen(false);
                   handleResetState();
                 }}
-                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -217,7 +227,7 @@ export const AuthModal: React.FC = React.memo(() => {
                     setErrorMsg(null);
                     setAuthModalMode('login');
                   }}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
                     authModalMode === 'login'
                       ? 'bg-white text-black font-bold shadow-md'
                       : 'text-zinc-400 hover:text-white hover:bg-white/5'
@@ -230,7 +240,7 @@ export const AuthModal: React.FC = React.memo(() => {
                     setErrorMsg(null);
                     setAuthModalMode('signup');
                   }}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
                     authModalMode === 'signup'
                       ? 'bg-white text-black font-bold shadow-md'
                       : 'text-zinc-400 hover:text-white hover:bg-white/5'
@@ -247,8 +257,11 @@ export const AuthModal: React.FC = React.memo(() => {
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setSelectedRole('mentee')}
-                    className={`px-2 py-1.5 rounded-full text-[10px] font-bold text-center transition-all cursor-pointer ${
+                    onClick={() => {
+                      setSelectedRole('mentee');
+                      setSignupYear('');
+                    }}
+                    className={`px-2 py-1.5 rounded-full text-[10px] font-bold text-center transition-all cursor-pointer active:scale-[0.98] ${
                       selectedRole === 'mentee'
                         ? 'bg-white text-black shadow-sm'
                         : 'bg-white/5 text-zinc-400 border border-white/10 hover:bg-white/10 hover:text-white'
@@ -258,8 +271,11 @@ export const AuthModal: React.FC = React.memo(() => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedRole('admin')}
-                    className={`px-2 py-1.5 rounded-full text-[10px] font-bold text-center transition-all cursor-pointer ${
+                    onClick={() => {
+                      setSelectedRole('admin');
+                      setSignupYear('');
+                    }}
+                    className={`px-2 py-1.5 rounded-full text-[10px] font-bold text-center transition-all cursor-pointer active:scale-[0.98] ${
                       selectedRole === 'admin'
                         ? 'bg-white text-black shadow-sm'
                         : 'bg-white/5 text-zinc-400 border border-white/10 hover:bg-white/10 hover:text-white'
@@ -273,326 +289,399 @@ export const AuthModal: React.FC = React.memo(() => {
 
             {/* Body Form */}
             <div className="p-5">
-              {errorMsg && (
-                <div className="mb-4 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-2.5 text-xs text-rose-300">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              {successMsg && (
-                <div className="mb-4 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2.5 text-xs text-emerald-300">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                  <span>{successMsg}</span>
-                </div>
-              )}
-
-              {/* TAB 1: LOGIN */}
-              {authModalMode === 'login' && (
-                <form onSubmit={handleLoginSubmit} className="space-y-3.5 font-sans">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-zinc-300">Email Address</label>
-                    <input
-                      type="email"
-                      className="w-full bg-white/5 text-xs text-white px-4 py-2.5 rounded-full border border-white/15 outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans placeholder-zinc-500"
-                      placeholder="student@gmail.com or official email"
-                      value={loginEmail}
-                      onChange={e => setLoginEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-semibold text-zinc-300">Password</label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setErrorMsg(null);
-                          setSuccessMsg(null);
-                          setAuthModalMode('forgot');
-                        }}
-                        className="text-[10px] text-zinc-400 font-semibold hover:text-white hover:underline cursor-pointer"
-                      >
-                        Forgot Password?
-                      </button>
+              <AnimatePresence>
+                {errorMsg && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                    exit={{ opacity: 0, y: -6, height: 0 }}
+                    transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                    className="overflow-hidden mb-4"
+                  >
+                    <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-2.5 text-xs text-rose-300">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                      <span>{errorMsg}</span>
                     </div>
-                    <div className="relative">
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {successMsg && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                    exit={{ opacity: 0, y: -6, height: 0 }}
+                    transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                    className="overflow-hidden mb-4"
+                  >
+                    <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2.5 text-xs text-emerald-300">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                      <span>{successMsg}</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence mode="wait">
+                {/* TAB 1: LOGIN */}
+                {authModalMode === 'login' && (
+                  <motion.form
+                    key="login"
+                    onSubmit={handleLoginSubmit}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                    className="space-y-3.5 font-sans"
+                  >
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Email Address</label>
                       <input
-                        type={showLoginPassword ? "text" : "password"}
-                        className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-2.5 rounded-full border border-white/15 outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans placeholder-zinc-500"
-                        placeholder="••••••••"
-                        value={loginPassword}
-                        onChange={e => setLoginPassword(e.target.value)}
+                        type="email"
+                        className="w-full bg-white/5 text-xs text-white px-4 py-2.5 rounded-full border border-white/15 outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans placeholder-zinc-500"
+                        placeholder="student@gmail.com or official email"
+                        value={loginEmail}
+                        onChange={e => setLoginEmail(e.target.value)}
                         required
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowLoginPassword(!showLoginPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
-                        title={showLoginPassword ? "Hide password" : "Show password"}
-                        aria-label={showLoginPassword ? "Hide password" : "Show password"}
-                        tabIndex={-1}
-                      >
-                        {showLoginPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button type="submit" className="btn-primary w-full py-3 text-xs font-bold mt-1 rounded-full shadow-lg cursor-pointer">
-                    <LogIn className="w-3.5 h-3.5 text-black" />
-                    <span>Sign In as {selectedRole === 'admin' ? 'Admin' : 'Student'}</span>
-                  </button>
-                </form>
-              )}
-
-              {/* TAB 2: SIGNUP */}
-              {authModalMode === 'signup' && (
-                <form onSubmit={handleSignupSubmit} className="space-y-3 font-sans">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-zinc-300">Full Name</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white/5 text-xs text-white px-4 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
-                      placeholder={selectedRole === 'admin' ? 'Administrator Name' : 'Anand Nair'}
-                      value={signupName}
-                      onChange={e => setSignupName(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-zinc-300">Email Address</label>
-                    <input
-                      type="email"
-                      className="w-full bg-white/5 text-xs text-white px-4 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
-                      placeholder="student@gmail.com or official email"
-                      value={signupEmail}
-                      onChange={e => setSignupEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-zinc-300">Year / Designation</label>
-                      <CustomSelect
-                        value={signupYear}
-                        onChange={setSignupYear}
-                        options={
-                          selectedRole === 'admin'
-                            ? ['Faculty Admin', 'Placement Cell Officer']
-                            : ['1st Year', '2nd Year', '3rd Year', '4th Year']
-                        }
-                      />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-zinc-300">Branch</label>
-                      <CustomSelect
-                        value={signupBranch}
-                        onChange={setSignupBranch}
-                        options={['CSE', 'ECE', 'IT']}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-zinc-300">Domain Interest</label>
-                    <CustomSelect
-                      value={signupDomain}
-                      onChange={setSignupDomain}
-                      options={[
-                        'Software Engineering',
-                        'Data Science & AI',
-                        'Data Analytics & BI',
-                        'Backend & Cloud Engineering',
-                        'Cybersecurity & SOC',
-                        'Core Electronics & Embedded',
-                        'UI/UX & Product Design',
-                        'VLSI & Chip Design',
-                        'Management & Consulting'
-                      ]}
-                    />
-                  </div>
-
-                  {selectedRole === 'admin' && (
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-zinc-300">Admin Security Passcode</label>
-                      <div className="relative">
-                        <input
-                          type={showAdminCode ? "text" : "password"}
-                          className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
-                          placeholder="Enter secret faculty passcode"
-                          value={adminSecurityCode}
-                          onChange={e => setAdminSecurityCode(e.target.value)}
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowAdminCode(!showAdminCode)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
-                          title={showAdminCode ? "Hide passcode" : "Show passcode"}
-                          aria-label={showAdminCode ? "Hide passcode" : "Show passcode"}
-                          tabIndex={-1}
-                        >
-                          {showAdminCode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-zinc-300">Password</label>
-                    <div className="relative">
-                      <input
-                        type={showSignupPassword ? "text" : "password"}
-                        className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
-                        placeholder="Min 8 characters"
-                        value={signupPassword}
-                        onChange={e => setSignupPassword(e.target.value)}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowSignupPassword(!showSignupPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
-                        title={showSignupPassword ? "Hide password" : "Show password"}
-                        aria-label={showSignupPassword ? "Hide password" : "Show password"}
-                        tabIndex={-1}
-                      >
-                        {showSignupPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button type="submit" className="btn-primary w-full py-3 text-xs font-bold rounded-full mt-1 cursor-pointer">
-                    <UserPlus className="w-3.5 h-3.5 text-black" />
-                    <span>Register {selectedRole === 'admin' ? 'Admin' : 'Student'} Account</span>
-                  </button>
-                </form>
-              )}
-
-              {/* TAB 3: DEDICATED FORGOT PASSWORD */}
-              {authModalMode === 'forgot' && (
-                <div className="space-y-4 font-sans">
-                  {isResetSuccess ? (
-                    <div className="text-center py-3 space-y-4">
-                      <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-lg">
-                        <CheckCircle2 className="w-6 h-6" />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-base font-bold text-white font-sans">Password Reset Successful!</h4>
-                        <p className="text-xs text-zinc-400 max-w-xs mx-auto leading-relaxed">
-                          Your password has been updated in Supabase. Click below to return to the landing page and sign in with your new password.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthModalOpen(false);
-                          handleResetState();
-                        }}
-                        className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-lg mt-2"
-                      >
-                        <LogIn className="w-4 h-4 text-black" />
-                        <span>Return to Landing Page & Sign In</span>
-                      </button>
-                    </div>
-                  ) : otpStep === 'email' ? (
-                    <form onSubmit={handleSendOtp} className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-zinc-300">Registered Email Address</label>
-                        <input
-                          type="email"
-                          className="w-full bg-white/5 text-xs text-white px-4 py-3 rounded-full border border-white/15 outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans placeholder-zinc-500"
-                          placeholder="e.g. student@gmail.com"
-                          value={forgotEmail}
-                          onChange={e => setForgotEmail(e.target.value)}
-                          required
-                        />
-                      </div>
-
-                      <button type="submit" className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-lg">
-                        <KeyRound className="w-4 h-4 text-black" />
-                        <span>Send Verification Code</span>
-                      </button>
-
-                      <div className="pt-2 text-center">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-semibold text-zinc-300">Password</label>
                         <button
                           type="button"
                           onClick={() => {
-                            setAuthModalMode('login');
                             setErrorMsg(null);
                             setSuccessMsg(null);
+                            setAuthModalMode('forgot');
                           }}
-                          className="text-xs text-zinc-400 hover:text-white font-medium hover:underline cursor-pointer"
+                          className="text-[10px] text-zinc-400 font-semibold hover:text-white hover:underline cursor-pointer"
                         >
-                          ← Back to Sign In
+                          Forgot Password?
                         </button>
                       </div>
-                    </form>
-                  ) : (
-                    <form onSubmit={handleVerifyOtpReset} className="space-y-3.5">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-zinc-300">6-Digit Verification Code</label>
+                      <div className="relative">
                         <input
-                          type="text"
-                          maxLength={6}
-                          className="w-full bg-white/5 text-sm font-mono font-bold tracking-[0.4em] text-center text-white px-4 py-3 rounded-full border border-white/20 outline-none focus:border-white focus:ring-1 focus:ring-white transition-all"
-                          placeholder="123456"
-                          value={otpCode}
-                          onChange={e => setOtpCode(e.target.value)}
+                          type={showLoginPassword ? "text" : "password"}
+                          className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-2.5 rounded-full border border-white/15 outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans placeholder-zinc-500"
+                          placeholder="••••••••"
+                          value={loginPassword}
+                          onChange={e => setLoginPassword(e.target.value)}
                           required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowLoginPassword(!showLoginPassword)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
+                          title={showLoginPassword ? "Hide password" : "Show password"}
+                          aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                          tabIndex={-1}
+                        >
+                          {showLoginPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button type="submit" className="btn-primary w-full py-3 text-xs font-bold mt-1 rounded-full shadow-lg hover:scale-[1.01] active:scale-[0.98] transition-transform duration-100 cursor-pointer">
+                      <LogIn className="w-3.5 h-3.5 text-black" />
+                      <span>Sign In as {selectedRole === 'admin' ? 'Admin' : 'Student'}</span>
+                    </button>
+                  </motion.form>
+                )}
+
+                {/* TAB 2: SIGNUP */}
+                {authModalMode === 'signup' && (
+                  <motion.form
+                    key="signup"
+                    onSubmit={handleSignupSubmit}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                    className="space-y-3 font-sans"
+                  >
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Full Name</label>
+                      <input
+                        type="text"
+                        className="w-full bg-white/5 text-xs text-white px-4 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
+                        placeholder={selectedRole === 'admin' ? 'Administrator Name' : 'Anand Nair'}
+                        value={signupName}
+                        onChange={e => setSignupName(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Email Address</label>
+                      <input
+                        type="email"
+                        className="w-full bg-white/5 text-xs text-white px-4 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
+                        placeholder="student@gmail.com or official email"
+                        value={signupEmail}
+                        onChange={e => setSignupEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-zinc-300">
+                          {selectedRole === 'admin' ? 'Designation' : 'Year'}
+                        </label>
+                        <CustomSelect
+                          value={signupYear}
+                          onChange={setSignupYear}
+                          placeholder={selectedRole === 'admin' ? 'Select designation...' : 'Select year...'}
+                          options={
+                            selectedRole === 'admin'
+                              ? ['Faculty Admin', 'Placement Cell Officer']
+                              : ['1st Year', '2nd Year', '3rd Year', '4th Year']
+                          }
                         />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-zinc-300">New Password</label>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-zinc-300">Branch</label>
+                        <CustomSelect
+                          value={signupBranch}
+                          onChange={setSignupBranch}
+                          placeholder="Select branch..."
+                          options={['CSE', 'ECE', 'IT']}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Domain Interest</label>
+                      <CustomSelect
+                        value={signupDomain}
+                        onChange={setSignupDomain}
+                        options={[
+                          'Software Engineering',
+                          'Data Science & AI',
+                          'Data Analytics & BI',
+                          'Backend & Cloud Engineering',
+                          'Cybersecurity & SOC',
+                          'Core Electronics & Embedded',
+                          'UI/UX & Product Design',
+                          'VLSI & Chip Design',
+                          'Management & Consulting'
+                        ]}
+                      />
+                    </div>
+
+                    {selectedRole === 'admin' && (
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-zinc-300">Admin Security Passcode</label>
                         <div className="relative">
                           <input
-                            type={showNewPassword ? "text" : "password"}
-                            className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-3 rounded-full border border-white/15 outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans placeholder-zinc-500"
-                            placeholder="Min 6 characters"
-                            value={newPassword}
-                            onChange={e => setNewPassword(e.target.value)}
+                            type={showAdminCode ? "text" : "password"}
+                            className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
+                            placeholder="Enter secret faculty passcode"
+                            value={adminSecurityCode}
+                            onChange={e => setAdminSecurityCode(e.target.value)}
                             required
                           />
                           <button
                             type="button"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            onClick={() => setShowAdminCode(!showAdminCode)}
                             className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
-                            title={showNewPassword ? "Hide password" : "Show password"}
-                            aria-label={showNewPassword ? "Hide password" : "Show password"}
+                            title={showAdminCode ? "Hide passcode" : "Show passcode"}
+                            aria-label={showAdminCode ? "Hide passcode" : "Show passcode"}
                             tabIndex={-1}
                           >
-                            {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            {showAdminCode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                           </button>
                         </div>
                       </div>
+                    )}
 
-                      <button type="submit" className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-lg">
-                        <KeyRound className="w-4 h-4 text-black" />
-                        <span>Reset Password & Sign In</span>
-                      </button>
-
-                      <div className="pt-1 text-center">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-zinc-300">Password</label>
+                      <div className="relative">
+                        <input
+                          type={showSignupPassword ? "text" : "password"}
+                          className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
+                          placeholder="Min 8 characters"
+                          value={signupPassword}
+                          onChange={e => setSignupPassword(e.target.value)}
+                          required
+                        />
                         <button
                           type="button"
-                          onClick={() => {
-                            setOtpStep('email');
-                            setErrorMsg(null);
-                            setSuccessMsg(null);
-                          }}
-                          className="text-xs text-zinc-400 hover:text-white font-medium hover:underline cursor-pointer"
+                          onClick={() => setShowSignupPassword(!showSignupPassword)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
+                          title={showSignupPassword ? "Hide password" : "Show password"}
+                          aria-label={showSignupPassword ? "Hide password" : "Show password"}
+                          tabIndex={-1}
                         >
-                          Change Email Address
+                          {showSignupPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                         </button>
                       </div>
-                    </form>
-                  )}
-                </div>
-              )}
+                    </div>
+
+                    <button type="submit" className="btn-primary w-full py-3 text-xs font-bold rounded-full mt-1 cursor-pointer hover:scale-[1.01] active:scale-[0.98] transition-transform duration-100">
+                      <UserPlus className="w-3.5 h-3.5 text-black" />
+                      <span>Register {selectedRole === 'admin' ? 'Admin' : 'Student'} Account</span>
+                    </button>
+                  </motion.form>
+                )}
+
+                {/* TAB 3: DEDICATED FORGOT PASSWORD */}
+                {authModalMode === 'forgot' && (
+                  <motion.div
+                    key="forgot"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                    className="space-y-4 font-sans"
+                  >
+                    <AnimatePresence mode="wait">
+                      {isResetSuccess ? (
+                        <motion.div
+                          key="reset-success"
+                          initial={{ opacity: 0, scale: 0.98 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.98 }}
+                          transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                          className="text-center py-3 space-y-4"
+                        >
+                          <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-lg">
+                            <CheckCircle2 className="w-6 h-6" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="text-base font-bold text-white font-sans">Password Reset Successful!</h4>
+                            <p className="text-xs text-zinc-400 max-w-xs mx-auto leading-relaxed">
+                              Your password has been updated in Supabase. Click below to return to the landing page and sign in with your new password.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAuthModalOpen(false);
+                              handleResetState();
+                            }}
+                            className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-lg mt-2 active:scale-[0.98] transition-transform duration-100"
+                          >
+                            <LogIn className="w-4 h-4 text-black" />
+                            <span>Return to Landing Page & Sign In</span>
+                          </button>
+                        </motion.div>
+                      ) : otpStep === 'email' ? (
+                        <motion.form
+                          key="otp-email"
+                          onSubmit={handleSendOtp}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                          className="space-y-4"
+                        >
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-zinc-300">Registered Email Address</label>
+                            <input
+                              type="email"
+                              className="w-full bg-white/5 text-xs text-white px-4 py-3 rounded-full border border-white/15 outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans placeholder-zinc-500"
+                              placeholder="e.g. student@gmail.com"
+                              value={forgotEmail}
+                              onChange={e => setForgotEmail(e.target.value)}
+                              required
+                            />
+                          </div>
+
+                          <button type="submit" className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform duration-100">
+                            <KeyRound className="w-4 h-4 text-black" />
+                            <span>Send Verification Code</span>
+                          </button>
+
+                          <div className="pt-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAuthModalOpen(false);
+                                handleResetState();
+                              }}
+                              className="text-xs text-zinc-400 hover:text-white font-medium hover:underline cursor-pointer"
+                            >
+                              ← Back to Sign In
+                            </button>
+                          </div>
+                        </motion.form>
+                      ) : (
+                        <motion.form
+                          key="otp-verify"
+                          onSubmit={handleVerifyOtpReset}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                          className="space-y-3.5"
+                        >
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-zinc-300">6-Digit Verification Code</label>
+                            <input
+                              type="text"
+                              maxLength={6}
+                              className="w-full bg-white/5 text-sm font-mono font-bold tracking-[0.4em] text-center text-white px-4 py-3 rounded-full border border-white/20 outline-none focus:border-white focus:ring-1 focus:ring-white transition-all"
+                              placeholder="123456"
+                              value={otpCode}
+                              onChange={e => setOtpCode(e.target.value)}
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-zinc-300">New Password</label>
+                            <div className="relative">
+                              <input
+                                type={showNewPassword ? "text" : "password"}
+                                className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-3 rounded-full border border-white/15 outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans placeholder-zinc-500"
+                                placeholder="Min 6 characters"
+                                value={newPassword}
+                                onChange={e => setNewPassword(e.target.value)}
+                                required
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
+                                title={showNewPassword ? "Hide password" : "Show password"}
+                                aria-label={showNewPassword ? "Hide password" : "Show password"}
+                                tabIndex={-1}
+                              >
+                                {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          <button type="submit" className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform duration-100">
+                            <KeyRound className="w-4 h-4 text-black" />
+                            <span>Reset Password & Sign In</span>
+                          </button>
+
+                          <div className="pt-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOtpStep('email');
+                                setErrorMsg(null);
+                                setSuccessMsg(null);
+                              }}
+                              className="text-xs text-zinc-400 hover:text-white font-medium hover:underline cursor-pointer"
+                            >
+                              Change Email Address
+                            </button>
+                          </div>
+                        </motion.form>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         </motion.div>
