@@ -104,7 +104,7 @@ export const LandingPage: React.FC = React.memo(() => {
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)] w-full flex items-center justify-center font-sans overflow-hidden py-6 sm:py-12">
-      
+
       {/* Installed ReactBits Grainient Component - EXACT USER PARAMETERS */}
       <div className="fixed inset-0 w-full h-full z-0 pointer-events-auto">
         <Grainient
@@ -135,26 +135,23 @@ export const LandingPage: React.FC = React.memo(() => {
 
       {/* Main Container Layout */}
       <div className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6">
-        
-        <div className={`w-full transition-all duration-300 ease-out ${
-          authMode ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center' : 'max-w-4xl mx-auto text-center'
-        }`}>
-          
+
+        <div className={`w-full transition-all duration-300 ease-out ${authMode ? 'grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center' : 'max-w-4xl mx-auto text-center'
+          }`}>
+
           {/* HERO CONTENT BLOCK */}
           <motion.div
             layout
             transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
-            className={`w-full ${
-              authMode ? 'lg:col-span-7 text-left space-y-5 pr-0 lg:pr-4' : 'text-center space-y-6'
-            } pointer-events-auto`}
+            className={`w-full ${authMode ? 'lg:col-span-7 text-left space-y-5 pr-0 lg:pr-4' : 'text-center space-y-6'
+              } pointer-events-auto`}
           >
             {/* Main Display Heading (INDEPENDENT SYNE FONT STYLING) */}
-            <h1 
-              className={`font-extrabold tracking-tight text-white leading-[1.1] sm:leading-[1.08] flex flex-wrap items-center gap-x-3 gap-y-1 sm:gap-y-2 drop-shadow-md ${
-                authMode 
-                  ? 'text-2xl sm:text-4xl lg:text-5xl justify-start text-left' 
+            <h1
+              className={`font-extrabold tracking-tight text-white leading-[1.1] sm:leading-[1.08] flex flex-wrap items-center gap-x-3 gap-y-1 sm:gap-y-2 drop-shadow-md ${authMode
+                  ? 'text-2xl sm:text-4xl lg:text-5xl justify-start text-left'
                   : 'text-3xl xs:text-4xl sm:text-6xl lg:text-7xl justify-center text-center'
-              }`}
+                }`}
               style={{ fontFamily: "'Syne', -apple-system, sans-serif" }}
             >
               <span className="inline-block max-w-full sm:whitespace-nowrap">
@@ -168,25 +165,22 @@ export const LandingPage: React.FC = React.memo(() => {
 
             {/* Subheadings & Description */}
             <div className="space-y-4">
-              <h2 className={`font-bold text-white uppercase tracking-wider font-mono opacity-95 drop-shadow-sm ${
-                authMode ? 'text-base sm:text-lg' : 'text-lg sm:text-2xl'
-              }`}>
+              <h2 className={`font-bold text-white uppercase tracking-wider font-mono opacity-95 drop-shadow-sm ${authMode ? 'text-base sm:text-lg' : 'text-lg sm:text-2xl'
+                }`}>
                 Campus Placement Suite
               </h2>
 
-              <h3 className={`font-semibold text-zinc-200 font-sans drop-shadow-sm ${
-                authMode ? 'text-sm sm:text-base' : 'text-base sm:text-lg'
-              }`}>
+              <h3 className={`font-semibold text-zinc-200 font-sans drop-shadow-sm ${authMode ? 'text-sm sm:text-base' : 'text-base sm:text-lg'
+                }`}>
                 University College of Engineering Kariavattom
               </h3>
 
-              <p 
-                className={`text-xs sm:text-sm font-light text-white leading-relaxed drop-shadow-md ${
-                  authMode ? 'max-w-lg' : 'max-w-2xl mx-auto'
-                }`}
+              <p
+                className={`text-xs sm:text-sm font-light text-white leading-relaxed drop-shadow-md ${authMode ? 'max-w-lg' : 'max-w-2xl mx-auto'
+                  }`}
                 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 300 }}
               >
-                The official placement preparation engine for UCEK engineering students. Verify ATS compliance, complete mock placement drives, and connect with senior alumni.
+                The official placement preparation platform for UCEK students. Build a solid path to successful placement. Verify ATS compliance, Complete mock placement tests, Practice Interviews, and much more.
               </p>
             </div>
 
@@ -254,22 +248,20 @@ export const LandingPage: React.FC = React.memo(() => {
                     <button
                       type="button"
                       onClick={() => handleRoleSelect('mentee')}
-                      className={`py-2 px-3 rounded-full text-xs font-semibold border transition-all text-center cursor-pointer active:scale-[0.98] ${
-                        selectedRole === 'mentee'
+                      className={`py-2 px-3 rounded-full text-xs font-semibold border transition-all text-center cursor-pointer active:scale-[0.98] ${selectedRole === 'mentee'
                           ? 'bg-white text-black border-white font-bold shadow-md'
                           : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10'
-                      }`}
+                        }`}
                     >
                       Student
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRoleSelect('admin')}
-                      className={`py-2 px-3 rounded-full text-xs font-semibold border transition-all text-center cursor-pointer active:scale-[0.98] ${
-                        selectedRole === 'admin'
+                      className={`py-2 px-3 rounded-full text-xs font-semibold border transition-all text-center cursor-pointer active:scale-[0.98] ${selectedRole === 'admin'
                           ? 'bg-white text-black border-white font-bold shadow-md'
                           : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10'
-                      }`}
+                        }`}
                     >
                       Admin
                     </button>
