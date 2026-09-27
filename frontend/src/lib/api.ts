@@ -251,6 +251,68 @@ export async function logoutApi(): Promise<void> {
   }
 }
 
+/**
+ * Persist a roadmap milestone toggle to the backend database.
+ * Called after the optimistic UI update in AppContext.toggleMilestone.
+ */
+export async function toggleMilestoneApi(
+  moduleId: string,
+  milestoneId: string,
+  completed: boolean
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/roadmap/toggle`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ moduleId, milestoneId, completed }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { detail?: string })?.detail || `Failed to save milestone: ${res.status}`);
+  }
+}
+
+/**
+ * Fetch the authenticated student's personalized roadmap from Supabase via backend.
+ */
+export async function getRoadmapApi(): Promise<any> {
+  const res = await fetch(`${BASE_URL}/api/roadmap`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    return null;
+  }
+  const data = await res.json();
+  return data.roadmap || null;
+}
+
+/**
+ * Fetch authentic HR interview questions directly from Supabase hr_practice_questions table.
+ */
+export async function getHrQuestionsApi(companyTag: string = 'all'): Promise<any[]> {
+  const res = await fetch(`${BASE_URL}/api/ai/hr-questions?companyTag=${encodeURIComponent(companyTag)}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    return [];
+  }
+  const data = await res.json();
+  return Array.isArray(data.questions) ? data.questions : [];
+}
+
+/**
+ * Fetch active mentors directly from Supabase users table (where role == 'mentor').
+ */
+export async function getMentorsApi(): Promise<any[]> {
+  const res = await fetch(`${BASE_URL}/api/mentors`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    return [];
+  }
+  const data = await res.json();
+  return Array.isArray(data.mentors) ? data.mentors : [];
+}
+
 // ─── AI Suite: HR Interview Analysis ───────────────────────────────────────
 
 export interface InterviewAnalysisRequest {
@@ -264,6 +326,11 @@ export interface InterviewEvaluation {
   overallScore: number;       // 0-100
   confidenceScore: number;    // 0-100
   technicalAccuracy: number;  // 0-100
+  wpm?: number;
+  fillerCount?: number;
+  fillerWords?: string[];
+  tone?: string;
+  transcript?: string;
   aiFeedback: {
     strengths: string[];
     areasForImprovement: string[];
@@ -296,41 +363,29 @@ export async function analyzeInterview(
 }
 
 export interface SpeechAnalyticsResponse {
-  wpm: number;
-  confidenceScore: number;
-  starFramework: string;
-  fillerCount: string;
+  hasEvaluations: boolean;
+  wpm: number | null;
+  confidenceScore: number | null;
+  starFramework: string | null;
+  fillerCount: string | null;
   totalEvaluations: number;
   featuredPrompts: string[];
 }
 
 /**
  * Fetch real speech analytics metrics & practice prompts from the backend.
+ * Throws on network errors so the caller can display an appropriate state.
  */
 export async function getSpeechAnalyticsApi(): Promise<SpeechAnalyticsResponse> {
-  try {
-    const res = await fetch(`${BASE_URL}/api/ai/speech-analytics`, {
-      headers: authHeaders(),
-    });
+  const res = await fetch(`${BASE_URL}/api/ai/speech-analytics`, {
+    headers: authHeaders(),
+  });
 
-    if (!res.ok) {
-      throw new Error(`Failed to fetch analytics: ${res.status}`);
-    }
-
-    return await res.json();
-  } catch {
-    return {
-      wpm: 135,
-      confidenceScore: 92,
-      starFramework: 'Aligned',
-      fillerCount: '0 Detects',
-      totalEvaluations: 0,
-      featuredPrompts: [
-        'Tell me about a technical project challenge at UCEK and how you solved it.',
-        'Why do you want to join our core engineering team?'
-      ],
-    };
+  if (!res.ok) {
+    throw new Error(`Failed to fetch speech analytics: ${res.status}`);
   }
+
+  return await res.json();
 }
 
 /**

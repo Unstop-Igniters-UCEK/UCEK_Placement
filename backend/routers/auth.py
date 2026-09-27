@@ -11,7 +11,6 @@ from backend.schemas import (
     RegisterRequest, LoginRequest, ForgotPasswordRequest,
     ResetPasswordRequest, DemoLoginRequest, SendOTPRequest, VerifyOTPResetRequest
 )
-from backend.mock_data import DEFAULT_ROADMAPS
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
@@ -30,7 +29,7 @@ def register(request: Request, req: RegisterRequest, response: Response):
                 detail=f"Registration restricted to official college email (@{ALLOWED_EMAIL_DOMAIN})"
             )
 
-    existing = next((u for u in db.users if u.get("email", "").strip().lower() == email), None)
+    existing = db.get_user_by_email(email)
     if existing:
         raise HTTPException(status_code=400, detail="User already exists with this email")
 
@@ -65,50 +64,7 @@ def register(request: Request, req: RegisterRequest, response: Response):
         "createdAt": now_str
     }
 
-    db.users.append(new_user)
-
-    # Direct Supabase Relational User Table Insert
-    from backend.database import supabase_client
-    if supabase_client:
-        try:
-            reg_payload = {
-                "id": new_user["id"],
-                "name": new_user["name"],
-                "email": new_user["email"],
-                "password_hash": new_user["passwordHash"],
-                "role": new_user["role"],
-                "year": new_user["year"],
-                "branch": new_user["branch"],
-                "domain_interest": new_user["domainInterest"],
-                "is_verified": True,
-                "readiness_score": None,
-                "created_at": now_str
-            }
-            try:
-                supabase_client.table("users").upsert(reg_payload).execute()
-            except Exception as e_reg:
-                err_s = str(e_reg)
-                if "has_selected_domain" in err_s:
-                    reg_payload.pop("has_selected_domain", None)
-                supabase_client.table("users").upsert(reg_payload).execute()
-            print(f"[Supabase] Registered user {new_user['email']} directly to Supabase users table!")
-        except Exception as e:
-            print("[Supabase Direct User Register Error]:", e)
-
-    # Initialize domain roadmap if student/mentee selected a domain
-    if new_user.get("domainInterest"):
-        domain = new_user["domainInterest"]
-        modules = DEFAULT_ROADMAPS.get(domain, DEFAULT_ROADMAPS["Software Engineering"])
-        db.userRoadmaps.append({
-            "id": f"map_{user_id}",
-            "userId": user_id,
-            "domain": domain,
-            "overallProgress": 0,
-            "modules": modules,
-            "lastUpdated": now_str
-        })
-
-    db.save()
+    db.save_user(new_user)
 
     user_payload = {
         "id": new_user["id"],
@@ -146,7 +102,7 @@ def register(request: Request, req: RegisterRequest, response: Response):
 @limiter.limit("5/minute")
 def login(request: Request, req: LoginRequest, response: Response):
     email = req.email.strip().lower()
-    user = next((u for u in db.users if u["email"].lower() == email), None)
+    user = db.get_user_by_email(email)
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -191,11 +147,12 @@ def login(request: Request, req: LoginRequest, response: Response):
     access_token = create_access_token({"id": user["id"], "email": user["email"], "role": user["role"], "name": user["name"]})
     refresh_token = create_refresh_token(user["id"])
 
+    is_secure = os.getenv("ENVIRONMENT", "").lower() == "production" or os.getenv("NODE_ENV", "").lower() == "production"
     response.set_cookie(
         key="ucek_refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,
+        secure=is_secure,
         samesite="lax",
         max_age=7 * 24 * 3600
     )
@@ -211,17 +168,14 @@ def demo_login(req: DemoLoginRequest, response: Response):
     role = req.role.lower()
     user = None
     if role == "admin":
-        user = next((u for u in db.users if u["id"] == "u_admin"), None)
+        user = db.get_user_by_id("u_admin") or db.get_user_by_id("u_admin_ucek")
     elif role == "mentor":
-        user = next((u for u in db.users if u["id"] == "u_mentor"), None)
+        user = db.get_user_by_id("u_mentor")
     else:
-        user = next((u for u in db.users if u["id"] == "u_student"), None)
+        user = db.get_user_by_id("u_student")
 
     if not user:
-        user = db.users[0] if len(db.users) > 0 else None
-
-    if not user:
-        raise HTTPException(status_code=404, detail="Demo account not found")
+        raise HTTPException(status_code=404, detail=f"Demo account not found for role '{role}'")
 
     user_payload = {
         "id": user["id"],
@@ -244,11 +198,12 @@ def demo_login(req: DemoLoginRequest, response: Response):
     access_token = create_access_token({"id": user["id"], "email": user["email"], "role": user["role"], "name": user["name"]})
     refresh_token = create_refresh_token(user["id"])
 
+    is_secure = os.getenv("ENVIRONMENT", "").lower() == "production" or os.getenv("NODE_ENV", "").lower() == "production"
     response.set_cookie(
         key="ucek_refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,
+        secure=is_secure,
         samesite="lax",
         max_age=7 * 24 * 3600
     )
@@ -270,7 +225,7 @@ def refresh_token_endpoint(response: Response, cookie_val: str = None):
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     user_id = payload.get("id")
-    user = next((u for u in db.users if u["id"] == user_id), None)
+    user = db.get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
@@ -351,7 +306,7 @@ def send_resend_email(to_email: str, otp_code: str) -> bool:
 @limiter.limit("3/minute")
 def send_otp(request: Request, req: SendOTPRequest):
     email = req.email.strip().lower()
-    user = next((u for u in db.users if u.get("email", "").strip().lower() == email), None)
+    user = db.get_user_by_email(email)
     if not user:
         return {
             "message": f"If an account exists for {email}, a verification code has been dispatched.",
@@ -381,7 +336,7 @@ def send_otp(request: Request, req: SendOTPRequest):
 @limiter.limit("5/minute")
 def verify_otp_reset(request: Request, req: VerifyOTPResetRequest):
     email = req.email.strip().lower()
-    user = next((u for u in db.users if u.get("email", "").strip().lower() == email), None)
+    user = db.get_user_by_email(email)
     if not user:
         raise HTTPException(status_code=404, detail="User account not found")
 

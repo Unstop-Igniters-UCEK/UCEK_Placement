@@ -60,7 +60,7 @@ def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depen
         )
     payload = decode_token(token)
     user_id = payload.get("id")
-    user = next((u for u in db.users if u["id"] == user_id), None)
+    user = db.get_user_by_id(user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -77,6 +77,7 @@ def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials
             return None
         payload = decode_token(token)
         user_id = payload.get("id")
-        return next((u for u in db.users if u["id"] == user_id), None)
+        return db.get_user_by_id(user_id)
     except Exception:
         return None
+

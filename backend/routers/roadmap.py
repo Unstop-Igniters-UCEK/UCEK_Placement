@@ -3,44 +3,21 @@ from fastapi import APIRouter, Depends, HTTPException
 from backend.database import db
 from backend.auth import get_current_user
 from backend.schemas import ToggleMilestoneRequest
-from backend.mock_data import DEFAULT_ROADMAPS
 
 router = APIRouter(prefix="/api/roadmap", tags=["roadmap"])
 
 @router.get("")
 def get_roadmap(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
-    roadmap = next((r for r in db.userRoadmaps if r["userId"] == user_id), None)
-    if not roadmap and current_user.get("hasSelectedDomain") and current_user.get("domainInterest"):
-        domain = current_user.get("domainInterest")
-        roadmap = {
-            "id": f"map_{user_id}",
-            "userId": user_id,
-            "domain": domain,
-            "overallProgress": 0,
-            "modules": DEFAULT_ROADMAPS.get(domain, DEFAULT_ROADMAPS["Software Engineering"]),
-            "lastUpdated": datetime.now().isoformat()
-        }
-        db.userRoadmaps.append(roadmap)
-        db.save()
-
+    roadmap = db.get_user_roadmap(user_id)
     return {"roadmap": roadmap}
 
 @router.post("/toggle")
 def toggle_milestone(req: ToggleMilestoneRequest, current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
-    roadmap = next((r for r in db.userRoadmaps if r["userId"] == user_id), None)
+    roadmap = db.get_user_roadmap(user_id)
     if not roadmap:
-        domain = current_user.get("domainInterest", "Software Engineering")
-        roadmap = {
-            "id": f"map_{user_id}",
-            "userId": user_id,
-            "domain": domain,
-            "overallProgress": 0,
-            "modules": DEFAULT_ROADMAPS.get(domain, DEFAULT_ROADMAPS["Software Engineering"]),
-            "lastUpdated": datetime.now().isoformat()
-        }
-        db.userRoadmaps.append(roadmap)
+        raise HTTPException(status_code=404, detail="No roadmap found for user")
 
     total_milestones = 0
     completed_milestones = 0
@@ -60,6 +37,7 @@ def toggle_milestone(req: ToggleMilestoneRequest, current_user: dict = Depends(g
     roadmap["overallProgress"] = progress
     roadmap["lastUpdated"] = datetime.now().isoformat()
 
-    db.save()
+    db.save_roadmap(roadmap)
 
     return {"message": "Milestone toggled", "roadmap": roadmap}
+

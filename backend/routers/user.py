@@ -1,9 +1,8 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
-from backend.database import db, get_user_readiness_metrics
+from backend.database import db, get_user_readiness_metrics, calculate_user_readiness
 from backend.auth import get_current_user
 from backend.schemas import ProfileUpdateRequest
-from backend.mock_data import DEFAULT_ROADMAPS
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 
@@ -16,46 +15,19 @@ def get_readiness(current_user: dict = Depends(get_current_user)):
 def get_dashboard(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     
-    # User roadmap
+    # User roadmap directly queried from Supabase user_roadmaps table
     roadmap = None
     if current_user.get("hasSelectedDomain") and current_user.get("domainInterest"):
-        roadmap = next((r for r in db.userRoadmaps if str(r.get("userId")) == str(user_id)), None)
-        if not roadmap:
-            domain = current_user.get("domainInterest")
-            roadmap = {
-                "id": f"map_{user_id}",
-                "userId": user_id,
-                "domain": domain,
-                "overallProgress": 0,
-                "modules": DEFAULT_ROADMAPS.get(domain, DEFAULT_ROADMAPS["Software Engineering"]),
-                "lastUpdated": ""
-            }
-            db.userRoadmaps.append(roadmap)
-            db.save()
+        roadmap = db.get_user_roadmap(user_id)
 
-    # Recent test scores
-    user_scores = [s for s in db.testScores if str(s.get("userId")) == str(user_id)]
+    # Recent test scores directly queried from Supabase test_scores table
+    user_scores = db.get_user_test_scores(user_id)
 
-    # Genuine readiness metrics
+    # Genuine readiness metrics calculated strictly from real Supabase DB data
     readiness_metrics = get_user_readiness_metrics(user_id)
 
-    # Recommended mentors matching domain
-    mentors = [
-        {
-            "id": u["id"],
-            "name": u["name"],
-            "email": u["email"],
-            "role": u["role"],
-            "year": u["year"],
-            "branch": u["branch"],
-            "domainInterest": u["domainInterest"],
-            "bio": u.get("bio", "Experienced senior mentor at UCEK ready to help with Placement prep."),
-            "linkedInUrl": u.get("linkedInUrl"),
-            "githubUrl": u.get("githubUrl"),
-            "readinessScore": u.get("readinessScore", 85)
-        }
-        for u in db.users if u["role"] == "mentor"
-    ]
+    # Mentors queried directly from Supabase users table where role == 'mentor'
+    mentors = db.get_all_mentors()
 
     user_payload = {
         "id": current_user["id"],
@@ -85,7 +57,7 @@ def get_dashboard(current_user: dict = Depends(get_current_user)):
 
 @router.put("/profile")
 def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_current_user)):
-    user = next((u for u in db.users if u["id"] == current_user["id"]), None)
+    user = db.get_user_by_id(current_user["id"])
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -100,26 +72,11 @@ def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_c
     if req.domainInterest is not None:
         user["domainInterest"] = req.domainInterest
         user["hasSelectedDomain"] = True
-        user_map = next((r for r in db.userRoadmaps if r["userId"] == user["id"]), None)
-        if user_map:
-            user_map["domain"] = req.domainInterest
-            user_map["modules"] = DEFAULT_ROADMAPS.get(req.domainInterest, DEFAULT_ROADMAPS["Software Engineering"])
-            user_map["overallProgress"] = 0
-            user_map["lastUpdated"] = datetime.now().isoformat()
-        else:
-            db.userRoadmaps.append({
-                "id": f"map_{user['id']}",
-                "userId": user["id"],
-                "domain": req.domainInterest,
-                "overallProgress": 0,
-                "modules": DEFAULT_ROADMAPS.get(req.domainInterest, DEFAULT_ROADMAPS["Software Engineering"]),
-                "lastUpdated": datetime.now().isoformat()
-            })
 
     if req.targetDrive is not None:
         user["targetDrive"] = req.targetDrive.strip()
 
-    db.save()
+    db.save_user(user)
 
     updated_payload = {
         "id": user["id"],
@@ -131,7 +88,7 @@ def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_c
         "domainInterest": user["domainInterest"] if user.get("hasSelectedDomain") else None,
         "hasSelectedDomain": user.get("hasSelectedDomain", False),
         "isVerified": user.get("isVerified", True),
-        "readinessScore": user.get("readinessScore", 75),
+        "readinessScore": calculate_user_readiness(user["id"]),
         "bio": user.get("bio"),
         "linkedInUrl": user.get("linkedInUrl"),
         "githubUrl": user.get("githubUrl"),
@@ -139,3 +96,4 @@ def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_c
     }
 
     return {"message": "Profile updated successfully", "user": updated_payload}
+

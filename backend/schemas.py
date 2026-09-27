@@ -24,7 +24,7 @@ class RegisterRequest(BaseModel):
         return sanitize_text(v)
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
     role: Optional[str] = None
 

@@ -231,3 +231,22 @@ export interface JDMatchResult {
   tailoredBullets: string[];
   summary?: string;
 }
+
+export const EMPTY_RESUME_DATA: ResumeData = {
+  template: 'ats',
+  personal: {
+    fullName: '',
+    email: '',
+    phone: '',
+    location: '',
+    linkedIn: '',
+    github: '',
+    summary: ''
+  },
+  education: [],
+  experience: [],
+  projects: [],
+  skills: [],
+  certifications: []
+};
+

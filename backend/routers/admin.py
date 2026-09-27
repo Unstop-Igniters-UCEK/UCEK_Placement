@@ -16,7 +16,7 @@ def get_dashboard_stats(
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin authorization required")
 
-    all_users = getattr(db, "users", [])
+    all_users = db.get_all_users_admin()
     students = [u for u in all_users if u.get("role") != "admin"]
 
     if year and year != "All" and year != "All Years":
@@ -42,7 +42,7 @@ def get_dashboard_stats(
 
     student_ids = set(str(u.get("id")) for u in students)
 
-    test_scores = getattr(db, "testScores", []) or []
+    test_scores = db.get_all_test_scores_admin()
     raw_resumes = (getattr(db, "resumeReviews", []) or []) + (getattr(db, "resumes", []) or [])
 
     # Deduplicate resume reviews by ID
@@ -106,16 +106,18 @@ def get_dashboard_stats(
 
 @router.get("/analytics")
 def get_admin_analytics(current_user: dict = Depends(get_current_user)):
-    total_students = len([u for u in db.users if u["role"] == "mentee" or u["role"] == "student"])
-    scores = [s["percentage"] for s in db.testScores]
-    avg_score = round(sum(scores) / len(scores)) if len(scores) > 0 else 72
+    all_users = db.get_all_users_admin()
+    test_scores = db.get_all_test_scores_admin()
+    total_students = len([u for u in all_users if u.get("role") == "mentee" or u.get("role") == "student"])
+    scores = [s["percentage"] for s in test_scores if "percentage" in s and s["percentage"] is not None]
+    avg_score = round(sum(scores) / len(scores)) if len(scores) > 0 else None
 
     return {
-        "totalStudents": total_students or len(db.users),
+        "totalStudents": total_students or len(all_users),
         "averageScore": avg_score,
-        "activeRoadmaps": len(db.userRoadmaps),
-        "totalMockTestsTaken": len(db.testScores),
-        "recentRegistrations": db.users[-5:]
+        "activeRoadmaps": len(getattr(db, "userRoadmaps", [])),
+        "totalMockTestsTaken": len(test_scores),
+        "recentRegistrations": all_users[-5:] if all_users else []
     }
 
 @router.post("/questions")
@@ -136,7 +138,22 @@ def create_question(req: CreateQuestionRequest, current_user: dict = Depends(get
     }
 
     db.questions.append(new_q)
-    db.save()
+    # Sync just this new question to Supabase
+    from backend.database import supabase_client
+    if supabase_client:
+        try:
+            supabase_client.table("questions").upsert({
+                "id": str(new_q["id"]),
+                "title": str(new_q.get("title", "")),
+                "type": str(new_q.get("type", "MCQ")),
+                "difficulty": str(new_q.get("difficulty", "Medium")),
+                "options": new_q.get("options", []),
+                "correct_option_index": int(new_q.get("correctOptionIndex", 0)),
+                "explanation": str(new_q.get("explanation", "")),
+                "company_tag": str(new_q.get("companyTag", "General"))
+            }, on_conflict="id").execute()
+        except Exception as e:
+            print("[Supabase question save notice]:", e)
 
     return {"message": "Question added to UCEK Question Bank", "question": new_q}
 
@@ -145,12 +162,12 @@ def update_user_role(req: UpdateRoleRequest, current_user: dict = Depends(get_cu
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin authorization required")
 
-    user = next((u for u in db.users if u["id"] == req.userId), None)
+    user = db.get_user_by_id(req.userId)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     user["role"] = req.role
-    db.save()
+    db.save_user(user)
 
     return {"message": f"User role updated to {req.role}"}
 
@@ -159,7 +176,7 @@ def get_all_users(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin authorization required")
     
-    all_users = getattr(db, "users", [])
+    all_users = db.get_all_users_admin()
     
     # Return user details including role
     users_data = []
@@ -171,7 +188,8 @@ def get_all_users(current_user: dict = Depends(get_current_user)):
             "role": u.get("role", "mentee"),
             "branch": u.get("branch", "N/A"),
             "year": u.get("year", "N/A"),
-            "readinessScore": u.get("readinessScore", 75),
+            "readinessScore": calculate_user_readiness(u.get("id")),
         })
 
     return {"users": users_data}
+

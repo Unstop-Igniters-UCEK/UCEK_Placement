@@ -63,16 +63,14 @@ def is_year_match(t_year: str, user_year: str) -> bool:
 
 @router.get("")
 def get_tests(current_user: dict = Depends(get_current_user)):
+    all_tests = db.get_mock_tests()
     # Filter out empty 0-question dummy tests
     valid_tests = []
-    for test in db.mockTests:
+    for test in all_tests:
         q_ids = test.get("questionIds") or test.get("questions") or test.get("question_ids") or []
         tot = test.get("totalQuestions") or len(q_ids)
         if tot > 0 and len(q_ids) > 0:
             valid_tests.append(test)
-
-    # Sync cleaned array back to db
-    db.mockTests = valid_tests
 
     user_role = current_user.get("role", "mentee")
     if user_role == "admin":
@@ -115,7 +113,6 @@ def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_
             "correctOptionIndex": q.correctOptionIndex,
             "explanation": q.explanation or ""
         }
-        db.questions.append(q_obj)
         question_ids.append(q_id)
         created_questions.append(q_obj)
 
@@ -142,8 +139,8 @@ def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_
         "target_year": raw_year
     }
 
-    db.mockTests.append(new_test)
-    db.save()
+    db.save_questions(created_questions)
+    db.save_mock_test(new_test)
 
     return {
         "message": "Departmental quiz created successfully via CSV upload",
@@ -153,49 +150,36 @@ def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_
 
 @router.get("/history/my")
 def get_test_history(current_user: dict = Depends(get_current_user)):
-    user_scores = [s for s in db.testScores if str(s.get("userId")) == str(current_user["id"])]
+    user_scores = db.get_user_test_scores(current_user["id"])
     return {"scores": user_scores}
 
 @router.delete("/history/my")
 def clear_test_history(current_user: dict = Depends(get_current_user)):
     user_id = str(current_user["id"])
-    
-    # 1. Remove from in-memory / app_state JSON
-    db.testScores = [s for s in db.testScores if str(s.get("userId")) != user_id]
-    
-    # 2. Remove from Supabase relational table explicitly
-    try:
-        from backend.database import supabase_client
-        if supabase_client:
-            supabase_client.table('test_scores').delete().eq('user_id', user_id).execute()
-    except Exception as e:
-        print("[Supabase test_scores clear notice]:", e)
-        
-    db.save()
+    db.delete_user_test_scores(user_id)
     return {"message": "Test history cleared successfully"}
+
 
 @router.get("/{test_id}")
 def get_test_details(test_id: str):
-    test = next((t for t in db.mockTests if str(t.get("id")) == str(test_id)), None)
+    test = db.get_mock_test_by_id(test_id)
     if not test:
         raise HTTPException(status_code=404, detail="Mock test not found")
 
     q_ids = test.get("questionIds") or test.get("questions") or test.get("question_ids") or []
     raw_questions = []
 
-    # Extract question objects from db.questions or embedded list
+    # Extract question objects from db or query via question_ids
+    string_ids = []
     if isinstance(q_ids, list):
         for item in q_ids:
             if isinstance(item, dict):
                 raw_questions.append(item)
             elif isinstance(item, str):
-                found_q = next((q for q in db.questions if str(q.get("id")) == item), None)
-                if found_q:
-                    raw_questions.append(found_q)
+                string_ids.append(item)
 
-    # Fallback if no questions matched by ID
-    if not raw_questions:
-        raw_questions = [q for q in db.questions if str(q.get("id")) in [str(x) for x in q_ids if isinstance(x, str)]]
+    if string_ids:
+        raw_questions.extend(db.get_questions_by_ids(string_ids))
 
     # Hide correctOptionIndex and explanation for security before test submission
     public_questions = []
@@ -215,21 +199,22 @@ def get_test_details(test_id: str):
 
 @router.post("/{test_id}/submit")
 def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depends(get_current_user)):
-    test = next((t for t in db.mockTests if str(t.get("id")) == str(test_id)), None)
+    test = db.get_mock_test_by_id(test_id)
     
     test_title = req.testTitle or (test["title"] if test else "Mock Assessment Drive")
     category = req.category or (test.get("category") if test else "Company Drive")
     
     q_ids = test.get("questionIds") or test.get("questions") or test.get("question_ids") or [] if test else []
     questions = []
+    string_ids = []
     if isinstance(q_ids, list):
         for item in q_ids:
             if isinstance(item, dict):
                 questions.append(item)
             elif isinstance(item, str):
-                found_q = next((q for q in db.questions if str(q.get("id")) == item), None)
-                if found_q:
-                    questions.append(found_q)
+                string_ids.append(item)
+    if string_ids:
+        questions.extend(db.get_questions_by_ids(string_ids))
     
     # Normalize user answers input (accepts answers dict {qId: optIdx} or userAnswers list)
     user_ans_dict: Dict[str, int] = {}
@@ -284,8 +269,7 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
         "date": datetime.now().isoformat().split('T')[0]
     }
 
-    db.testScores.append(new_score)
-    db.save()
+    db.save_test_score(new_score)
 
     return {
         "message": "Test submitted successfully",

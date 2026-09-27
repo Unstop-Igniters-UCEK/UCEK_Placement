@@ -41,7 +41,7 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
   const [driveDropdownOpen, setDriveDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const [selectedQuestion, setSelectedQuestion] = useState<InterviewQuestion>(() => {
+  const [selectedQuestion, setSelectedQuestion] = useState<InterviewQuestion | null>(() => {
     if (selectedInterviewQuestionId) {
       const target = selectedInterviewQuestionId.trim().toLowerCase();
       const matched = interviewQuestions.find(
@@ -51,17 +51,14 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
       );
       if (matched) return matched;
     }
-    return (
-      interviewQuestions[0] || {
-        id: 'q1',
-        category: 'HR & Behavioral',
-        difficulty: 'Easy',
-        questionText: 'Tell me about yourself and why you are interested in joining our organization as a Campus Recruit.',
-        suggestedAnswer: 'I am a 4th-year Computer Science student at UCEK with hands-on experience in full-stack web development...',
-        companyTag: 'TCS'
-      }
-    );
+    return interviewQuestions[0] || null;
   });
+
+  useEffect(() => {
+    if (!selectedQuestion && interviewQuestions.length > 0) {
+      setSelectedQuestion(interviewQuestions[0]);
+    }
+  }, [interviewQuestions, selectedQuestion]);
 
   useEffect(() => {
     if (selectedInterviewQuestionId) {
@@ -119,7 +116,7 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
   // Automatically update selected question when selectedDrive changes
   useEffect(() => {
     if (filteredQuestions.length > 0) {
-      const exists = filteredQuestions.some(q => q.id === selectedQuestion.id);
+      const exists = selectedQuestion ? filteredQuestions.some(q => q.id === selectedQuestion.id) : false;
       if (!exists) {
         setSelectedQuestion(filteredQuestions[0]);
         setFeedback(null);
@@ -209,6 +206,12 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
         reader.readAsDataURL(audioBlob);
       });
 
+      if (!selectedQuestion) {
+        setApiError('Please select an interview question to record an answer.');
+        setAnalyzing(false);
+        return;
+      }
+
       const result = await analyzeInterview({
         questionText: selectedQuestion.questionText,
         audioBase64: base64Audio,
@@ -216,18 +219,18 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
       });
 
       const mapped: InterviewFeedback = {
-        wpm: Math.round(120 + (result.confidenceScore / 100) * 30),
-        fillerCount: Math.max(0, Math.round((100 - result.confidenceScore) / 25)),
-        fillerWords: result.confidenceScore < 70 ? ['um', 'like'] : [],
-        confidenceScore: result.confidenceScore,
-        tone: result.confidenceScore >= 80 ? 'Confident & Articulate' : 'Developing Confidence',
-        strengths: result.aiFeedback.strengths,
-        improvements: result.aiFeedback.areasForImprovement,
-        overallRating: parseFloat((result.overallScore / 10).toFixed(1)),
-        clarityScore: result.technicalAccuracy,
-        relevanceScore: result.overallScore,
-        sampleIdealResponse: result.aiFeedback.idealAnswerSnippet,
-        transcript: 'AI-analyzed audio response.',
+        wpm: result.wpm ?? 0,
+        fillerCount: result.fillerCount ?? 0,
+        fillerWords: result.fillerWords ?? [],
+        confidenceScore: result.confidenceScore ?? 0,
+        tone: result.tone || (result.confidenceScore >= 80 ? 'Confident & Articulate' : 'Developing Confidence'),
+        strengths: result.aiFeedback?.strengths || [],
+        improvements: result.aiFeedback?.areasForImprovement || [],
+        overallRating: parseFloat(((result.overallScore ?? 0) / 10).toFixed(1)),
+        clarityScore: result.technicalAccuracy ?? 0,
+        relevanceScore: result.overallScore ?? 0,
+        sampleIdealResponse: result.aiFeedback?.idealAnswerSnippet || '',
+        transcript: result.transcript || (result.overallScore > 0 ? 'Audio transcribed by Gemini AI.' : 'No speech detected in audio recording.'),
       };
 
       setFeedback(mapped);
@@ -387,10 +390,10 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-[11px] font-bold text-orange-400 uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Current Interview Prompt ({selectedDrive === 'all' ? 'All Drives' : selectedQuestion.companyTag || 'HR Round'})</span>
+              <span>Current Interview Prompt ({selectedDrive === 'all' ? 'All Drives' : selectedQuestion?.companyTag || 'HR Round'})</span>
             </div>
             <h2 className="text-lg sm:text-xl font-bold text-white leading-snug font-heading pt-1">
-              "{selectedQuestion.questionText}"
+              "{selectedQuestion ? selectedQuestion.questionText : 'Select an interview question to start practice'}"
             </h2>
           </div>
 
@@ -476,7 +479,7 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
                       setFeedback(null);
                       setApiError(null);
                     }}
-                    className={`p-4 rounded-2xl border text-xs cursor-pointer transition-all duration-200 ${selectedQuestion.id === q.id
+                    className={`p-4 rounded-2xl border text-xs cursor-pointer transition-all duration-200 ${selectedQuestion?.id === q.id
                       ? 'bg-orange-500/10 border-orange-500/40 text-white font-semibold shadow-sm'
                       : 'bg-[#000000] border-white/10 text-zinc-400 hover:text-white hover:border-white/20'
                       }`}

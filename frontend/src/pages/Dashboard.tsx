@@ -61,11 +61,12 @@ export const Dashboard: React.FC = React.memo(() => {
   }, [driveFilter]);
 
   const [speechAnalytics, setSpeechAnalytics] = useState<SpeechAnalyticsResponse>({
-    wpm: 135,
-    confidenceScore: 92,
-    starFramework: 'Aligned',
-    fillerCount: '0 Detects',
-    totalEvaluations: 4,
+    hasEvaluations: false,
+    wpm: null,
+    confidenceScore: null,
+    starFramework: null,
+    fillerCount: null,
+    totalEvaluations: 0,
     featuredPrompts: [
       "Tell me about a technical project challenge at UCEK and how you solved it.",
       "Why do you want to join our core engineering team?"
@@ -82,7 +83,7 @@ export const Dashboard: React.FC = React.memo(() => {
     if (user) {
       getSpeechAnalyticsApi().then(data => {
         setSpeechAnalytics(data);
-      }).catch(() => { });
+      }).catch(err => console.warn('Failed to load speech analytics:', err));
     }
   }, [user]);
 
@@ -639,18 +640,23 @@ export const Dashboard: React.FC = React.memo(() => {
                   <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1.5 hover:border-white/20 transition-all">
                     <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Pace</span>
                     <div className="flex items-baseline justify-between">
-                      <span className="font-extrabold text-white text-base">{speechAnalytics.wpm} <span className="text-[10px] text-zinc-400 font-normal font-mono">WPM</span></span>
+                      <span className="font-extrabold text-white text-base">
+                        {speechAnalytics.wpm !== null ? speechAnalytics.wpm : '—'}
+                        {speechAnalytics.wpm !== null && <span className="text-[10px] text-zinc-400 font-normal font-mono"> WPM</span>}
+                      </span>
                       <span className="text-[9px] text-emerald-400 font-semibold hidden sm:inline">120-150</span>
                     </div>
                     <div className="w-full bg-[#000000] rounded-full h-1 overflow-hidden">
-                      <div className="bg-emerald-400 h-full rounded-full" style={{ width: '78%' }} />
+                      <div className="bg-emerald-400 h-full rounded-full" style={{ width: speechAnalytics.wpm !== null ? `${Math.min(100, ((speechAnalytics.wpm - 80) / 100) * 100)}%` : '0%' }} />
                     </div>
                   </div>
 
                   <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1.5 hover:border-white/20 transition-all">
                     <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Fillers</span>
-                    <span className="font-bold text-zinc-200 text-base block">{speechAnalytics.fillerCount}</span>
-                    <span className="text-[9px] text-emerald-400 block font-medium">Optimal</span>
+                    <span className="font-bold text-zinc-200 text-base block">{speechAnalytics.fillerCount !== null ? speechAnalytics.fillerCount : '—'}</span>
+                    <span className="text-[9px] text-zinc-500 block font-medium">
+                      {speechAnalytics.hasEvaluations ? 'Optimal' : 'No sessions yet'}
+                    </span>
                   </div>
                 </div>
 

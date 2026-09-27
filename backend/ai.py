@@ -18,8 +18,7 @@ except ImportError:
     HAS_GENAI = False
     genai = None
     types = None
-
-SUPPORTED_MODELS = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+SUPPORTED_MODELS = ["gemini-2.5-flash", "gemini-3.5-flash"]
 
 def get_gemini_client():
     if not HAS_GENAI:
@@ -100,7 +99,11 @@ def generate_gemini_json(client, contents, config=None):
     for model_name in SUPPORTED_MODELS:
         for attempt in range(2):
             try:
-                res_config = config or types.GenerateContentConfig(response_mime_type="application/json")
+                afc_disable = types.AutomaticFunctionCallingConfig(disable=True) if hasattr(types, "AutomaticFunctionCallingConfig") else None
+                res_config = config or types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    automatic_function_calling=afc_disable
+                )
                 response = client.models.generate_content(
                     model=model_name,
                     contents=contents,
@@ -121,7 +124,8 @@ def generate_gemini_json(client, contents, config=None):
                 print(f"Gemini API error with model {model_name} (attempt {attempt+1}):", e)
                 # Fallback retry without json mime-type enforcement if failed
                 try:
-                    res_raw = client.models.generate_content(model=model_name, contents=contents)
+                    retry_config = types.GenerateContentConfig(automatic_function_calling=afc_disable) if afc_disable else None
+                    res_raw = client.models.generate_content(model=model_name, contents=contents, config=retry_config)
                     if res_raw and res_raw.text:
                         import re
                         match = re.search(r'\{.*\}', res_raw.text.strip(), re.DOTALL)
@@ -288,18 +292,27 @@ def analyze_interview_with_gemini(question_text: str, transcript_text: str = Non
     text_prompt = f"""
 You are a Senior Technical Interviewer evaluating a candidate's spoken audio response for campus recruitment.
 Question Asked: "{question_text}"
-Candidate Transcript / Context: "{transcript_text or 'Audio recording provided.'}"
+Candidate Context: "{transcript_text or 'Audio recording provided.'}"
 
 CRITICAL EVALUATION INSTRUCTIONS:
 1. Listen carefully to the candidate's audio recording.
-2. If the audio is silent, blank, contains no words, or only background noise, evaluate it as silence/no response (overallScore <= 15, confidenceScore <= 15, strengths: ["Recorded audio payload delivered."], areasForImprovement: ["No spoken response detected in recording. Speak your answer clearly into the microphone."]).
-3. If the candidate spoke, evaluate technical accuracy, clarity, confidence, tone, and STAR structuring.
+2. Transcribe what the candidate actually spoke into `transcript`. If silent or no clear speech, set transcript to "".
+3. Count the words and estimate actual Words Per Minute (wpm) based on the audio duration and spoken word count. If silent, wpm must be 0.
+4. Detect any verbal filler words (e.g., "um", "uh", "like", "you know", "basically", "actually") in the speech and list them in `fillerWords`.
+5. Count total filler occurrences in `fillerCount`. If none detected, fillerCount must be 0.
+6. Evaluate technical accuracy, clarity, confidence, tone, and STAR structuring.
+7. If the audio is silent or blank, set overallScore: 0, confidenceScore: 0, technicalAccuracy: 0, wpm: 0, fillerCount: 0, fillerWords: [], transcript: "", tone: "No Speech Detected", and advise the student to check their microphone.
 
 Return ONLY a valid JSON object matching this structure:
 {{
+  "transcript": "<exact transcription of spoken audio, or empty string if silent>",
+  "wpm": <number, actual words per minute based on spoken duration and word count, or 0 if silent>,
+  "fillerWords": [<array of detected filler words like "um", "uh", "like">],
+  "fillerCount": <number of filler words detected, 0 if none>,
   "overallScore": <number 0-100>,
   "confidenceScore": <number 0-100>,
   "technicalAccuracy": <number 0-100>,
+  "tone": "<e.g. Confident & Articulate, Calm, Hesitant, Developing Confidence, Monotone>",
   "aiFeedback": {{
     "strengths": [<string array of 2-3 key strengths>],
     "areasForImprovement": [<string array of 2-3 areas to polish>],
@@ -317,4 +330,5 @@ Return ONLY a valid JSON object matching this structure:
         status_code=500,
         detail="Gemini AI failed to evaluate interview recording."
     )
+
 

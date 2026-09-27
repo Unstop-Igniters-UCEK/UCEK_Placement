@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from backend.database import db, hash_password, supabase_client
 from backend.auth import get_current_user
-from backend.mock_data import DEFAULT_ROADMAPS
 
 onboarding_router = APIRouter(prefix="/api/admin/users", tags=["onboarding"])
 
@@ -136,26 +135,7 @@ def batch_create_users(
             "readiness_score": 0,
         }
 
-        db.users.append(new_user)
-        if hasattr(db, "user_map"):
-            db.user_map[user_id] = new_user
-
-        if supabase_client:
-            try:
-                supabase_client.table("users").insert({
-                    "id": user_id,
-                    "email": email,
-                    "name": student_name,
-                    "password_hash": hashed_pw,
-                    "role": "mentee",
-                    "year": req.year,
-                    "branch": req.branch,
-                    "domain_interest": None,
-                    "readiness_score": 0,
-                    "has_selected_domain": False
-                }).execute()
-            except Exception as e:
-                print(f"[Supabase batch-create notice]: {e}")
+        db.save_user(new_user)
 
         created_users.append({
             "id": user_id,
@@ -167,7 +147,7 @@ def batch_create_users(
             "readinessScore": 0
         })
 
-    db.save()
+    # Each user was already directly inserted to Supabase in the loop above
 
     return {
         "message": f"Batch provisioning complete. {len(created_users)} user(s) created, {skipped_count} skipped.",
@@ -244,26 +224,7 @@ def batch_csv_create_users(
             "readiness_score": 0,
         }
 
-        db.users.append(new_user)
-        if hasattr(db, "user_map"):
-            db.user_map[user_id] = new_user
-
-        if supabase_client:
-            try:
-                supabase_client.table("users").insert({
-                    "id": user_id,
-                    "email": raw_email,
-                    "name": name_val,
-                    "password_hash": hashed_pw,
-                    "role": "mentee",
-                    "year": normalized_year,
-                    "branch": mapped_branch,
-                    "domain_interest": None,
-                    "readiness_score": 0,
-                    "has_selected_domain": False
-                }).execute()
-            except Exception as e:
-                print(f"[Supabase batch-csv-create notice]: {e}")
+        db.save_user(new_user)
 
         created_count += 1
         created_users.append({
@@ -275,7 +236,7 @@ def batch_csv_create_users(
             "branch": mapped_branch
         })
 
-    db.save()
+    # Each user was already directly inserted to Supabase in the loop above
 
     return {
         "message": f"Successfully provisioned {created_count} user(s)",

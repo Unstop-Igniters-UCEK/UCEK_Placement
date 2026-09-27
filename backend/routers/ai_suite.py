@@ -46,12 +46,30 @@ def review_resume(req: ReviewResumeRequest, current_user: dict = Depends(get_cur
     result = analyze_resume_with_gemini(req.resumeText, req.jobRole or "Software Engineer")
 
     # Persist resume review record for student history and admin analytics dashboard
-    ats_score = 85
-    if isinstance(result, dict) and "atsScore" in result:
+    ats_score = None
+    if isinstance(result, dict):
+        if "overallScore" in result:
+            try:
+                ats_score = int(result["overallScore"])
+            except Exception:
+                pass
+        if ats_score is None and "atsScore" in result:
+            try:
+                ats_score = int(result["atsScore"])
+            except Exception:
+                pass
+        if ats_score is None and isinstance(result.get("categoryScores"), dict):
+            try:
+                ats_score = int(result["categoryScores"].get("atsCompatibility"))
+            except Exception:
+                pass
+
+    from backend.database import supabase_client
+    if supabase_client and ats_score is not None:
         try:
-            ats_score = int(result["atsScore"])
-        except Exception:
-            ats_score = 85
+            supabase_client.table("users").update({"readiness_score": ats_score}).eq("id", current_user["id"]).execute()
+        except Exception as e:
+            print("[Supabase update user readiness_score error]:", e)
 
     record = {
         "id": f"res_{uuid.uuid4().hex[:8]}",
@@ -75,7 +93,7 @@ def review_resume(req: ReviewResumeRequest, current_user: dict = Depends(get_cur
         db.resumes = []
     db.resumes.append(record)
 
-    db.save()
+    # Targeted direct Supabase persist (already done below — skip full db.save())
 
     from backend.database import supabase_client
     if supabase_client:
@@ -118,7 +136,7 @@ def match_jd(req: MatchJDRequest, current_user: dict = Depends(get_current_user)
     if not hasattr(db, "jdMatches") or db.jdMatches is None:
         db.jdMatches = []
     db.jdMatches.append(record)
-    db.save()
+    # jdMatches are in-memory only for admin reads; no relational table for this type
 
     return {"match": result}
 
@@ -136,11 +154,11 @@ def analyze_interview(req: AnalyzeInterviewRequest, current_user: dict = Depends
         mime_type=req.mimeType or "audio/webm"
     )
 
-    # Persist interview simulation record for student and admin analytics tracking
-    confidence = result.get("confidenceScore", 80)
-    overall = result.get("overallScore", 80)
-    wpm = int(120 + (confidence / 100) * 30)
-    filler_count = int(max(0, round((100 - confidence) / 25)))
+    # Persist genuine interview simulation record from AI speech analysis
+    confidence = int(result.get("confidenceScore", 0))
+    overall = int(result.get("overallScore", 0))
+    wpm = int(result.get("wpm", 0))
+    filler_count = int(result.get("fillerCount", 0))
     star_aligned = bool(overall >= 75)
 
     record = {
@@ -158,7 +176,7 @@ def analyze_interview(req: AnalyzeInterviewRequest, current_user: dict = Depends
         "timestamp": datetime.utcnow().isoformat()
     }
     db.interviewResponses.append(record)
-    db.save()
+    # interview record is persisted directly to speech_evaluations table below; skip full db.save()
 
     # Direct Supabase relational table persistence if table exists
     from backend.database import supabase_client
@@ -207,39 +225,49 @@ def get_speech_analytics(current_user: dict = Depends(get_current_user)):
         if user_responses:
             user_responses.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
             evaluations = [{
-                "wpm": r.get("wpm", int(120 + (r.get("confidenceScore", 80) / 100) * 30)),
-                "confidence_score": r.get("confidenceScore", 80),
-                "star_aligned": r.get("starAligned", r.get("overallScore", 80) >= 75),
+                "wpm": r.get("wpm", 0),
+                "confidence_score": r.get("confidenceScore", 0),
+                "star_aligned": r.get("starAligned", False),
                 "filler_count": r.get("fillerCount", 0),
                 "created_at": r.get("timestamp")
             } for r in user_responses]
 
     if evaluations:
         latest = evaluations[0]
-        avg_wpm = int(sum(e.get("wpm", 130) for e in evaluations) / len(evaluations))
-        avg_confidence = int(sum(e.get("confidence_score", 80) for e in evaluations) / len(evaluations))
+        avg_wpm = int(sum(e.get("wpm", 0) for e in evaluations) / len(evaluations))
+        avg_confidence = int(sum(e.get("confidence_score", 0) for e in evaluations) / len(evaluations))
         latest_star = "Aligned" if latest.get("star_aligned", True) else "Needs Work"
         total_fillers = sum(e.get("filler_count", 0) for e in evaluations)
+
+        featured_prompts = [
+            "Tell me about a technical project challenge at UCEK and how you solved it.",
+            "Why do you want to join our core engineering team?"
+        ]
+
+        return {
+            "hasEvaluations": True,
+            "wpm": avg_wpm,
+            "confidenceScore": avg_confidence,
+            "starFramework": latest_star,
+            "fillerCount": f"{total_fillers} Detects" if total_fillers > 0 else "0 Detects",
+            "totalEvaluations": len(evaluations),
+            "featuredPrompts": featured_prompts
+        }
     else:
-        # Default baseline if user has not yet recorded any sessions
-        avg_wpm = 135
-        avg_confidence = 92
-        latest_star = "Aligned"
-        total_fillers = 0
-
-    featured_prompts = [
-        "Tell me about a technical project challenge at UCEK and how you solved it.",
-        "Why do you want to join our core engineering team?"
-    ]
-
-    return {
-        "wpm": avg_wpm,
-        "confidenceScore": avg_confidence,
-        "starFramework": latest_star,
-        "fillerCount": f"{total_fillers} Detects" if total_fillers > 0 else "0 Detects",
-        "totalEvaluations": len(evaluations),
-        "featuredPrompts": featured_prompts
-    }
+        # Student has not yet recorded any interview session — return honest unattempted state
+        featured_prompts = [
+            "Tell me about a technical project challenge at UCEK and how you solved it.",
+            "Why do you want to join our core engineering team?"
+        ]
+        return {
+            "hasEvaluations": False,
+            "wpm": None,
+            "confidenceScore": None,
+            "starFramework": None,
+            "fillerCount": None,
+            "totalEvaluations": 0,
+            "featuredPrompts": featured_prompts
+        }
 
 @router.get("/admin/speech-evaluations")
 def get_all_speech_evaluations(current_user: dict = Depends(get_current_user)):
@@ -286,20 +314,6 @@ def get_hr_practice_questions(companyTag: str = "all"):
                 ]
         except Exception as e:
             print("[Supabase hr_practice_questions query error]:", e)
-
-    if not questions:
-        raw_list = getattr(db, "hrPracticeQuestions", [])
-        questions = [
-            {
-                "id": str(q.get("id")),
-                "companyTag": str(q.get("companyTag") or q.get("company_tag") or "General HR"),
-                "questionText": str(q.get("questionText") or q.get("question") or ""),
-                "category": str(q.get("category", "HR & Behavioral")),
-                "isFeatured": bool(q.get("isFeatured", True))
-            }
-            for q in raw_list
-            if companyTag.lower() == "all" or companyTag.lower() in str(q.get("companyTag") or q.get("company_tag", "")).lower()
-        ]
 
     return {"questions": questions}
 

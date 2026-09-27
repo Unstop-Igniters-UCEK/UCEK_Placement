@@ -9,47 +9,24 @@ router = APIRouter(tags=["mentorship"])
 
 @router.get("/api/mentors")
 def get_mentors():
-    mentors = [
-        {
-            "id": u["id"],
-            "name": u["name"],
-            "email": u["email"],
-            "role": u["role"],
-            "year": u["year"],
-            "branch": u["branch"],
-            "domainInterest": u["domainInterest"],
-            "bio": u.get("bio", "Experienced senior mentor at UCEK ready to help with Placement prep."),
-            "linkedInUrl": u.get("linkedInUrl"),
-            "githubUrl": u.get("githubUrl"),
-            "readinessScore": u.get("readinessScore", 85)
-        }
-        for u in db.users if u["role"] == "mentor" or u["id"] == "u_mentor"
-    ]
-    return {"mentors": mentors}
+    return {"mentors": db.get_all_mentors()}
 
 @router.get("/api/mentorship/my")
 @router.get("/api/mentorship/my-pair")
 def get_my_mentorship(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
-    pair = next(
-        (m for m in db.mentorships if m["mentee"]["id"] == user_id or m["mentor"]["id"] == user_id),
-        None
-    )
+    pair = db.get_mentorship_for_user(user_id)
     return {"mentorship": pair}
 
 @router.post("/api/mentors/request")
 @router.post("/api/mentorship/request")
 def request_mentor(req: RequestMentorRequest, current_user: dict = Depends(get_current_user)):
-    mentor = next((u for u in db.users if u["id"] == req.mentorId), None)
+    mentor = db.get_user_by_id(req.mentorId)
     if not mentor:
         raise HTTPException(status_code=404, detail="Mentor not found")
 
-    existing = next(
-        (m for m in db.mentorships if m["mentee"]["id"] == current_user["id"] and m["status"] == "active"),
-        None
-    )
-
-    if existing:
+    existing = db.get_mentorship_for_user(current_user["id"])
+    if existing and str(existing.get("status", "")).lower() in ("active",):
         return {"message": "Active mentorship pair already exists", "pair": existing}
 
     new_pair = {
@@ -79,15 +56,16 @@ def request_mentor(req: RequestMentorRequest, current_user: dict = Depends(get_c
         "createdAt": datetime.now().isoformat()
     }
 
-    db.mentorships.append(new_pair)
-    db.save()
+    db.save_mentorship(new_pair)
 
     return {"message": "Mentorship request sent successfully", "pair": new_pair}
 
 @router.post("/api/mentorship/checkin")
 @router.post("/api/mentorship/log")
 def add_checkin_log(req: AddCheckInLogRequest, current_user: dict = Depends(get_current_user)):
-    pair = next((m for m in db.mentorships if m["id"] == req.pairId), None)
+    pair = db.get_mentorship_for_user(current_user["id"])
+    if not pair:
+        pair = next((m for m in db.mentorships if m["id"] == req.pairId), None)
     if not pair:
         raise HTTPException(status_code=404, detail="Mentorship pair not found")
 
@@ -103,6 +81,7 @@ def add_checkin_log(req: AddCheckInLogRequest, current_user: dict = Depends(get_
         pair["checkInLogs"] = []
 
     pair["checkInLogs"].append(new_log)
-    db.save()
+    db.save_mentorship(pair)
 
     return {"message": "Check-in log added successfully", "mentorship": pair, "newLog": new_log}
+

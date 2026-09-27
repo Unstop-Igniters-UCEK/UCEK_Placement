@@ -9,19 +9,24 @@ import {
   ResumeData,
   InterviewQuestion,
   SeniorMentor,
-  Question
+  Question,
+  EMPTY_RESUME_DATA
 } from '../types';
 import {
-  DEMO_USERS,
-  INITIAL_ROADMAPS,
-  MOCK_TESTS,
-  INTERVIEW_QUESTIONS,
-  SENIOR_MENTORS,
-  INITIAL_MENTORSHIP,
-  INITIAL_RECENT_SCORES,
-  INITIAL_RESUME_DATA
-} from '../data/mockData';
-import { loginApi, registerApi, getMeApi, logoutApi, demoLoginApi, updateProfileApi, getTestHistoryApi, submitTestApi, deleteTestHistoryApi } from '../lib/api';
+  loginApi,
+  registerApi,
+  getMeApi,
+  logoutApi,
+  demoLoginApi,
+  updateProfileApi,
+  getTestHistoryApi,
+  submitTestApi,
+  deleteTestHistoryApi,
+  toggleMilestoneApi,
+  getRoadmapApi,
+  getHrQuestionsApi,
+  getMentorsApi
+} from '../lib/api';
 
 export type Theme = 'dark' | 'light';
 
@@ -77,7 +82,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null); // Default to unauthenticated for landing page first load
-  const [allUsers, setAllUsers] = useState<User[]>(DEMO_USERS);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
@@ -147,61 +152,110 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (token && user) {
       getTestHistoryApi()
         .then((remoteScores) => {
-          if (remoteScores && remoteScores.length > 0) {
+          if (Array.isArray(remoteScores)) {
             setRecentScores(remoteScores);
           }
         })
-        .catch(err => console.warn('Failed to fetch test history:', err));
+        .catch(err => {
+          console.warn('Failed to fetch test history:', err);
+          setRecentScores([]);
+        });
+    } else if (!user) {
+      setRecentScores([]);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (user) {
+      setResumeData(prev => ({
+        ...prev,
+        personal: {
+          ...prev.personal,
+          fullName: prev.personal.fullName || user.name || '',
+          email: prev.personal.email || user.email || ''
+        }
+      }));
+    }
+  }, [user?.id, user?.name, user?.email]);
 
   const toggleTheme = useCallback(() => {}, []);
   const setTheme = useCallback(() => {}, []);
 
-  const [roadmaps, setRoadmaps] = useState<DomainRoadmap[]>(INITIAL_ROADMAPS);
-  const [mockTests, setMockTests] = useState<MockTest[]>(MOCK_TESTS);
-  const [recentScores, setRecentScores] = useState<TestResult[]>(INITIAL_RECENT_SCORES);
-  const [mentorshipPair, setMentorshipPair] = useState<MentorshipPair | null>(INITIAL_MENTORSHIP);
-  const [interviewQuestions] = useState<InterviewQuestion[]>(INTERVIEW_QUESTIONS);
-  const [mentors] = useState<SeniorMentor[]>(SENIOR_MENTORS);
-  const [resumeData, setResumeData] = useState<ResumeData>(INITIAL_RESUME_DATA);
+  const [roadmaps, setRoadmaps] = useState<DomainRoadmap[]>([]);
+  const [mockTests, setMockTests] = useState<MockTest[]>([]);
+  const [recentScores, setRecentScores] = useState<TestResult[]>([]);
+  const [mentorshipPair, setMentorshipPair] = useState<MentorshipPair | null>(null);
+  const [interviewQuestions, setInterviewQuestions] = useState<InterviewQuestion[]>([]);
+  const [mentors, setMentors] = useState<SeniorMentor[]>([]);
+  const [resumeData, setResumeData] = useState<ResumeData>(EMPTY_RESUME_DATA);
 
+  // Sync authentic HR questions from Supabase hr_practice_questions table
+  useEffect(() => {
+    getHrQuestionsApi('all')
+      .then(questions => {
+        if (Array.isArray(questions) && questions.length > 0) {
+          setInterviewQuestions(questions);
+        }
+      })
+      .catch(err => console.warn('Failed to load HR questions:', err));
+  }, []);
 
+  // Sync authentic mentors from Supabase users table (where role == 'mentor')
+  useEffect(() => {
+    getMentorsApi()
+      .then(remoteMentors => {
+        if (Array.isArray(remoteMentors) && remoteMentors.length > 0) {
+          setMentors(remoteMentors);
+        }
+      })
+      .catch(err => console.warn('Failed to load mentors:', err));
+  }, []);
+
+  // Sync personalized roadmap from Supabase when user is authenticated
+  useEffect(() => {
+    const token = localStorage.getItem('ucek_access_token');
+    if (token && user?.hasSelectedDomain && user?.domain) {
+      getRoadmapApi()
+        .then(remoteRoadmap => {
+          if (remoteRoadmap && Array.isArray(remoteRoadmap.modules) && remoteRoadmap.modules.length > 0) {
+            setRoadmaps([remoteRoadmap]);
+          } else {
+            setRoadmaps([]);
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to fetch user roadmap:', err);
+          setRoadmaps([]);
+        });
+    } else {
+      setRoadmaps([]);
+    }
+  }, [user?.id, user?.domain, user?.hasSelectedDomain]);
 
   const switchDemoRole = useCallback(async (role: UserRole) => {
-    try {
-      const data = await demoLoginApi(role);
-      if (data.accessToken) {
-        localStorage.setItem('ucek_access_token', data.accessToken);
-      }
-      const mappedUser: User = {
-        id: data.user.id,
-        name: data.user.name,
-        email: data.user.email,
-        role: (data.user.role as UserRole) || role,
-        year: data.user.year || '4th Year',
-        branch: data.user.branch || 'CSE',
-        domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
-        hasSelectedDomain: data.user.hasSelectedDomain ?? false,
-        targetDrive: data.user.targetDrive || null,
-        readinessScore: data.user.readinessScore ?? null,
-        readiness: data.user.readiness,
-        avatar: data.user.avatar,
-        bio: data.user.bio,
-      };
-      setUser(mappedUser);
-      setAuthModalOpen(false);
-      setActiveTab(mappedUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
-    } catch {
-      // Fallback for offline demo role selection
-      const targetUser = allUsers.find(u => u.role === role) || DEMO_USERS.find(u => u.role === role);
-      if (targetUser) {
-        setUser(targetUser);
-        setAuthModalOpen(false);
-        setActiveTab(targetUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
-      }
+    const data = await demoLoginApi(role);
+    if (data.accessToken) {
+      localStorage.setItem('ucek_access_token', data.accessToken);
     }
-  }, [allUsers]);
+    const mappedUser: User = {
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+      role: (data.user.role as UserRole) || role,
+      year: data.user.year || '4th Year',
+      branch: data.user.branch || 'CSE',
+      domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
+      hasSelectedDomain: data.user.hasSelectedDomain ?? false,
+      targetDrive: data.user.targetDrive || null,
+      readinessScore: data.user.readinessScore ?? null,
+      readiness: data.user.readiness,
+      avatar: data.user.avatar,
+      bio: data.user.bio,
+    };
+    setUser(mappedUser);
+    setAuthModalOpen(false);
+    setActiveTab(mappedUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
+  }, []);
 
   const loginUser = useCallback(async (email: string, password?: string, role?: string): Promise<boolean> => {
     const data = await loginApi({ email, password: password || '', role });
@@ -258,17 +312,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return true;
     }
   }, []);
-
   const logoutUser = useCallback(() => {
     logoutApi().catch(() => {});
     localStorage.removeItem('ucek_access_token');
     localStorage.removeItem('ucek_selected_target_drive');
     setUser(null);
     setSelectedTargetDriveState('');
+    setRecentScores([]);
+    setMentorshipPair(null);
+    setResumeData(EMPTY_RESUME_DATA);
     setActiveTab('dashboard');
   }, []);
 
   const toggleMilestone = useCallback((domainId: string, moduleId: string, milestoneId: string) => {
+    let newCompleted = false;
     setRoadmaps(prev =>
       prev.map(roadmap => {
         if (roadmap.id !== domainId) return roadmap;
@@ -280,13 +337,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ...mod,
               milestones: mod.milestones.map(ms => {
                 if (ms.id !== milestoneId) return ms;
-                return { ...ms, completed: !ms.completed };
+                newCompleted = !ms.completed;
+                return { ...ms, completed: newCompleted };
               })
             };
           })
         };
       })
     );
+    // Fire-and-forget backend sync (optimistic update already applied above)
+    const token = localStorage.getItem('ucek_access_token');
+    if (token) {
+      toggleMilestoneApi(moduleId, milestoneId, newCompleted)
+        .catch(err => console.warn('Failed to persist milestone toggle:', err));
+    }
   }, []);
 
   const saveTestResult = useCallback((resultData: Omit<TestResult, 'id' | 'date'>) => {
