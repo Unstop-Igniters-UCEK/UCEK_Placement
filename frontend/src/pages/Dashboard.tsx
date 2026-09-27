@@ -198,23 +198,23 @@ export const Dashboard: React.FC = React.memo(() => {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="space-y-6 py-4 font-sans max-w-7xl mx-auto transform-gpu"
+        className="space-y-6 py-4 font-sans max-w-7xl mx-auto transform-gpu w-full"
       >
         {/* 2-COLUMN ASYMMETRIC EXECUTIVE BENTO GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch w-full">
 
           {/* LEFT COLUMN: HERO COMMAND CENTER + 3 PILLARS + HISTORY TABLE (8 COLUMNS) */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-8 space-y-6 min-w-0">
 
             {/* EXECUTIVE HERO COMMAND CENTER (NAKED HEADER) */}
             <motion.div variants={itemVariants} className="py-1 relative">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center relative z-10">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center relative z-10">
 
-                {/* Profile Brief & Target Info (Col-span-2) */}
-                <div className="sm:col-span-2 space-y-3">
+                {/* Profile Brief & Target Info */}
+                <div className="md:col-span-7 xl:col-span-8 space-y-3 min-w-0">
                   <div>
                     <span className="text-sm sm:text-base font-medium text-zinc-400 tracking-wide">Welcome Back,</span>
-                    <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-heading mt-0.5 flex items-center gap-3">
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight font-heading mt-0.5 flex items-center gap-3">
                       {user.name}
                     </h1>
 
@@ -230,30 +230,26 @@ export const Dashboard: React.FC = React.memo(() => {
                   </div>
 
                   {/* Target Drive, Domain Badge & Quick Action Links */}
-                  <div className="pt-1 flex flex-wrap items-center gap-2.5">
-                    <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300">
+                  <div className="pt-1 flex flex-wrap items-center gap-2 sm:gap-2.5">
+                    <div className="flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300 max-w-full">
                       <Layers className="w-4 h-4 text-orange-400 shrink-0" />
-                      <span>Domain:</span>
-                      <strong className="text-white font-semibold">{user.domain ? user.domain : "Not selected"}</strong>
+                      <span className="shrink-0">Domain:</span>
+                      <strong className="text-white font-semibold truncate">{user.domain ? user.domain : "Not selected"}</strong>
                     </div>
 
-                    <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300">
+                    <div className="flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300 max-w-full">
                       <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
-                      <span>Target Drive:</span>
-                      <strong className="text-white font-semibold">{selectedTargetDrive ? selectedTargetDrive : "Not selected"}</strong>
+                      <span className="shrink-0">Target Drive:</span>
+                      <strong className="text-white font-semibold truncate">{selectedTargetDrive ? selectedTargetDrive : "Not selected"}</strong>
                     </div>
                   </div>
                 </div>
 
-                {/* READINESS CARD (COL-SPAN-1: SAME EXACT WIDTH AS MOCK DRIVE PRACTICE CARD IN ROW BELOW) */}
-                <div className="sm:col-span-1 w-full">
-                  <div className="p-4 bg-[#2a2e2f] border border-white/10 rounded-2xl relative flex items-center justify-between gap-3 min-h-[148px] w-full">
-                    <div className="absolute top-2.5 right-2.5">
-                      <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping inline-block" />
-                    </div>
-
+                {/* READINESS CARD */}
+                <div className="md:col-span-5 xl:col-span-4 w-full min-w-0">
+                  <div className="p-3.5 sm:p-4 bg-[#2a2e2f] border border-white/10 rounded-2xl relative flex items-center justify-between gap-2 sm:gap-3 min-h-[148px] w-full max-w-full overflow-hidden">
                     {/* Left: 3 Stacked Metrics */}
-                    <div className="flex flex-col justify-center space-y-2.5 pl-1 shrink-0">
+                    <div className="flex flex-col justify-center space-y-2.5 pl-0.5 sm:pl-1 shrink-0">
                       <div className="flex items-center gap-2">
                         <span className="text-base sm:text-lg font-bold text-white tabular-nums tracking-tight min-w-[32px]">
                           {readinessMetrics.aptitude !== null ? `${readinessMetrics.aptitude}%` : '—'}
@@ -276,8 +272,8 @@ export const Dashboard: React.FC = React.memo(() => {
                       </div>
                     </div>
 
-                    {/* Right: Enlarged Circular Readiness Graph */}
-                    <div className="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center shrink-0 my-auto pr-1">
+                    {/* Right: Circular Readiness Graph */}
+                    <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center shrink-0 my-auto pr-0.5">
                       <svg className="w-full h-full transform -rotate-90 filter drop-shadow-[0_0_10px_rgba(249,115,22,0.4)]" viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.06)" strokeWidth="8" fill="transparent" />
                         <circle
@@ -301,7 +297,7 @@ export const Dashboard: React.FC = React.memo(() => {
                         <span className="text-2xl sm:text-3xl font-black text-white font-heading tracking-tight">
                           {readinessMetrics.score !== null ? `${readinessMetrics.score}%` : '—'}
                         </span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-orange-400 mt-0.5">READINESS</span>
+                        <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-orange-400 mt-0.5">READINESS</span>
                       </div>
                     </div>
 
@@ -312,7 +308,7 @@ export const Dashboard: React.FC = React.memo(() => {
             </motion.div>
 
             {/* 3 PREPARATION BENTO PILLARS */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
               {/* PILLAR 1: DOMAIN ROADMAP */}
               <motion.div
@@ -385,7 +381,7 @@ export const Dashboard: React.FC = React.memo(() => {
               <motion.div
                 variants={itemVariants}
                 onClick={() => setActiveTab('tests')}
-                className="mono-card p-3.5 space-y-2.5 cursor-pointer mono-card-hover group relative overflow-hidden flex flex-col justify-between"
+                className="mono-card p-3.5 space-y-2.5 cursor-pointer mono-card-hover group relative overflow-hidden flex flex-col justify-between sm:col-span-2 lg:col-span-1"
               >
                 <div className="flex items-center justify-between">
                   <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
@@ -416,24 +412,24 @@ export const Dashboard: React.FC = React.memo(() => {
             </div>
 
             {/* RECENT MOCK DRIVE PERFORMANCES TABLE */}
-            <motion.div variants={itemVariants} className="mono-card p-6 space-y-5">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <motion.div variants={itemVariants} className="mono-card p-4 sm:p-6 space-y-5 min-w-0 max-w-full overflow-hidden">
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-white/10 pb-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <CheckSquare className="w-4 h-4 text-orange-400" />
+                    <CheckSquare className="w-4 h-4 text-orange-400 shrink-0" />
                     <h2 className="font-bold text-base text-white font-heading">Recent Mock Drive Performances</h2>
                   </div>
                   <p className="text-xs text-zinc-400">Review past assessment analytics and company cut-off clearances</p>
                 </div>
 
                 {/* FILTER TABS & CTA INLINE ON THE RIGHT */}
-                <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap shrink-0">
-                  <div className="flex items-center bg-[#2a2e2f] p-1 rounded-full border border-white/10 text-xs">
+                <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap min-w-0 max-w-full">
+                  <div className="flex items-center bg-[#2a2e2f] p-1 rounded-full border border-white/10 text-xs max-w-full overflow-x-auto no-scrollbar">
                     {(['all', 'Company Drive', 'Aptitude', 'Technical'] as const).map(tab => (
                       <button
                         key={tab}
                         onClick={() => setDriveFilter(tab)}
-                        className={`px-3.5 py-1.5 rounded-full font-medium transition-all cursor-pointer active:scale-[0.97] ${driveFilter === tab
+                        className={`px-3 sm:px-3.5 py-1.5 rounded-full font-medium transition-all cursor-pointer active:scale-[0.97] whitespace-nowrap ${driveFilter === tab
                           ? 'bg-[#000000] text-white shadow-sm font-semibold border border-white/10'
                           : 'text-zinc-400 hover:text-zinc-200'
                           }`}
@@ -447,7 +443,7 @@ export const Dashboard: React.FC = React.memo(() => {
                     <button
                       type="button"
                       onClick={clearTestHistory}
-                      className="px-3 py-1.5 rounded-full bg-[#141414] hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/30 text-zinc-400 hover:text-rose-400 transition-all text-xs font-medium cursor-pointer"
+                      className="px-3 py-1.5 rounded-full bg-[#141414] hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/30 text-zinc-400 hover:text-rose-400 transition-all text-xs font-medium cursor-pointer shrink-0"
                       title="Clear past test attempt history"
                     >
                       Clear History
@@ -456,7 +452,7 @@ export const Dashboard: React.FC = React.memo(() => {
 
                   <button
                     onClick={() => setActiveTab('tests')}
-                    className="btn-primary py-2 px-4 text-xs font-bold rounded-full cursor-pointer flex items-center gap-1.5 shrink-0 shadow-md"
+                    className="btn-primary py-2 px-4 text-xs font-bold rounded-full cursor-pointer flex items-center gap-1.5 shrink-0 shadow-md whitespace-nowrap"
                   >
                     <Zap className="w-3.5 h-3.5 fill-black" />
                     Take New Drive
@@ -476,9 +472,9 @@ export const Dashboard: React.FC = React.memo(() => {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="overflow-x-auto border border-white/10 rounded-lg bg-[#0d0d0d] shadow-inner">
-                    <table className="w-full text-left border-collapse font-sans">
+                <div className="space-y-4 min-w-0 max-w-full">
+                  <div className="overflow-x-auto border border-white/10 rounded-lg bg-[#0d0d0d] shadow-inner w-full max-w-full">
+                    <table className="w-full min-w-[620px] text-left border-collapse font-sans">
                       <thead>
                         <tr className="bg-[#000000] border-b border-white/10 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
                           <th className="p-4 pl-5">Drive Title</th>
@@ -616,7 +612,7 @@ export const Dashboard: React.FC = React.memo(() => {
           </div>
 
           {/* RIGHT COLUMN: PRO AI HR SPEECH SIMULATOR SIDEBAR CONSOLE (4 COLUMNS) */}
-          <div className="lg:col-span-4 flex flex-col">
+          <div className="lg:col-span-4 flex flex-col min-w-0">
 
             {/* HR SPEECH SIMULATOR MODULE */}
             <motion.div variants={itemVariants} className="mono-card p-5 sm:p-6 space-y-5 relative overflow-hidden flex flex-col justify-between flex-1 lg:h-full">
