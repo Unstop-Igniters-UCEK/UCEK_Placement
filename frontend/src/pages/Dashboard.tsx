@@ -622,13 +622,13 @@ export const Dashboard: React.FC = React.memo(() => {
                       <Mic className="w-4.5 h-4.5 text-white" />
                     </div>
                     <div>
-                      <h2 className="font-bold text-base text-white font-heading">HR Speech Simulator</h2>
+                      <h2 className="font-bold text-base text-white font-heading">HR Interview</h2>
                     </div>
                   </div>
                 </div>
 
                 <p className="text-xs text-zinc-300 leading-relaxed">
-                  Practice behavioral & STAR framework questions with real-time speech pace, confidence level, and filler word detection.
+                  Master behavioral interviews with instant feedback on your speaking speed, confidence, and clarity.
                 </p>
 
                 {/* LIVE ANALYTICS METRICS 2 METRICS GRID */}
@@ -654,7 +654,7 @@ export const Dashboard: React.FC = React.memo(() => {
                 {/* QUICK PRACTICE PROMPTS CAROUSEL */}
                 <div className="space-y-2.5 pt-1">
                   <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                    <span>Featured Practice Prompts</span>
+                    <span>Featured Practice Questions</span>
                     <span className="text-orange-400 font-mono font-semibold">RECOMMENDED</span>
                   </div>
                   <div className="space-y-2 text-xs">
