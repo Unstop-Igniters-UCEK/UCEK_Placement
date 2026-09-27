@@ -26,22 +26,60 @@ const TARGET_DRIVES = [
 ];
 
 export const HRInterviewSimulator: React.FC = React.memo(() => {
-  const { interviewQuestions, logoutUser, setActiveTab, setAuthModalOpen, setAuthModalMode, setSelectedTargetDrive } = useApp();
+  const {
+    interviewQuestions,
+    logoutUser,
+    setActiveTab,
+    setAuthModalOpen,
+    setAuthModalMode,
+    setSelectedTargetDrive,
+    selectedInterviewQuestionId,
+    setSelectedInterviewQuestionId
+  } = useApp();
 
   const [selectedDrive, setSelectedDrive] = useState('all');
   const [driveDropdownOpen, setDriveDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const [selectedQuestion, setSelectedQuestion] = useState<InterviewQuestion>(
-    interviewQuestions[0] || {
-      id: 'q1',
-      category: 'HR & Behavioral',
-      difficulty: 'Easy',
-      questionText: 'Tell me about yourself and why you are interested in joining our organization as a Campus Recruit.',
-      suggestedAnswer: 'I am a 4th-year Computer Science student at UCEK with hands-on experience in full-stack web development...',
-      companyTag: 'TCS'
+  const [selectedQuestion, setSelectedQuestion] = useState<InterviewQuestion>(() => {
+    if (selectedInterviewQuestionId) {
+      const target = selectedInterviewQuestionId.trim().toLowerCase();
+      const matched = interviewQuestions.find(
+        q => q.id.toLowerCase() === target ||
+             q.questionText.toLowerCase() === target ||
+             q.questionText.toLowerCase().includes(target)
+      );
+      if (matched) return matched;
     }
-  );
+    return (
+      interviewQuestions[0] || {
+        id: 'q1',
+        category: 'HR & Behavioral',
+        difficulty: 'Easy',
+        questionText: 'Tell me about yourself and why you are interested in joining our organization as a Campus Recruit.',
+        suggestedAnswer: 'I am a 4th-year Computer Science student at UCEK with hands-on experience in full-stack web development...',
+        companyTag: 'TCS'
+      }
+    );
+  });
+
+  useEffect(() => {
+    if (selectedInterviewQuestionId) {
+      const target = selectedInterviewQuestionId.trim().toLowerCase();
+      const matched = interviewQuestions.find(
+        q => q.id.toLowerCase() === target ||
+             q.questionText.toLowerCase() === target ||
+             q.questionText.toLowerCase().includes(target)
+      );
+      if (matched) {
+        setSelectedDrive('all');
+        setSelectedQuestion(matched);
+        setFeedback(null);
+        setApiError(null);
+      }
+      setSelectedInterviewQuestionId(null);
+    }
+  }, [selectedInterviewQuestionId, interviewQuestions, setSelectedInterviewQuestionId]);
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);

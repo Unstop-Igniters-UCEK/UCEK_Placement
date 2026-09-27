@@ -39,6 +39,22 @@ export const MOCK_TESTS: MockTest[] = [];
 
 export const INTERVIEW_QUESTIONS: InterviewQuestion[] = [
   {
+    id: 'hr_feat_1',
+    questionText: 'Tell me about a technical project challenge at UCEK and how you solved it.',
+    category: 'Technical',
+    difficulty: 'Medium',
+    companyTag: 'General HR',
+    suggestedAnswer: 'Structure your response using the STAR method: explain the project context, state the technical bottleneck (e.g. database query latency, real-time sync, state bugs), describe your structured problem-solving approach, and highlight the measurable outcome.'
+  },
+  {
+    id: 'hr_feat_2',
+    questionText: 'Why do you want to join our core engineering team?',
+    category: 'HR & Behavioral',
+    difficulty: 'Easy',
+    companyTag: 'General HR',
+    suggestedAnswer: 'Express your passion for system reliability, high-impact architecture, continuous learning, and how your skills and growth mindset align with the company\'s engineering culture and mission.'
+  },
+  {
     id: 'hr_1',
     questionText: 'Tell me about yourself and why you are interested in joining our organization as a Campus Recruit.',
     category: 'HR & Behavioral',

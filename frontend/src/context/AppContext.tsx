@@ -49,6 +49,8 @@ interface AppContextType {
   mentorshipPair: MentorshipPair | null;
   selectedTargetDrive: string;
   setSelectedTargetDrive: (driveLabel: string) => void;
+  selectedInterviewQuestionId: string | null;
+  setSelectedInterviewQuestionId: (id: string | null) => void;
   interviewQuestions: InterviewQuestion[];
   mentors: SeniorMentor[];
   resumeData: ResumeData;
@@ -83,6 +85,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot'>('login');
 
   const [selectedTargetDrive, setSelectedTargetDriveState] = useState<string>('');
+  const [selectedInterviewQuestionId, setSelectedInterviewQuestionId] = useState<string | null>(null);
 
   const setSelectedTargetDrive = useCallback((driveLabel: string) => {
     setSelectedTargetDriveState(driveLabel);
@@ -421,6 +424,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     mentorshipPair,
     selectedTargetDrive,
     setSelectedTargetDrive,
+    selectedInterviewQuestionId,
+    setSelectedInterviewQuestionId,
     interviewQuestions,
     mentors,
     resumeData,
@@ -455,6 +460,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     mentorshipPair,
     selectedTargetDrive,
     setSelectedTargetDrive,
+    selectedInterviewQuestionId,
+    setSelectedInterviewQuestionId,
     interviewQuestions,
     mentors,
     resumeData,

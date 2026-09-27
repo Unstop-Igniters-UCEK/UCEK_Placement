@@ -45,7 +45,8 @@ export const Dashboard: React.FC = React.memo(() => {
     setAuthModalMode,
     selectedTargetDrive,
     resumeData,
-    mockTests
+    mockTests,
+    setSelectedInterviewQuestionId
   } = useApp();
 
   const [driveFilter, setDriveFilter] = useState<'all' | 'Company Drive' | 'Aptitude' | 'Technical'>('all');
@@ -70,6 +71,12 @@ export const Dashboard: React.FC = React.memo(() => {
       "Why do you want to join our core engineering team?"
     ]
   });
+
+  const handleFeaturedQuestionClick = (promptText: string, idx: number) => {
+    const targetId = idx === 0 ? 'hr_feat_1' : idx === 1 ? 'hr_feat_2' : promptText;
+    setSelectedInterviewQuestionId(targetId);
+    setActiveTab('interview');
+  };
 
   useEffect(() => {
     if (user) {
@@ -609,10 +616,10 @@ export const Dashboard: React.FC = React.memo(() => {
           </div>
 
           {/* RIGHT COLUMN: PRO AI HR SPEECH SIMULATOR SIDEBAR CONSOLE (4 COLUMNS) */}
-          <div className="lg:col-span-4 space-y-6">
+          <div className="lg:col-span-4 flex flex-col">
 
             {/* HR SPEECH SIMULATOR MODULE */}
-            <motion.div variants={itemVariants} className="mono-card p-5 sm:p-6 space-y-5 relative overflow-hidden">
+            <motion.div variants={itemVariants} className="mono-card p-5 sm:p-6 space-y-5 relative overflow-hidden flex flex-col justify-between flex-1 lg:h-full">
               <div className="space-y-5 relative z-10">
 
                 {/* Voice Engine Header */}
@@ -661,6 +668,7 @@ export const Dashboard: React.FC = React.memo(() => {
                     {speechAnalytics.featuredPrompts.map((promptText, idx) => (
                       <div
                         key={idx}
+                        onClick={() => handleFeaturedQuestionClick(promptText, idx)}
                         className="p-3.5 rounded-lg bg-[#2a2e2f] border border-white/10 text-zinc-200 hover:border-orange-500/40 transition-all cursor-pointer group flex items-start gap-2.5 active:scale-[0.98]"
                       >
                         <div className="w-5 h-5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
@@ -677,7 +685,7 @@ export const Dashboard: React.FC = React.memo(() => {
               </div>
 
               {/* START PRACTICE ACTION BUTTON */}
-              <div className="pt-3 border-t border-white/10 relative z-10">
+              <div className="pt-3 border-t border-white/10 relative z-10 mt-6 lg:mt-auto">
                 <button
                   onClick={() => setActiveTab('interview')}
                   className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
