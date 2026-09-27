@@ -1,5 +1,12 @@
 export type UserRole = 'mentee' | 'admin';
 
+export interface UserReadinessMetrics {
+  score: number | null;
+  aptitude: number | null;
+  technical: number | null;
+  ats: number | null;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -10,7 +17,8 @@ export interface User {
   domain?: string | null;
   hasSelectedDomain?: boolean;
   targetDrive?: string | null;
-  readinessScore: number;
+  readinessScore?: number | null;
+  readiness?: UserReadinessMetrics;
   avatar?: string;
   company?: string; // For placed mentors
   bio?: string;

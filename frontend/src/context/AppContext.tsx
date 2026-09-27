@@ -119,7 +119,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
               hasSelectedDomain: data.user.hasSelectedDomain ?? false,
               targetDrive: data.user.targetDrive || null,
-              readinessScore: data.user.readinessScore ?? 75,
+              readinessScore: data.user.readinessScore ?? null,
+              readiness: data.user.readiness,
               avatar: data.user.avatar,
               bio: data.user.bio,
             });
@@ -180,7 +181,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
         hasSelectedDomain: data.user.hasSelectedDomain ?? false,
         targetDrive: data.user.targetDrive || null,
-        readinessScore: data.user.readinessScore ?? 80,
+        readinessScore: data.user.readinessScore ?? null,
+        readiness: data.user.readiness,
         avatar: data.user.avatar,
         bio: data.user.bio,
       };
@@ -213,7 +215,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
       hasSelectedDomain: data.user.hasSelectedDomain ?? false,
       targetDrive: data.user.targetDrive || null,
-      readinessScore: data.user.readinessScore ?? 75,
+      readinessScore: data.user.readinessScore ?? null,
+      readiness: data.user.readiness,
       avatar: data.user.avatar,
       bio: data.user.bio,
     };

@@ -1,11 +1,16 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
-from backend.database import db
+from backend.database import db, get_user_readiness_metrics
 from backend.auth import get_current_user
 from backend.schemas import ProfileUpdateRequest
 from backend.mock_data import DEFAULT_ROADMAPS
 
 router = APIRouter(prefix="/api/user", tags=["user"])
+
+@router.get("/readiness")
+def get_readiness(current_user: dict = Depends(get_current_user)):
+    metrics = get_user_readiness_metrics(current_user["id"])
+    return {"readiness": metrics}
 
 @router.get("/dashboard")
 def get_dashboard(current_user: dict = Depends(get_current_user)):
@@ -14,7 +19,7 @@ def get_dashboard(current_user: dict = Depends(get_current_user)):
     # User roadmap
     roadmap = None
     if current_user.get("hasSelectedDomain") and current_user.get("domainInterest"):
-        roadmap = next((r for r in db.userRoadmaps if r["userId"] == user_id), None)
+        roadmap = next((r for r in db.userRoadmaps if str(r.get("userId")) == str(user_id)), None)
         if not roadmap:
             domain = current_user.get("domainInterest")
             roadmap = {
@@ -29,7 +34,10 @@ def get_dashboard(current_user: dict = Depends(get_current_user)):
             db.save()
 
     # Recent test scores
-    user_scores = [s for s in db.testScores if s["userId"] == user_id]
+    user_scores = [s for s in db.testScores if str(s.get("userId")) == str(user_id)]
+
+    # Genuine readiness metrics
+    readiness_metrics = get_user_readiness_metrics(user_id)
 
     # Recommended mentors matching domain
     mentors = [
@@ -59,7 +67,8 @@ def get_dashboard(current_user: dict = Depends(get_current_user)):
         "domainInterest": current_user.get("domainInterest") if current_user.get("hasSelectedDomain") else None,
         "hasSelectedDomain": current_user.get("hasSelectedDomain", False),
         "isVerified": current_user.get("isVerified", True),
-        "readinessScore": current_user.get("readinessScore", 50),
+        "readinessScore": readiness_metrics["score"],
+        "readiness": readiness_metrics,
         "bio": current_user.get("bio"),
         "linkedInUrl": current_user.get("linkedInUrl"),
         "githubUrl": current_user.get("githubUrl"),
@@ -68,6 +77,7 @@ def get_dashboard(current_user: dict = Depends(get_current_user)):
 
     return {
         "user": user_payload,
+        "readiness": readiness_metrics,
         "roadmap": roadmap,
         "recentScores": user_scores,
         "recommendedMentors": mentors

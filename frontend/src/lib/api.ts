@@ -46,6 +46,13 @@ export interface RegisterPayload {
   adminSecurityCode?: string;
 }
 
+export interface UserReadinessMetrics {
+  score: number | null;
+  aptitude: number | null;
+  technical: number | null;
+  ats: number | null;
+}
+
 export interface AuthResponse {
   message: string;
   user: {
@@ -58,7 +65,8 @@ export interface AuthResponse {
     domainInterest?: string;
     domain?: string;
     hasSelectedDomain?: boolean;
-    readinessScore?: number;
+    readinessScore?: number | null;
+    readiness?: UserReadinessMetrics;
     avatar?: string;
     bio?: string;
     targetDrive?: string;
@@ -214,6 +222,20 @@ export async function getMeApi(): Promise<{ user: AuthResponse['user'] }> {
   }
 
   return res.json();
+}
+
+export async function getUserReadinessApi(): Promise<UserReadinessMetrics> {
+  const res = await fetch(`${BASE_URL}/api/user/readiness`, {
+    method: 'GET',
+    headers: authHeaders(),
+  });
+
+  if (!res.ok) {
+    return { score: null, aptitude: null, technical: null, ats: null };
+  }
+
+  const data = await res.json();
+  return data.readiness || { score: null, aptitude: null, technical: null, ats: null };
 }
 
 export async function logoutApi(): Promise<void> {

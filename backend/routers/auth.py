@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, Response, Depends, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from backend.database import db, hash_password, verify_password, supabase_client, calculate_user_readiness
+from backend.database import db, hash_password, verify_password, supabase_client, calculate_user_readiness, get_user_readiness_metrics
 from backend.auth import create_access_token, create_refresh_token, decode_token, get_current_user, ALLOWED_EMAIL_DOMAIN
 from backend.schemas import (
     RegisterRequest, LoginRequest, ForgotPasswordRequest,
@@ -61,7 +61,7 @@ def register(request: Request, req: RegisterRequest, response: Response):
         "hasSelectedDomain": bool(req.domainInterest),
         "targetDrive": None,
         "isVerified": True,
-        "readinessScore": 50,
+        "readinessScore": None,
         "createdAt": now_str
     }
 
@@ -81,7 +81,7 @@ def register(request: Request, req: RegisterRequest, response: Response):
                 "branch": new_user["branch"],
                 "domain_interest": new_user["domainInterest"],
                 "is_verified": True,
-                "readiness_score": 50,
+                "readiness_score": None,
                 "created_at": now_str
             }
             try:
@@ -180,7 +180,8 @@ def login(request: Request, req: LoginRequest, response: Response):
         "domainInterest": user.get("domainInterest") if user.get("hasSelectedDomain") else None,
         "hasSelectedDomain": user.get("hasSelectedDomain", False),
         "isVerified": user.get("isVerified", True),
-        "readinessScore": user.get("readinessScore", 60),
+        "readinessScore": calculate_user_readiness(user["id"]),
+        "readiness": get_user_readiness_metrics(user["id"]),
         "bio": user.get("bio"),
         "linkedInUrl": user.get("linkedInUrl"),
         "githubUrl": user.get("githubUrl"),
@@ -232,7 +233,8 @@ def demo_login(req: DemoLoginRequest, response: Response):
         "domainInterest": user.get("domainInterest") if user.get("hasSelectedDomain") else None,
         "hasSelectedDomain": user.get("hasSelectedDomain", False),
         "isVerified": user.get("isVerified", True),
-        "readinessScore": user.get("readinessScore", 75),
+        "readinessScore": calculate_user_readiness(user["id"]),
+        "readiness": get_user_readiness_metrics(user["id"]),
         "bio": user.get("bio"),
         "linkedInUrl": user.get("linkedInUrl"),
         "githubUrl": user.get("githubUrl"),
@@ -282,6 +284,7 @@ def logout(response: Response):
 
 @router.get("/me")
 def get_me(current_user: dict = Depends(get_current_user)):
+    readiness_data = get_user_readiness_metrics(current_user["id"])
     user_payload = {
         "id": current_user["id"],
         "name": current_user["name"],
@@ -292,7 +295,8 @@ def get_me(current_user: dict = Depends(get_current_user)):
         "domainInterest": current_user.get("domainInterest") if current_user.get("hasSelectedDomain") else None,
         "hasSelectedDomain": current_user.get("hasSelectedDomain", False),
         "isVerified": current_user.get("isVerified", True),
-        "readinessScore": calculate_user_readiness(current_user["id"]),
+        "readinessScore": readiness_data["score"],
+        "readiness": readiness_data,
         "bio": current_user.get("bio"),
         "linkedInUrl": current_user.get("linkedInUrl"),
         "githubUrl": current_user.get("githubUrl"),

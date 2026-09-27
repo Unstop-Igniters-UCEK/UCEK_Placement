@@ -169,7 +169,7 @@ class Database:
                             "isVerified": bool(u.get("is_verified", True)),
                             "hasSelectedDomain": has_selected,
                             "targetDrive": target_drive_val,
-                            "readinessScore": int(u.get("readiness_score", 50)),
+                            "readinessScore": int(u["readiness_score"]) if u.get("readiness_score") is not None else None,
                             "bio": u.get("bio") or prev_user.get("bio"),
                             "linkedInUrl": u.get("linkedin_url") or prev_user.get("linkedInUrl"),
                             "githubUrl": u.get("github_url") or prev_user.get("githubUrl"),
@@ -406,7 +406,7 @@ class Database:
                         "branch": str(u.get("branch", "CSE")),
                         "domain_interest": u.get("domainInterest") if u.get("hasSelectedDomain") else None,
                         "is_verified": bool(u.get("isVerified", True)),
-                        "readiness_score": int(u.get("readinessScore", 50)),
+                        "readiness_score": int(u["readinessScore"]) if u.get("readinessScore") is not None else None,
                         "bio": u.get("bio"),
                         "linkedin_url": u.get("linkedInUrl") or u.get("linkedin_url"),
                         "github_url": u.get("githubUrl") or u.get("github_url"),
@@ -579,7 +579,7 @@ class Database:
 
 db = Database()
 
-def calculate_user_readiness(user_id: str) -> int:
+def get_user_readiness_metrics(user_id: str) -> Dict[str, Any]:
     u_id = str(user_id)
     test_scores = getattr(db, "testScores", []) or []
     raw_resumes = (getattr(db, "resumeReviews", []) or []) + (getattr(db, "resumes", []) or [])
@@ -592,36 +592,42 @@ def calculate_user_readiness(user_id: str) -> int:
 
     def get_test_pct(s):
         if not s:
-            return 0
+            return 0.0
         if isinstance(s.get("accuracy"), (int, float)) and s["accuracy"] > 0:
             return float(s["accuracy"])
         tot = max(1, int(s.get("total") or s.get("totalQuestions") or 10))
         score_val = float(s.get("score", 0))
         if "percentage" in s and s["percentage"] is not None:
             return float(s["percentage"])
-        return (score_val / tot) * 100
+        return (score_val / tot) * 100.0
 
     apt_tests = [s for s in u_tests if "aptitude" in str(s.get("category", "")).lower() or "company" in str(s.get("category", "")).lower()]
-    tech_tests = [s for s in u_tests if "technical" in str(s.get("category", "")).lower() or "coding" in str(s.get("category", "")).lower()]
+    tech_tests = [s for s in u_tests if "technical" in str(s.get("category", "")).lower() or "coding" in str(s.get("category", "")).lower() or "department" in str(s.get("category", "")).lower()]
 
+    apt_score = None
     if apt_tests:
         apt_score = round(sum(get_test_pct(s) for s in apt_tests) / len(apt_tests))
-    elif u_tests:
+    elif u_tests and not tech_tests:
         apt_score = round(sum(get_test_pct(s) for s in u_tests) / len(u_tests))
-    else:
-        apt_score = 0
 
+    tech_score = None
     if tech_tests:
         tech_score = round(sum(get_test_pct(s) for s in tech_tests) / len(tech_tests))
-    elif u_tests:
+    elif u_tests and not apt_tests:
         tech_score = round(sum(get_test_pct(s) for s in u_tests) / len(u_tests))
-    else:
-        tech_score = 0
 
+    ats_score = None
     if u_resumes:
-        ats_score = int(u_resumes[-1].get("atsScore") or u_resumes[-1].get("ats_score") or 82)
-    else:
-        ats_score = 82
+        for r in reversed(u_resumes):
+            raw_ats = r.get("atsScore") if r.get("atsScore") is not None else r.get("ats_score")
+            if raw_ats is None:
+                raw_ats = r.get("overallScore")
+            if raw_ats is not None:
+                try:
+                    ats_score = int(raw_ats)
+                    break
+                except (ValueError, TypeError):
+                    pass
 
     user_rm = next((r for r in user_roadmaps if str(r.get("userId")) == u_id), None)
     tot_t = 0
@@ -633,11 +639,42 @@ def calculate_user_readiness(user_id: str) -> int:
                     tot_t += 1
                     if isinstance(ms, dict) and ms.get("completed"):
                         done_t += 1
-    domain_pct = round((done_t / tot_t) * 100) if tot_t > 0 else int(user_rm.get("overallProgress", 0) if user_rm else 0)
+    
+    domain_pct = None
+    if tot_t > 0 and done_t > 0:
+        domain_pct = round((done_t / tot_t) * 100)
+    elif user_rm and isinstance(user_rm.get("overallProgress"), (int, float)) and user_rm["overallProgress"] > 0:
+        domain_pct = int(user_rm["overallProgress"])
 
-    if u_tests:
-        calc_readiness = round((0.35 * apt_score) + (0.35 * tech_score) + (0.20 * ats_score) + (0.10 * domain_pct))
+    # Calculate overall readiness score based on genuine data available
+    # Requires at least one core evaluation (Aptitude, Technical, or ATS) to produce an overall score
+    if apt_score is None and tech_score is None and ats_score is None:
+        final_readiness = None
     else:
-        calc_readiness = round((0.20 * ats_score) + (0.10 * domain_pct))
+        components = []
+        if apt_score is not None:
+            components.append((apt_score, 0.35))
+        if tech_score is not None:
+            components.append((tech_score, 0.35))
+        if ats_score is not None:
+            components.append((ats_score, 0.20))
+        if domain_pct is not None:
+            components.append((domain_pct, 0.10))
 
-    return min(100, max(0, calc_readiness))
+        if components:
+            total_weight = sum(w for _, w in components)
+            calc_readiness = round(sum(val * w for val, w in components) / total_weight)
+            final_readiness = min(100, max(0, calc_readiness))
+        else:
+            final_readiness = None
+
+    return {
+        "score": final_readiness,
+        "aptitude": apt_score,
+        "technical": tech_score,
+        "ats": ats_score
+    }
+
+def calculate_user_readiness(user_id: str) -> Optional[int]:
+    metrics = get_user_readiness_metrics(user_id)
+    return metrics["score"]

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import BlurText from '../components/BlurText';
-import { getSpeechAnalyticsApi, SpeechAnalyticsResponse } from '../lib/api';
+import { getSpeechAnalyticsApi, SpeechAnalyticsResponse, getUserReadinessApi, UserReadinessMetrics } from '../lib/api';
 import { TestResult } from '../types';
 import {
   Award,
@@ -108,34 +108,32 @@ export const Dashboard: React.FC = React.memo(() => {
     );
   }
 
-  // Helper function to extract test percentage accurately
-  const getTestPercentage = (s: typeof recentScores[0]) => {
-    if (!s) return 0;
-    if (typeof s.accuracy === 'number' && s.accuracy > 0) return s.accuracy;
-    if (s.totalQuestions && s.totalQuestions > 0) return Math.round(((s.score || 0) / s.totalQuestions) * 100);
-    return s.score || 0;
-  };
+  // Genuine Database-Backed Readiness Metrics
+  const [readinessMetrics, setReadinessMetrics] = useState<UserReadinessMetrics>({
+    score: user?.readiness?.score ?? (typeof user?.readinessScore === 'number' ? user.readinessScore : null),
+    aptitude: user?.readiness?.aptitude ?? null,
+    technical: user?.readiness?.technical ?? null,
+    ats: user?.readiness?.ats ?? null
+  });
 
-  // 1. Aptitude Score Calculation from real submitted tests
-  const aptitudeTestResults = recentScores.filter(
-    s => s && ((s.category || '').toLowerCase().includes('aptitude') || (s.category || '').toLowerCase().includes('company'))
-  );
-  const aptitudeScore = aptitudeTestResults.length > 0
-    ? Math.round(aptitudeTestResults.reduce((acc, s) => acc + getTestPercentage(s), 0) / aptitudeTestResults.length)
-    : (recentScores.length > 0 ? Math.round(recentScores.reduce((acc, s) => acc + getTestPercentage(s), 0) / recentScores.length) : 0);
+  useEffect(() => {
+    if (user?.id) {
+      getUserReadinessApi()
+        .then(data => {
+          if (data) {
+            setReadinessMetrics({
+              score: data.score ?? null,
+              aptitude: data.aptitude ?? null,
+              technical: data.technical ?? null,
+              ats: data.ats ?? null
+            });
+          }
+        })
+        .catch(err => console.warn('Failed to load user readiness metrics:', err));
+    }
+  }, [user?.id, recentScores.length]);
 
-  // 2. Technical Score Calculation from real technical tests
-  const technicalTestResults = recentScores.filter(
-    s => s && ((s.category || '').toLowerCase().includes('technical') || (s.category || '').toLowerCase().includes('coding'))
-  );
-  const technicalScore = technicalTestResults.length > 0
-    ? Math.round(technicalTestResults.reduce((acc, s) => acc + getTestPercentage(s), 0) / technicalTestResults.length)
-    : (recentScores.length > 0 ? Math.round(recentScores.reduce((acc, s) => acc + getTestPercentage(s), 0) / recentScores.length) : 0);
-
-  // 3. ATS Resume Score
-  const atsScore = 82;
-
-  // 4. Domain progress calculations
+  // Domain progress calculations
   const userDomain = (user?.domain || '').toLowerCase();
   const currentDomainRoadmap = userDomain
     ? (roadmaps || []).find(r => r && r.name && r.name.toLowerCase() === userDomain)
@@ -154,13 +152,6 @@ export const Dashboard: React.FC = React.memo(() => {
     });
   }
   const domainPct = totalTopics > 0 ? Math.round((doneTopics / totalTopics) * 100) : 0;
-
-  // Real Composite Readiness Score (35% Aptitude + 35% Technical + 20% ATS + 10% Roadmap)
-  const calculatedReadinessScore = recentScores.length > 0
-    ? Math.round((0.35 * aptitudeScore) + (0.35 * technicalScore) + (0.20 * atsScore) + (0.10 * domainPct))
-    : Math.round((0.20 * atsScore) + (0.10 * domainPct));
-
-  const score = typeof user?.readinessScore === 'number' ? user.readinessScore : Math.min(100, Math.max(0, calculatedReadinessScore));
 
   const testsTaken = recentScores.length;
   const testsPassed = recentScores.filter(s => s && s.passed).length;
@@ -210,10 +201,10 @@ export const Dashboard: React.FC = React.memo(() => {
 
             {/* EXECUTIVE HERO COMMAND CENTER (NAKED HEADER) */}
             <motion.div variants={itemVariants} className="py-1 relative">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center relative z-10">
 
-                {/* Profile Brief & Target Info */}
-                <div className="space-y-3 flex-1">
+                {/* Profile Brief & Target Info (Col-span-2) */}
+                <div className="sm:col-span-2 space-y-3">
                   <div>
                     <span className="text-sm sm:text-base font-medium text-zinc-400 tracking-wide">Welcome Back,</span>
                     <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-heading mt-0.5 flex items-center gap-3">
@@ -247,47 +238,66 @@ export const Dashboard: React.FC = React.memo(() => {
                   </div>
                 </div>
 
-                {/* READINESS INDEX MULTI-METRIC RADIAL HUB */}
-                <div className="shrink-0 flex flex-col items-center justify-center p-4 bg-[#2a2e2f] border border-white/10 rounded-2xl w-full sm:w-44 space-y-2.5 relative">
-                  <div className="absolute top-2 right-2">
-                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
-                  </div>
+                {/* READINESS CARD (COL-SPAN-1: SAME EXACT WIDTH AS MOCK DRIVE PRACTICE CARD IN ROW BELOW) */}
+                <div className="sm:col-span-1 w-full">
+                  <div className="p-4 bg-[#2a2e2f] border border-white/10 rounded-2xl relative flex items-center justify-between gap-3 min-h-[148px] w-full">
+                    <div className="absolute top-2.5 right-2.5">
+                      <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping inline-block" />
+                    </div>
 
-                  <div className="relative w-28 h-28 flex items-center justify-center">
-                    <svg className="w-full h-full transform -rotate-90 filter drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.06)" strokeWidth="8" fill="transparent" />
-                      <circle
-                        cx="50"
-                        cy="50"
-                        r="42"
-                        stroke="#F97316"
-                        strokeWidth="8"
-                        fill="transparent"
-                        strokeDasharray={263.8}
-                        strokeDashoffset={263.8 - (263.8 * score) / 100}
-                        strokeLinecap="round"
-                        style={{ transition: 'stroke-dashoffset 850ms cubic-bezier(0.23, 1, 0.32, 1)' }}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-2xl font-black text-white font-heading tracking-tight">{score}%</span>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-orange-400">READINESS</span>
+                    {/* Left: 3 Stacked Metrics */}
+                    <div className="flex flex-col justify-center space-y-2.5 pl-1 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base sm:text-lg font-bold text-white tabular-nums tracking-tight min-w-[32px]">
+                          {readinessMetrics.aptitude !== null ? `${readinessMetrics.aptitude}%` : '—'}
+                        </span>
+                        <span className="text-xs text-zinc-400 font-medium">Apt</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-base sm:text-lg font-bold text-white tabular-nums tracking-tight min-w-[32px]">
+                          {readinessMetrics.technical !== null ? `${readinessMetrics.technical}%` : '—'}
+                        </span>
+                        <span className="text-xs text-zinc-400 font-medium">Tech</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`text-base sm:text-lg font-bold tabular-nums tracking-tight min-w-[32px] ${readinessMetrics.ats !== null ? 'text-orange-400' : 'text-zinc-400'}`}>
+                          {readinessMetrics.ats !== null ? `${readinessMetrics.ats}%` : '—'}
+                        </span>
+                        <span className="text-xs text-zinc-400 font-medium">ATS</span>
+                      </div>
                     </div>
-                  </div>
-                  {/* Sub-breakdown Mini Stats */}
-                  <div className="w-full grid grid-cols-3 gap-1 pt-1 border-t border-white/10 text-[10px] text-center">
-                    <div>
-                      <span className="text-zinc-400 block font-medium">Apt</span>
-                      <span className="font-bold text-white">{aptitudeScore}%</span>
+
+                    {/* Right: Enlarged Circular Readiness Graph */}
+                    <div className="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center shrink-0 my-auto pr-1">
+                      <svg className="w-full h-full transform -rotate-90 filter drop-shadow-[0_0_10px_rgba(249,115,22,0.4)]" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.06)" strokeWidth="8" fill="transparent" />
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          stroke="#F97316"
+                          strokeWidth="8"
+                          fill="transparent"
+                          strokeDasharray={251.3}
+                          strokeDashoffset={
+                            readinessMetrics.score !== null
+                              ? 251.3 - (251.3 * Math.min(100, Math.max(0, readinessMetrics.score))) / 100
+                              : 251.3
+                          }
+                          strokeLinecap="round"
+                          style={{ transition: 'stroke-dashoffset 850ms cubic-bezier(0.23, 1, 0.32, 1)' }}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <span className="text-2xl sm:text-3xl font-black text-white font-heading tracking-tight">
+                          {readinessMetrics.score !== null ? `${readinessMetrics.score}%` : '—'}
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-orange-400 mt-0.5">READINESS</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-zinc-400 block font-medium">Tech</span>
-                      <span className="font-bold text-white">{technicalScore}%</span>
-                    </div>
-                    <div>
-                      <span className="text-zinc-400 block font-medium">ATS</span>
-                      <span className="font-bold text-orange-400">{atsScore}%</span>
-                    </div>
+
                   </div>
                 </div>
 
@@ -419,8 +429,8 @@ export const Dashboard: React.FC = React.memo(() => {
                         key={tab}
                         onClick={() => setDriveFilter(tab)}
                         className={`px-3.5 py-1.5 rounded-full font-medium transition-all cursor-pointer active:scale-[0.97] ${driveFilter === tab
-                            ? 'bg-[#000000] text-white shadow-sm font-semibold border border-white/10'
-                            : 'text-zinc-400 hover:text-zinc-200'
+                          ? 'bg-[#000000] text-white shadow-sm font-semibold border border-white/10'
+                          : 'text-zinc-400 hover:text-zinc-200'
                           }`}
                       >
                         {tab === 'all' ? 'All Drives' : tab.replace(' Drive', '')}
@@ -573,8 +583,8 @@ export const Dashboard: React.FC = React.memo(() => {
                               type="button"
                               onClick={() => setCurrentPage(pageNum)}
                               className={`w-7 h-7 rounded-full text-xs font-bold transition-all cursor-pointer ${safeCurrentPage === pageNum
-                                  ? 'bg-orange-500 text-black shadow-md shadow-orange-500/20'
-                                  : 'bg-[#141414] text-zinc-400 hover:text-white hover:bg-zinc-800 border border-white/10'
+                                ? 'bg-orange-500 text-black shadow-md shadow-orange-500/20'
+                                : 'bg-[#141414] text-zinc-400 hover:text-white hover:bg-zinc-800 border border-white/10'
                                 }`}
                             >
                               {pageNum}
