@@ -57,7 +57,9 @@ def register(request: Request, req: RegisterRequest, response: Response):
         "role": req.role or "mentee",
         "year": req.year or "3rd Year",
         "branch": req.branch or "Computer Science & Engg",
-        "domainInterest": req.domainInterest or "Software Engineering",
+        "domainInterest": req.domainInterest if req.domainInterest else None,
+        "hasSelectedDomain": bool(req.domainInterest),
+        "targetDrive": None,
         "isVerified": True,
         "readinessScore": 50,
         "createdAt": now_str
@@ -69,7 +71,7 @@ def register(request: Request, req: RegisterRequest, response: Response):
     from backend.database import supabase_client
     if supabase_client:
         try:
-            supabase_client.table("users").upsert({
+            reg_payload = {
                 "id": new_user["id"],
                 "name": new_user["name"],
                 "email": new_user["email"],
@@ -81,22 +83,30 @@ def register(request: Request, req: RegisterRequest, response: Response):
                 "is_verified": True,
                 "readiness_score": 50,
                 "created_at": now_str
-            }).execute()
+            }
+            try:
+                supabase_client.table("users").upsert(reg_payload).execute()
+            except Exception as e_reg:
+                err_s = str(e_reg)
+                if "has_selected_domain" in err_s:
+                    reg_payload.pop("has_selected_domain", None)
+                supabase_client.table("users").upsert(reg_payload).execute()
             print(f"[Supabase] Registered user {new_user['email']} directly to Supabase users table!")
         except Exception as e:
             print("[Supabase Direct User Register Error]:", e)
 
-    # Initialize domain roadmap if student/mentee
-    domain = new_user["domainInterest"]
-    modules = DEFAULT_ROADMAPS.get(domain, DEFAULT_ROADMAPS["Software Engineering"])
-    db.userRoadmaps.append({
-        "id": f"map_{user_id}",
-        "userId": user_id,
-        "domain": domain,
-        "overallProgress": 0,
-        "modules": modules,
-        "lastUpdated": now_str
-    })
+    # Initialize domain roadmap if student/mentee selected a domain
+    if new_user.get("domainInterest"):
+        domain = new_user["domainInterest"]
+        modules = DEFAULT_ROADMAPS.get(domain, DEFAULT_ROADMAPS["Software Engineering"])
+        db.userRoadmaps.append({
+            "id": f"map_{user_id}",
+            "userId": user_id,
+            "domain": domain,
+            "overallProgress": 0,
+            "modules": modules,
+            "lastUpdated": now_str
+        })
 
     db.save()
 
@@ -107,7 +117,7 @@ def register(request: Request, req: RegisterRequest, response: Response):
         "role": new_user["role"],
         "year": new_user["year"],
         "branch": new_user["branch"],
-        "domainInterest": new_user["domainInterest"],
+        "domainInterest": new_user["domainInterest"] if new_user.get("hasSelectedDomain") else None,
         "hasSelectedDomain": new_user.get("hasSelectedDomain", False),
         "isVerified": new_user["isVerified"],
         "readinessScore": new_user["readinessScore"],
@@ -167,7 +177,7 @@ def login(request: Request, req: LoginRequest, response: Response):
         "role": user["role"],
         "year": user["year"],
         "branch": user["branch"],
-        "domainInterest": user["domainInterest"],
+        "domainInterest": user.get("domainInterest") if user.get("hasSelectedDomain") else None,
         "hasSelectedDomain": user.get("hasSelectedDomain", False),
         "isVerified": user.get("isVerified", True),
         "readinessScore": user.get("readinessScore", 60),
@@ -219,7 +229,7 @@ def demo_login(req: DemoLoginRequest, response: Response):
         "role": user["role"],
         "year": user["year"],
         "branch": user["branch"],
-        "domainInterest": user["domainInterest"],
+        "domainInterest": user.get("domainInterest") if user.get("hasSelectedDomain") else None,
         "hasSelectedDomain": user.get("hasSelectedDomain", False),
         "isVerified": user.get("isVerified", True),
         "readinessScore": user.get("readinessScore", 75),
@@ -279,7 +289,7 @@ def get_me(current_user: dict = Depends(get_current_user)):
         "role": current_user["role"],
         "year": current_user["year"],
         "branch": current_user["branch"],
-        "domainInterest": current_user["domainInterest"],
+        "domainInterest": current_user.get("domainInterest") if current_user.get("hasSelectedDomain") else None,
         "hasSelectedDomain": current_user.get("hasSelectedDomain", False),
         "isVerified": current_user.get("isVerified", True),
         "readinessScore": calculate_user_readiness(current_user["id"]),

@@ -127,9 +127,10 @@ def batch_create_users(
             "role": "mentee",
             "year": req.year,
             "branch": req.branch,
-            "domainInterest": "Software Engineering",
-            "domain": "Software Engineering",
+            "domainInterest": None,
+            "domain": None,
             "hasSelectedDomain": False,
+            "targetDrive": None,
             "is_verified": True,
             "readinessScore": 0,
             "readiness_score": 0,
@@ -138,16 +139,6 @@ def batch_create_users(
         db.users.append(new_user)
         if hasattr(db, "user_map"):
             db.user_map[user_id] = new_user
-
-        modules = DEFAULT_ROADMAPS.get("Software Engineering", [])
-        if hasattr(db, "userRoadmaps"):
-            db.userRoadmaps.append({
-                "id": f"rm_{user_id}",
-                "userId": user_id,
-                "domain": "Software Engineering",
-                "overallProgress": 0,
-                "modules": modules
-            })
 
         if supabase_client:
             try:
@@ -159,7 +150,7 @@ def batch_create_users(
                     "role": "mentee",
                     "year": req.year,
                     "branch": req.branch,
-                    "domain_interest": "Software Engineering",
+                    "domain_interest": None,
                     "readiness_score": 0,
                     "has_selected_domain": False
                 }).execute()
@@ -244,9 +235,10 @@ def batch_csv_create_users(
             "role": "mentee",
             "year": normalized_year,
             "branch": mapped_branch,
-            "domainInterest": "Software Engineering",
-            "domain": "Software Engineering",
+            "domainInterest": None,
+            "domain": None,
             "hasSelectedDomain": False,
+            "targetDrive": None,
             "is_verified": True,
             "readinessScore": 0,
             "readiness_score": 0,
@@ -255,16 +247,6 @@ def batch_csv_create_users(
         db.users.append(new_user)
         if hasattr(db, "user_map"):
             db.user_map[user_id] = new_user
-
-        modules = DEFAULT_ROADMAPS.get("Software Engineering", [])
-        if hasattr(db, "userRoadmaps"):
-            db.userRoadmaps.append({
-                "id": f"rm_{user_id}",
-                "userId": user_id,
-                "domain": "Software Engineering",
-                "overallProgress": 0,
-                "modules": modules
-            })
 
         if supabase_client:
             try:
@@ -276,7 +258,7 @@ def batch_csv_create_users(
                     "role": "mentee",
                     "year": normalized_year,
                     "branch": mapped_branch,
-                    "domain_interest": "Software Engineering",
+                    "domain_interest": None,
                     "readiness_score": 0,
                     "has_selected_domain": False
                 }).execute()

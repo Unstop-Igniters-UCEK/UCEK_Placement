@@ -35,7 +35,7 @@ export const AuthModal: React.FC = React.memo(() => {
   const [signupEmail, setSignupEmail] = useState('');
   const [signupYear, setSignupYear] = useState('');
   const [signupBranch, setSignupBranch] = useState('');
-  const [signupDomain, setSignupDomain] = useState('Software Engineering');
+  const [signupDomain, setSignupDomain] = useState<string>('');
   const [signupPassword, setSignupPassword] = useState('');
   const [adminSecurityCode, setAdminSecurityCode] = useState('');
 
@@ -117,7 +117,7 @@ export const AuthModal: React.FC = React.memo(() => {
         role: selectedRole,
         year: signupYear,
         branch: signupBranch,
-        domain: signupDomain,
+        domain: signupDomain || undefined,
         adminSecurityCode: selectedRole === 'admin' ? adminSecurityCode : undefined
       });
       setAuthModalOpen(false);

@@ -137,7 +137,7 @@ export async function registerApi(payload: RegisterPayload): Promise<AuthRespons
       role: payload.role || 'mentee',
       year: payload.year || '4th Year',
       branch: payload.branch || 'CSE',
-      domainInterest: payload.domainInterest || 'Software Engineering',
+      domainInterest: payload.domainInterest || undefined,
       adminSecurityCode: payload.adminSecurityCode || undefined,
     }),
   });

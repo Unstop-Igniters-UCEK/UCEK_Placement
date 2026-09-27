@@ -82,13 +82,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot'>('login');
 
-  const [selectedTargetDrive, setSelectedTargetDriveState] = useState<string>(() => {
-    return localStorage.getItem('ucek_selected_target_drive') || 'TCS Ninja & Digital 2026';
-  });
+  const [selectedTargetDrive, setSelectedTargetDriveState] = useState<string>('');
 
   const setSelectedTargetDrive = useCallback((driveLabel: string) => {
     setSelectedTargetDriveState(driveLabel);
-    localStorage.setItem('ucek_selected_target_drive', driveLabel);
     const token = localStorage.getItem('ucek_access_token');
     if (token) {
       updateProfileApi({ targetDrive: driveLabel }).catch(() => {});
@@ -119,17 +116,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               role: (data.user.role as UserRole) || 'mentee',
               year: data.user.year || '4th Year',
               branch: data.user.branch || 'CSE',
-              domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+              domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
               hasSelectedDomain: data.user.hasSelectedDomain ?? false,
+              targetDrive: data.user.targetDrive || null,
               readinessScore: data.user.readinessScore ?? 75,
               avatar: data.user.avatar,
               bio: data.user.bio,
             });
 
-            if (data.user.targetDrive) {
-              setSelectedTargetDriveState(data.user.targetDrive);
-              localStorage.setItem('ucek_selected_target_drive', data.user.targetDrive);
-            }
+            setSelectedTargetDriveState(data.user.targetDrive || '');
             if (data.user.role === 'admin') {
               setActiveTab('admin-dashboard');
             }
@@ -182,8 +177,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         role: (data.user.role as UserRole) || role,
         year: data.user.year || '4th Year',
         branch: data.user.branch || 'CSE',
-        domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+        domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
         hasSelectedDomain: data.user.hasSelectedDomain ?? false,
+        targetDrive: data.user.targetDrive || null,
         readinessScore: data.user.readinessScore ?? 80,
         avatar: data.user.avatar,
         bio: data.user.bio,
@@ -214,13 +210,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: (data.user.role as UserRole) || 'mentee',
       year: data.user.year || '4th Year',
       branch: data.user.branch || 'CSE',
-      domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+      domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
       hasSelectedDomain: data.user.hasSelectedDomain ?? false,
+      targetDrive: data.user.targetDrive || null,
       readinessScore: data.user.readinessScore ?? 75,
       avatar: data.user.avatar,
       bio: data.user.bio,
     };
     setUser(mappedUser);
+    setSelectedTargetDriveState(data.user.targetDrive || '');
     setAuthModalOpen(false);
     setActiveTab(mappedUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
     return true;
@@ -234,7 +232,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: newUser.role || 'mentee',
       year: newUser.year || '4th Year',
       branch: newUser.branch || 'CSE',
-      domainInterest: newUser.domain || 'Software Engineering',
+      domainInterest: newUser.domain || undefined,
       adminSecurityCode: newUser.adminSecurityCode
     });
     if (data.accessToken) {
@@ -247,13 +245,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: (data.user.role as UserRole) || 'mentee',
       year: data.user.year || '4th Year',
       branch: data.user.branch || 'CSE',
-      domain: data.user.domainInterest || data.user.domain || 'Software Engineering',
+      domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
       hasSelectedDomain: data.user.hasSelectedDomain ?? false,
+      targetDrive: data.user.targetDrive || null,
       readinessScore: data.user.readinessScore ?? 65,
       avatar: data.user.avatar,
       bio: data.user.bio,
     };
     setUser(mappedUser);
+    setSelectedTargetDriveState(data.user.targetDrive || '');
     setAuthModalOpen(false);
     setActiveTab(mappedUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
     return true;
@@ -276,7 +276,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logoutUser = useCallback(() => {
     logoutApi().catch(() => {});
+    localStorage.removeItem('ucek_access_token');
+    localStorage.removeItem('ucek_selected_target_drive');
     setUser(null);
+    setSelectedTargetDriveState('');
     setActiveTab('dashboard');
   }, []);
 

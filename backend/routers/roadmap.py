@@ -11,8 +11,8 @@ router = APIRouter(prefix="/api/roadmap", tags=["roadmap"])
 def get_roadmap(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     roadmap = next((r for r in db.userRoadmaps if r["userId"] == user_id), None)
-    if not roadmap:
-        domain = current_user.get("domainInterest", "Software Engineering")
+    if not roadmap and current_user.get("hasSelectedDomain") and current_user.get("domainInterest"):
+        domain = current_user.get("domainInterest")
         roadmap = {
             "id": f"map_{user_id}",
             "userId": user_id,

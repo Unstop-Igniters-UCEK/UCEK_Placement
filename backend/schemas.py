@@ -16,7 +16,7 @@ class RegisterRequest(BaseModel):
     role: Optional[str] = "mentee"
     year: Optional[str] = "3rd Year"
     branch: Optional[str] = "Computer Science & Engg"
-    domainInterest: Optional[str] = "Software Engineering"
+    domainInterest: Optional[str] = None
     adminSecurityCode: Optional[str] = None
 
     @validator('name')

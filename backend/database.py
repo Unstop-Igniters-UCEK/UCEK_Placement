@@ -132,25 +132,48 @@ class Database:
             try:
                 rel_res = supabase_client.table("users").select("*").execute()
                 if rel_res.data and len(rel_res.data) > 0:
+                    prev_users_by_id = {str(usr.get("id")): usr for usr in self.users if usr.get("id")}
                     self.users = []
                     for u in rel_res.data:
+                        uid = str(u.get("id"))
+                        prev_user = prev_users_by_id.get(uid, {})
+                        role_str = str(u.get("role") or prev_user.get("role") or "mentee").strip().lower()
+                        has_selected = bool(u.get("has_selected_domain") or u.get("hasSelectedDomain") or prev_user.get("hasSelectedDomain") or False)
+                        domain_raw = u.get("domain_interest") or u.get("domainInterest") or prev_user.get("domainInterest")
+
+                        # If user is student/mentee and domain is the legacy default "Software Engineering", treat as unselected
+                        if domain_raw and domain_raw.strip().lower() in ("software engineering",) and role_str != "admin":
+                            has_selected = False
+                            domain_val = None
+                        elif domain_raw and (has_selected or domain_raw.strip().lower() not in ("software engineering",)):
+                            has_selected = True
+                            domain_val = domain_raw.strip()
+                        elif has_selected and domain_raw:
+                            domain_val = domain_raw.strip()
+                        else:
+                            domain_val = None
+                            has_selected = False
+
+                        target_drive_val = u.get("target_drive") or u.get("targetDrive") or prev_user.get("targetDrive") or None
+
                         mapped = {
-                            "id": str(u.get("id")),
+                            "id": uid,
                             "name": str(u.get("name", "")),
                             "email": str(u.get("email", "")),
-                            "passwordHash": str(u.get("password_hash") or u.get("passwordHash") or ""),
-                            "password_hash": str(u.get("password_hash") or u.get("passwordHash") or ""),
+                            "passwordHash": str(u.get("password_hash") or u.get("passwordHash") or prev_user.get("passwordHash", "")),
+                            "password_hash": str(u.get("password_hash") or u.get("passwordHash") or prev_user.get("password_hash", "")),
                             "role": str(u.get("role", "mentee")),
                             "year": str(u.get("year", "4th Year")),
                             "branch": str(u.get("branch", "CSE")),
-                            "domainInterest": str(u.get("domain_interest") or u.get("domainInterest") or "Software Engineering"),
+                            "domainInterest": domain_val if has_selected else None,
                             "isVerified": bool(u.get("is_verified", True)),
-                            "hasSelectedDomain": bool(u.get("has_selected_domain") or u.get("hasSelectedDomain") or False),
+                            "hasSelectedDomain": has_selected,
+                            "targetDrive": target_drive_val,
                             "readinessScore": int(u.get("readiness_score", 50)),
-                            "bio": u.get("bio"),
-                            "linkedInUrl": u.get("linkedin_url"),
-                            "githubUrl": u.get("github_url"),
-                            "createdAt": u.get("created_at") or datetime.now().isoformat()
+                            "bio": u.get("bio") or prev_user.get("bio"),
+                            "linkedInUrl": u.get("linkedin_url") or prev_user.get("linkedInUrl"),
+                            "githubUrl": u.get("github_url") or prev_user.get("githubUrl"),
+                            "createdAt": u.get("created_at") or prev_user.get("createdAt") or datetime.now().isoformat()
                         }
                         self.users.append(mapped)
                     print(f"[Supabase] Loaded {len(self.users)} users directly from Supabase users table.")
@@ -338,8 +361,9 @@ class Database:
             except Exception as e:
                 print("[Supabase hr_practice_questions table load notice]:", e)
 
-        self._seed_default_users()
-        self.save()
+        seeded = self._seed_default_users()
+        if seeded:
+            self.save()
 
     def save(self):
         # Direct Supabase database sync (no local file creation)
@@ -370,8 +394,9 @@ class Database:
                 print("[Supabase app_state save notice]:", e)
 
             try:
+                user_payloads = []
                 for u in self.users:
-                    user_payload = {
+                    user_payloads.append({
                         "id": str(u.get("id")),
                         "name": str(u.get("name", "")),
                         "email": str(u.get("email", "")),
@@ -379,23 +404,16 @@ class Database:
                         "role": str(u.get("role", "mentee")),
                         "year": str(u.get("year", "4th Year")),
                         "branch": str(u.get("branch", "CSE")),
-                        "domain_interest": str(u.get("domainInterest") or u.get("domain_interest") or "Software Engineering"),
-                        "has_selected_domain": bool(u.get("hasSelectedDomain") or u.get("has_selected_domain") or False),
+                        "domain_interest": u.get("domainInterest") if u.get("hasSelectedDomain") else None,
                         "is_verified": bool(u.get("isVerified", True)),
                         "readiness_score": int(u.get("readinessScore", 50)),
                         "bio": u.get("bio"),
                         "linkedin_url": u.get("linkedInUrl") or u.get("linkedin_url"),
                         "github_url": u.get("githubUrl") or u.get("github_url"),
                         "created_at": u.get("createdAt") or datetime.now().isoformat()
-                    }
-                    try:
-                        supabase_client.table("users").upsert(user_payload, on_conflict="email").execute()
-                    except Exception as err:
-                        if "has_selected_domain" in str(err) or "PGRST204" in str(err):
-                            user_payload.pop("has_selected_domain", None)
-                            supabase_client.table("users").upsert(user_payload, on_conflict="email").execute()
-                        else:
-                            raise err
+                    })
+                for i in range(0, len(user_payloads), 50):
+                    supabase_client.table("users").upsert(user_payloads[i:i+50], on_conflict="email").execute()
             except Exception as e:
                 print("[Supabase users table save notice]:", e)
 
@@ -549,6 +567,8 @@ class Database:
         }
         if not any(u.get("email") == admin_user["email"] for u in self.users):
             self.users.append(admin_user)
+            return True
+        return False
 
 db = Database()
 

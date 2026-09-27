@@ -7,8 +7,9 @@ export interface User {
   role: UserRole;
   year: string;
   branch: string;
-  domain: string;
+  domain?: string | null;
   hasSelectedDomain?: boolean;
+  targetDrive?: string | null;
   readinessScore: number;
   avatar?: string;
   company?: string; // For placed mentors

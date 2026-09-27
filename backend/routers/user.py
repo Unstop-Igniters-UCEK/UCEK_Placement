@@ -12,19 +12,21 @@ def get_dashboard(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     
     # User roadmap
-    roadmap = next((r for r in db.userRoadmaps if r["userId"] == user_id), None)
-    if not roadmap:
-        domain = current_user.get("domainInterest", "Software Engineering")
-        roadmap = {
-            "id": f"map_{user_id}",
-            "userId": user_id,
-            "domain": domain,
-            "overallProgress": 0,
-            "modules": DEFAULT_ROADMAPS.get(domain, DEFAULT_ROADMAPS["Software Engineering"]),
-            "lastUpdated": ""
-        }
-        db.userRoadmaps.append(roadmap)
-        db.save()
+    roadmap = None
+    if current_user.get("hasSelectedDomain") and current_user.get("domainInterest"):
+        roadmap = next((r for r in db.userRoadmaps if r["userId"] == user_id), None)
+        if not roadmap:
+            domain = current_user.get("domainInterest")
+            roadmap = {
+                "id": f"map_{user_id}",
+                "userId": user_id,
+                "domain": domain,
+                "overallProgress": 0,
+                "modules": DEFAULT_ROADMAPS.get(domain, DEFAULT_ROADMAPS["Software Engineering"]),
+                "lastUpdated": ""
+            }
+            db.userRoadmaps.append(roadmap)
+            db.save()
 
     # Recent test scores
     user_scores = [s for s in db.testScores if s["userId"] == user_id]
@@ -47,8 +49,25 @@ def get_dashboard(current_user: dict = Depends(get_current_user)):
         for u in db.users if u["role"] == "mentor"
     ]
 
+    user_payload = {
+        "id": current_user["id"],
+        "name": current_user["name"],
+        "email": current_user["email"],
+        "role": current_user["role"],
+        "year": current_user["year"],
+        "branch": current_user["branch"],
+        "domainInterest": current_user.get("domainInterest") if current_user.get("hasSelectedDomain") else None,
+        "hasSelectedDomain": current_user.get("hasSelectedDomain", False),
+        "isVerified": current_user.get("isVerified", True),
+        "readinessScore": current_user.get("readinessScore", 50),
+        "bio": current_user.get("bio"),
+        "linkedInUrl": current_user.get("linkedInUrl"),
+        "githubUrl": current_user.get("githubUrl"),
+        "targetDrive": current_user.get("targetDrive")
+    }
+
     return {
-        "user": current_user,
+        "user": user_payload,
         "roadmap": roadmap,
         "recentScores": user_scores,
         "recommendedMentors": mentors
@@ -99,7 +118,7 @@ def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_c
         "role": user["role"],
         "year": user["year"],
         "branch": user["branch"],
-        "domainInterest": user["domainInterest"],
+        "domainInterest": user["domainInterest"] if user.get("hasSelectedDomain") else None,
         "hasSelectedDomain": user.get("hasSelectedDomain", False),
         "isVerified": user.get("isVerified", True),
         "readinessScore": user.get("readinessScore", 75),

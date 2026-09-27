@@ -137,9 +137,9 @@ export const Dashboard: React.FC = React.memo(() => {
 
   // 4. Domain progress calculations
   const userDomain = (user?.domain || '').toLowerCase();
-  const currentDomainRoadmap = (roadmaps || []).find(
-    r => r && r.name && r.name.toLowerCase() === userDomain
-  ) || (roadmaps || []).find(r => r && r.id === 'swe') || (roadmaps || [])[0];
+  const currentDomainRoadmap = userDomain
+    ? (roadmaps || []).find(r => r && r.name && r.name.toLowerCase() === userDomain)
+    : null;
 
   let totalTopics = 0;
   let doneTopics = 0;
@@ -236,13 +236,13 @@ export const Dashboard: React.FC = React.memo(() => {
                     <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300">
                       <Layers className="w-4 h-4 text-orange-400 shrink-0" />
                       <span>Domain:</span>
-                      <strong className="text-white font-semibold">{user.domain}</strong>
+                      <strong className="text-white font-semibold">{user.domain ? user.domain : "Not selected"}</strong>
                     </div>
 
                     <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300">
                       <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
                       <span>Target Drive:</span>
-                      <strong className="text-white font-semibold">{selectedTargetDrive}</strong>
+                      <strong className="text-white font-semibold">{selectedTargetDrive ? selectedTargetDrive : "Not selected"}</strong>
                     </div>
                   </div>
                 </div>
@@ -308,7 +308,7 @@ export const Dashboard: React.FC = React.memo(() => {
                     <BookOpen className="w-4 h-4 text-white" />
                   </div>
                   <span className="mono-badge rounded-full text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
-                    {domainPct}% Done
+                    {user?.domain ? `${domainPct}% Done` : '0% Done'}
                   </span>
                 </div>
 
@@ -326,7 +326,9 @@ export const Dashboard: React.FC = React.memo(() => {
                       style={{ width: `${domainPct}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-zinc-400 font-medium block text-right">Active: Microservices Arch</span>
+                  <span className="text-[10px] text-zinc-400 font-medium block text-right">
+                    {user?.domain ? 'Active: Core Fundamentals' : 'Not selected'}
+                  </span>
                 </div>
               </motion.div>
 
