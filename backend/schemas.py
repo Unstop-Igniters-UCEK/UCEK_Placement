@@ -1,12 +1,12 @@
-import html
+import re
 from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List, Dict, Any
 
 def sanitize_text(text: Optional[str]) -> Optional[str]:
     if text is None:
         return None
-    # Strip HTML tags & escape special characters
-    clean = html.escape(text.strip())
+    # Strip HTML tags (<...>) and trim leading/trailing whitespace
+    clean = re.sub(r'<[^>]*>', '', text).strip()
     return clean
 
 class RegisterRequest(BaseModel):
@@ -47,15 +47,43 @@ class DemoLoginRequest(BaseModel):
     role: str
 
 class ProfileUpdateRequest(BaseModel):
-    name: Optional[str] = None
-    year: Optional[str] = None
-    branch: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
+    year: Optional[str] = Field(None, max_length=50)
+    branch: Optional[str] = Field(None, max_length=100)
     domainInterest: Optional[str] = None
     hasSelectedDomain: Optional[bool] = None
-    bio: Optional[str] = None
+    bio: Optional[str] = Field(None, max_length=500)
     linkedInUrl: Optional[str] = None
     githubUrl: Optional[str] = None
     targetDrive: Optional[str] = None
+
+    @validator('name')
+    def validate_name(cls, v):
+        if v is not None:
+            clean = sanitize_text(v)
+            if not clean:
+                raise ValueError("Name cannot be empty")
+            return clean
+        return None
+
+    @validator('year')
+    def validate_year(cls, v):
+        if v is not None:
+            clean = sanitize_text(v)
+            valid_years = {"1st Year", "2nd Year", "3rd Year", "4th Year", "Faculty Admin", "Placement Cell Officer", "Faculty"}
+            if clean and clean not in valid_years:
+                # Ensure it contains a standard year indication
+                if not any(y in clean.lower() for y in ["1st", "2nd", "3rd", "4th", "year", "faculty"]):
+                    raise ValueError("Invalid academic year selection")
+            return clean
+        return None
+
+    @validator('branch')
+    def validate_branch(cls, v):
+        if v is not None:
+            clean = sanitize_text(v)
+            return clean
+        return None
 
 class ToggleMilestoneRequest(BaseModel):
     moduleId: str

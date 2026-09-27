@@ -11,14 +11,16 @@ import {
   CheckSquare,
   Mic,
   Users,
-  ChevronDown
+  ChevronDown,
+  Pencil
 } from 'lucide-react';
+import { EditProfileModal } from './EditProfileModal';
 
 export const StudentNavHeader: React.FC = React.memo(() => {
   const { user, logoutUser, activeTab, setActiveTab } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
-
   const [userCardOpen, setUserCardOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   if (!user || user.role === 'admin') return null;
 
@@ -184,18 +186,34 @@ export const StudentNavHeader: React.FC = React.memo(() => {
                       transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
                       className="absolute top-full right-0 mt-3 w-64 sm:w-72 p-4 rounded-2xl bg-[#0d0d12]/95 backdrop-blur-2xl border border-white/20 shadow-2xl z-50 text-left pointer-events-auto"
                     >
-                      <div className="flex items-center gap-3 pb-3 border-b border-white/10">
-                        <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/20 flex items-center justify-center overflow-hidden shrink-0">
-                          {user.avatar ? (
-                            <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <User className="w-5 h-5 text-white" />
-                          )}
+                      <div className="flex items-center justify-between pb-3 border-b border-white/10 gap-2">
+                        <div className="flex items-center gap-3 overflow-hidden min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-zinc-800 border border-white/20 flex items-center justify-center overflow-hidden shrink-0">
+                            {user.avatar ? (
+                              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <User className="w-5 h-5 text-white" />
+                            )}
+                          </div>
+                          <div className="overflow-hidden min-w-0">
+                            <h4 className="text-xs sm:text-sm font-bold text-white truncate">{user.name}</h4>
+                            <p className="text-[11px] text-zinc-400 truncate">{user.email}</p>
+                          </div>
                         </div>
-                        <div className="overflow-hidden">
-                          <h4 className="text-xs sm:text-sm font-bold text-white truncate">{user.name}</h4>
-                          <p className="text-[11px] text-zinc-400 truncate">{user.email}</p>
-                        </div>
+
+                        {/* Edit Profile Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserCardOpen(false);
+                            setEditModalOpen(true);
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-orange-500 hover:text-black text-zinc-300 font-semibold text-[11px] transition-colors cursor-pointer shrink-0"
+                          title="Edit Profile"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          <span>Edit</span>
+                        </button>
                       </div>
 
                       <div className="pt-3 space-y-2 text-xs">
@@ -235,6 +253,12 @@ export const StudentNavHeader: React.FC = React.memo(() => {
           </div>
         </div>
       </header>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+      />
     </div>
   );
 });

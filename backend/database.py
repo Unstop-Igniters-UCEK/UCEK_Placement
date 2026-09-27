@@ -46,8 +46,14 @@ SUPABASE_KEY = (
 supabase_client: Optional[Any] = None
 if HAS_SUPABASE_SDK and SUPABASE_URL and SUPABASE_KEY:
     try:
-        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-        print(f"[Supabase] Connected to Supabase DB at {SUPABASE_URL}")
+        import httpx
+        from supabase import ClientOptions
+        limits = httpx.Limits(max_keepalive_connections=20, max_connections=50, keepalive_expiry=30.0)
+        timeout = httpx.Timeout(connect=10.0, read=30.0, write=15.0, pool=15.0)
+        http_client = httpx.Client(limits=limits, timeout=timeout)
+        options = ClientOptions(httpx_client=http_client, postgrest_client_timeout=30)
+        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY, options=options)
+        print(f"[Supabase] Connected to Supabase DB at {SUPABASE_URL} (Pooled HTTP Client)")
     except Exception as err:
         print("[Supabase] Failed to initialize client:", err)
 
@@ -491,7 +497,7 @@ class Database:
             print(f"[Supabase save_roadmap error for user {uid}]:", e)
             return False
 
-    def _map_test_score(self, s: Dict[str, Any]) -> Dict[str, Any]:
+    def _map_test_score(self, s: Dict[str, Any], mock_tests_map: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Normalize raw Supabase test_score row."""
         score_id = str(s.get("id"))
         score_val = int(s.get("score", 0))
@@ -502,7 +508,10 @@ class Database:
         # Look up category and title from mock_tests catalog if missing
         found_test = None
         if not (s.get("category") and (s.get("test_title") or s.get("testTitle"))):
-            found_test = self.get_mock_test_by_id(test_id_str)
+            if mock_tests_map is not None:
+                found_test = mock_tests_map.get(test_id_str)
+            else:
+                found_test = self.get_mock_test_by_id(test_id_str)
         category_val = s.get("category") or (found_test.get("category") if found_test else "Company Drive")
         title_val = s.get("test_title") or s.get("testTitle") or (found_test.get("title") if found_test else "Mock Assessment Drive")
 
@@ -663,38 +672,64 @@ class Database:
                 print("[Supabase get_all_users_admin notice]:", e)
         return []
 
-    def get_all_test_scores_admin(self) -> List[Dict[str, Any]]:
-        """Query Supabase test_scores table directly for Admin Dashboard."""
+    def get_all_test_scores_admin(self, mock_tests_map: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Query Supabase test_scores table directly for Admin Dashboard with optional mock tests batch lookup."""
         if supabase_client:
             try:
+                if mock_tests_map is None:
+                    # Fetch all mock tests in 1 single query to avoid N+1 queries during mapping
+                    all_tests = self.get_mock_tests()
+                    mock_tests_map = {t["id"]: t for t in all_tests}
+
                 res = supabase_client.table("test_scores").select("*").execute()
                 if res.data:
-                    return [self._map_test_score(s) for s in res.data]
+                    return [self._map_test_score(s, mock_tests_map=mock_tests_map) for s in res.data]
             except Exception as e:
                 print("[Supabase get_all_test_scores_admin notice]:", e)
+        return []
+
+    def get_all_user_roadmaps_admin(self) -> List[Dict[str, Any]]:
+        """Query Supabase user_roadmaps table in 1 single bulk query for Admin Dashboard."""
+        if supabase_client:
+            try:
+                res = supabase_client.table("user_roadmaps").select("id,user_id,domain,overall_progress,modules").execute()
+                if res.data:
+                    return res.data
+            except Exception as e:
+                print("[Supabase get_all_user_roadmaps_admin notice]:", e)
         return []
 
 
 db = Database()
 
 
-def get_user_readiness_metrics(user_id: str) -> Dict[str, Any]:
+def get_user_readiness_metrics(
+    user_id: str,
+    test_scores: Optional[List[Dict[str, Any]]] = None,
+    ats_score: Optional[int] = None,
+    user_rm: Optional[Dict[str, Any]] = None,
+    mock_tests_map: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
     """Calculate genuine readiness metrics directly from Supabase DB records for this student."""
     u_id = str(user_id)
 
-    # 1. Fetch test scores for this user from Supabase test_scores table
-    u_tests = []
-    if supabase_client:
+    # 1. Fetch test scores for this user from Supabase test_scores table if not supplied
+    u_tests = test_scores
+    if u_tests is None and supabase_client:
         try:
             ts_res = supabase_client.table("test_scores").select("score,total,percentage,test_id").eq("user_id", u_id).execute()
             if ts_res.data:
                 u_tests = ts_res.data
+            else:
+                u_tests = []
         except Exception as e:
             print(f"[Supabase readiness test_scores notice for {u_id}]:", e)
+            u_tests = []
+    elif u_tests is None:
+        u_tests = []
 
-    # 2. Fetch ATS score for this user from Supabase users table readiness_score column
-    ats_score = None
-    if supabase_client:
+    # 2. Fetch ATS score for this user from Supabase users table readiness_score column if not supplied
+    if ats_score is None and supabase_client:
         try:
             u_res = supabase_client.table("users").select("readiness_score").eq("id", u_id).execute()
             if u_res.data and len(u_res.data) > 0 and u_res.data[0].get("readiness_score") is not None:
@@ -702,9 +737,8 @@ def get_user_readiness_metrics(user_id: str) -> Dict[str, Any]:
         except Exception as e:
             print(f"[Supabase readiness ats_score notice for {u_id}]:", e)
 
-    # 3. Fetch user roadmap progress from Supabase user_roadmaps table
-    user_rm = None
-    if supabase_client:
+    # 3. Fetch user roadmap progress from Supabase user_roadmaps table if not supplied
+    if user_rm is None and supabase_client:
         try:
             rm_res = supabase_client.table("user_roadmaps").select("overall_progress,modules").eq("user_id", u_id).execute()
             if rm_res.data and len(rm_res.data) > 0:
@@ -726,7 +760,11 @@ def get_user_readiness_metrics(user_id: str) -> Dict[str, Any]:
         if cat:
             return str(cat).lower()
         t_id = str(s.get("test_id") or s.get("testId") or "")
-        found_test = db.get_mock_test_by_id(t_id) if t_id else None
+        found_test = None
+        if mock_tests_map is not None:
+            found_test = mock_tests_map.get(t_id)
+        elif t_id:
+            found_test = db.get_mock_test_by_id(t_id)
         if found_test and found_test.get("category"):
             return str(found_test["category"]).lower()
         return "company drive"
@@ -792,7 +830,19 @@ def get_user_readiness_metrics(user_id: str) -> Dict[str, Any]:
     }
 
 
-def calculate_user_readiness(user_id: str) -> Optional[int]:
-    metrics = get_user_readiness_metrics(user_id)
+def calculate_user_readiness(
+    user_id: str,
+    test_scores: Optional[List[Dict[str, Any]]] = None,
+    ats_score: Optional[int] = None,
+    user_rm: Optional[Dict[str, Any]] = None,
+    mock_tests_map: Optional[Dict[str, Any]] = None
+) -> Optional[int]:
+    metrics = get_user_readiness_metrics(
+        user_id=user_id,
+        test_scores=test_scores,
+        ats_score=ats_score,
+        user_rm=user_rm,
+        mock_tests_map=mock_tests_map
+    )
     return metrics["score"]
 

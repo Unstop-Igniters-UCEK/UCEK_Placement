@@ -67,6 +67,7 @@ interface AppContextType {
   loginUser: (email: string, password?: string, role?: string) => Promise<boolean>;
   signupUser: (newUser: Omit<User, 'id' | 'readinessScore'> & { password?: string; adminSecurityCode?: string }) => Promise<boolean>;
   updateUserDomain: (domainName: string) => Promise<boolean>;
+  updateUserProfile: (data: { name?: string; branch?: string; year?: string }) => Promise<User>;
   logoutUser: () => void;
   toggleMilestone: (domainId: string, moduleId: string, milestoneId: string) => void;
   saveTestResult: (result: Omit<TestResult, 'id' | 'date'>) => void;
@@ -312,6 +313,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return true;
     }
   }, []);
+
+  const updateUserProfile = useCallback(async (data: { name?: string; branch?: string; year?: string }): Promise<User> => {
+    const updated = await updateProfileApi(data);
+    const updatedUserObj: User = {
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      role: (updated.role as UserRole) || 'mentee',
+      year: updated.year || '4th Year',
+      branch: updated.branch || 'CSE',
+      domain: updated.hasSelectedDomain ? (updated.domainInterest || updated.domain) : null,
+      hasSelectedDomain: updated.hasSelectedDomain ?? false,
+      targetDrive: updated.targetDrive || null,
+      readinessScore: updated.readinessScore ?? null,
+      readiness: updated.readiness,
+      avatar: updated.avatar,
+      bio: updated.bio,
+    };
+    setUser(updatedUserObj);
+    return updatedUserObj;
+  }, []);
   const logoutUser = useCallback(() => {
     logoutApi().catch(() => {});
     localStorage.removeItem('ucek_access_token');
@@ -499,6 +521,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loginUser,
     signupUser,
     updateUserDomain,
+    updateUserProfile,
     logoutUser,
     toggleMilestone,
     saveTestResult,
@@ -534,6 +557,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loginUser,
     signupUser,
     updateUserDomain,
+    updateUserProfile,
     logoutUser,
     toggleMilestone,
     saveTestResult,

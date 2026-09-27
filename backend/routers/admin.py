@@ -42,7 +42,29 @@ def get_dashboard_stats(
 
     student_ids = set(str(u.get("id")) for u in students)
 
-    test_scores = db.get_all_test_scores_admin()
+    # 1. Bulk fetch all mock tests to build a request-scope lookup map {test_id: test_dict}
+    all_mock_tests = db.get_mock_tests()
+    mock_tests_map = {t["id"]: t for t in all_mock_tests}
+
+    # 2. Bulk fetch all test scores using pre-fetched mock tests map
+    test_scores = db.get_all_test_scores_admin(mock_tests_map=mock_tests_map)
+
+    # 3. Bulk fetch all user roadmaps in a single query
+    all_roadmaps = db.get_all_user_roadmaps_admin()
+    roadmaps_by_user = {}
+    for rm in all_roadmaps:
+        uid = str(rm.get("user_id") or rm.get("userId"))
+        if uid and uid not in roadmaps_by_user:
+            roadmaps_by_user[uid] = rm
+
+    # Group test scores by student user_id for instant local filtering
+    scores_by_user = {}
+    for s in test_scores:
+        uid = str(s.get("userId"))
+        if uid not in scores_by_user:
+            scores_by_user[uid] = []
+        scores_by_user[uid].append(s)
+
     raw_resumes = (getattr(db, "resumeReviews", []) or []) + (getattr(db, "resumes", []) or [])
 
     # Deduplicate resume reviews by ID
@@ -70,11 +92,20 @@ def get_dashboard_stats(
     student_performance = []
     for u in students:
         u_id = str(u.get("id"))
-        u_tests_list = [s for s in test_scores if str(s.get("userId")) == u_id]
+        u_tests_list = scores_by_user.get(u_id, [])
         u_resumes_list = [r for r in resume_reviews if str(r.get("userId")) == u_id]
         u_interviews_list = [i for i in interview_responses if str(i.get("userId")) == u_id]
 
-        dynamic_readiness = calculate_user_readiness(u_id)
+        u_rm = roadmaps_by_user.get(u_id)
+        u_ats = u.get("readinessScore")
+
+        dynamic_readiness = calculate_user_readiness(
+            user_id=u_id,
+            test_scores=u_tests_list,
+            ats_score=u_ats,
+            user_rm=u_rm,
+            mock_tests_map=mock_tests_map
+        )
         u["readinessScore"] = dynamic_readiness
 
         student_performance.append({
@@ -108,6 +139,7 @@ def get_dashboard_stats(
 def get_admin_analytics(current_user: dict = Depends(get_current_user)):
     all_users = db.get_all_users_admin()
     test_scores = db.get_all_test_scores_admin()
+    all_roadmaps = db.get_all_user_roadmaps_admin()
     total_students = len([u for u in all_users if u.get("role") == "mentee" or u.get("role") == "student"])
     scores = [s["percentage"] for s in test_scores if "percentage" in s and s["percentage"] is not None]
     avg_score = round(sum(scores) / len(scores)) if len(scores) > 0 else None
@@ -115,7 +147,7 @@ def get_admin_analytics(current_user: dict = Depends(get_current_user)):
     return {
         "totalStudents": total_students or len(all_users),
         "averageScore": avg_score,
-        "activeRoadmaps": len(getattr(db, "userRoadmaps", [])),
+        "activeRoadmaps": len(all_roadmaps),
         "totalMockTestsTaken": len(test_scores),
         "recentRegistrations": all_users[-5:] if all_users else []
     }
@@ -177,18 +209,50 @@ def get_all_users(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Admin authorization required")
     
     all_users = db.get_all_users_admin()
-    
+
+    # Pre-fetch mock tests, test scores, and roadmaps once in bulk to avoid N+1 loop
+    all_mock_tests = db.get_mock_tests()
+    mock_tests_map = {t["id"]: t for t in all_mock_tests}
+    all_test_scores = db.get_all_test_scores_admin(mock_tests_map=mock_tests_map)
+    all_roadmaps = db.get_all_user_roadmaps_admin()
+
+    scores_by_user = {}
+    for s in all_test_scores:
+        uid = str(s.get("userId"))
+        if uid not in scores_by_user:
+            scores_by_user[uid] = []
+        scores_by_user[uid].append(s)
+
+    roadmaps_by_user = {}
+    for rm in all_roadmaps:
+        uid = str(rm.get("user_id") or rm.get("userId"))
+        if uid and uid not in roadmaps_by_user:
+            roadmaps_by_user[uid] = rm
+
     # Return user details including role
     users_data = []
     for u in all_users:
+        u_id = str(u.get("id"))
+        u_tests_list = scores_by_user.get(u_id, [])
+        u_rm = roadmaps_by_user.get(u_id)
+        u_ats = u.get("readinessScore")
+
+        dynamic_readiness = calculate_user_readiness(
+            user_id=u_id,
+            test_scores=u_tests_list,
+            ats_score=u_ats,
+            user_rm=u_rm,
+            mock_tests_map=mock_tests_map
+        )
+
         users_data.append({
-            "id": u.get("id"),
+            "id": u_id,
             "name": u.get("name", "Unknown"),
             "email": u.get("email", ""),
             "role": u.get("role", "mentee"),
             "branch": u.get("branch", "N/A"),
             "year": u.get("year", "N/A"),
-            "readinessScore": calculate_user_readiness(u.get("id")),
+            "readinessScore": dynamic_readiness,
         })
 
     return {"users": users_data}

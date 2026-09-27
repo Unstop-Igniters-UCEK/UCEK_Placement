@@ -76,7 +76,9 @@ def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_c
     if req.targetDrive is not None:
         user["targetDrive"] = req.targetDrive.strip()
 
-    db.save_user(user)
+    success = db.save_user(user)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to persist profile changes to Supabase database")
 
     updated_payload = {
         "id": user["id"],
