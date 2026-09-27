@@ -311,14 +311,14 @@ export const Dashboard: React.FC = React.memo(() => {
               <motion.div
                 variants={itemVariants}
                 onClick={() => setActiveTab('roadmap')}
-                className="mono-card p-3.5 space-y-2.5 cursor-pointer mono-card-hover group relative overflow-hidden"
+                className="mono-card p-3.5 space-y-2.5 cursor-pointer mono-card-hover group relative overflow-hidden flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between">
                   <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
                     <BookOpen className="w-4 h-4 text-white" />
                   </div>
                   <span className="mono-badge rounded-full text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
-                    {user?.domain ? `${domainPct}% Done` : '0% Done'}
+                    {user?.domain ? `${domainPct}% Done` : 'Not selected'}
                   </span>
                 </div>
 
@@ -333,7 +333,7 @@ export const Dashboard: React.FC = React.memo(() => {
                   <div className="w-full bg-zinc-900/90 rounded-full h-1.5 overflow-hidden p-0.5 border border-white/10">
                     <div
                       className="bg-gradient-to-r from-orange-600 to-amber-500 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
-                      style={{ width: `${domainPct}%` }}
+                      style={{ width: `${user?.domain ? domainPct : 0}%` }}
                     />
                   </div>
                   <span className="text-[10px] text-zinc-400 font-medium block text-right">
@@ -346,14 +346,14 @@ export const Dashboard: React.FC = React.memo(() => {
               <motion.div
                 variants={itemVariants}
                 onClick={() => setActiveTab('resumes')}
-                className="mono-card p-3.5 space-y-2.5 cursor-pointer mono-card-hover group relative overflow-hidden"
+                className="mono-card p-3.5 space-y-2.5 cursor-pointer mono-card-hover group relative overflow-hidden flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between">
                   <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
                     <FileCheck className="w-4 h-4 text-white" />
                   </div>
-                  <span className="mono-badge rounded-full text-emerald-400 bg-emerald-500/10 border-emerald-500/20 font-bold">
-                    82% ATS Match
+                  <span className={`mono-badge rounded-full font-bold ${readinessMetrics.ats !== null ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20'}`}>
+                    {readinessMetrics.ats !== null ? `${readinessMetrics.ats}% ATS Match` : 'Not uploaded'}
                   </span>
                 </div>
 
@@ -368,10 +368,9 @@ export const Dashboard: React.FC = React.memo(() => {
                   <div className="w-full bg-zinc-900/90 rounded-full h-1.5 overflow-hidden p-0.5 border border-white/10">
                     <div
                       className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-                      style={{ width: '82%' }}
+                      style={{ width: `${readinessMetrics.ats !== null ? readinessMetrics.ats : 0}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-zinc-400 font-medium block text-right">2 missing keywords flagged</span>
                 </div>
               </motion.div>
 
@@ -379,7 +378,7 @@ export const Dashboard: React.FC = React.memo(() => {
               <motion.div
                 variants={itemVariants}
                 onClick={() => setActiveTab('tests')}
-                className="mono-card p-3.5 space-y-2.5 cursor-pointer mono-card-hover group relative overflow-hidden"
+                className="mono-card p-3.5 space-y-2.5 cursor-pointer mono-card-hover group relative overflow-hidden flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between">
                   <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
@@ -401,10 +400,9 @@ export const Dashboard: React.FC = React.memo(() => {
                   <div className="w-full bg-zinc-900/90 rounded-full h-1.5 overflow-hidden p-0.5 border border-white/10">
                     <div
                       className="bg-gradient-to-r from-orange-500 to-amber-400 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(249,115,22,0.4)]"
-                      style={{ width: `${testsTaken > 0 ? (testsPassed / testsTaken) * 100 : 80}%` }}
+                      style={{ width: `${testsTaken > 0 ? (testsPassed / testsTaken) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-zinc-400 font-medium block text-right">Avg Accuracy: 74%</span>
                 </div>
               </motion.div>
 

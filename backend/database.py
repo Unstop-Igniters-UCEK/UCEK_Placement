@@ -587,8 +587,8 @@ def get_user_readiness_metrics(user_id: str) -> Dict[str, Any]:
     resume_reviews = list(all_res_map.values())
     user_roadmaps = getattr(db, "userRoadmaps", []) or []
 
-    u_tests = [s for s in test_scores if str(s.get("userId")) == u_id]
-    u_resumes = [r for r in resume_reviews if str(r.get("userId")) == u_id]
+    u_tests = [s for s in test_scores if str(s.get("userId") or s.get("user_id") or "") == u_id]
+    u_resumes = [r for r in resume_reviews if str(r.get("userId") or r.get("user_id") or "") == u_id]
 
     def get_test_pct(s):
         if not s:
