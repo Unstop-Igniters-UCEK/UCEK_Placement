@@ -225,7 +225,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const signupUser = useCallback(async (newUser: Omit<User, 'id' | 'readinessScore'> & { password?: string; adminSecurityCode?: string }): Promise<boolean> => {
-    const data = await registerApi({
+    await registerApi({
       name: newUser.name,
       email: newUser.email,
       password: newUser.password || '',
@@ -235,27 +235,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       domainInterest: newUser.domain || undefined,
       adminSecurityCode: newUser.adminSecurityCode
     });
-    if (data.accessToken) {
-      localStorage.setItem('ucek_access_token', data.accessToken);
-    }
-    const mappedUser: User = {
-      id: data.user.id,
-      name: data.user.name,
-      email: data.user.email,
-      role: (data.user.role as UserRole) || 'mentee',
-      year: data.user.year || '4th Year',
-      branch: data.user.branch || 'CSE',
-      domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
-      hasSelectedDomain: data.user.hasSelectedDomain ?? false,
-      targetDrive: data.user.targetDrive || null,
-      readinessScore: data.user.readinessScore ?? 65,
-      avatar: data.user.avatar,
-      bio: data.user.bio,
-    };
-    setUser(mappedUser);
-    setSelectedTargetDriveState(data.user.targetDrive || '');
-    setAuthModalOpen(false);
-    setActiveTab(mappedUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
     return true;
   }, []);
 

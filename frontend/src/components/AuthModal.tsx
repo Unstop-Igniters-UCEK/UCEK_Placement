@@ -45,6 +45,8 @@ export const AuthModal: React.FC = React.memo(() => {
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isResetSuccess, setIsResetSuccess] = useState(false);
+  const [isSignupSuccess, setIsSignupSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Error / Success state
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -52,6 +54,8 @@ export const AuthModal: React.FC = React.memo(() => {
 
   const handleResetState = () => {
     setIsResetSuccess(false);
+    setIsSignupSuccess(false);
+    setIsSubmitting(false);
     setOtpStep('email');
     setOtpCode('');
     setNewPassword('');
@@ -109,6 +113,7 @@ export const AuthModal: React.FC = React.memo(() => {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       await signupUser({
         name: signupName,
@@ -120,9 +125,15 @@ export const AuthModal: React.FC = React.memo(() => {
         domain: signupDomain || undefined,
         adminSecurityCode: selectedRole === 'admin' ? adminSecurityCode : undefined
       });
-      setAuthModalOpen(false);
+      // Prefill loginEmail so user can immediately sign in
+      setLoginEmail(finalEmail);
+      setIsSignupSuccess(true);
+      setErrorMsg(null);
+      setSuccessMsg(null);
     } catch (err: any) {
       setErrorMsg(err.message || 'Registration failed.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -198,12 +209,12 @@ export const AuthModal: React.FC = React.memo(() => {
                 <div>
                   <h3 className="font-bold text-sm text-white font-sans tracking-tight">
                     {authModalMode === 'login' && 'Sign In to Portal'}
-                    {authModalMode === 'signup' && 'Create Your Account'}
+                    {authModalMode === 'signup' && (isSignupSuccess ? 'Account Created' : 'Create Your Account')}
                     {authModalMode === 'forgot' && 'Reset Password'}
                   </h3>
                   <p className="text-[11px] text-zinc-400 font-sans">
                     {authModalMode === 'login' && 'Enter your portal credentials'}
-                    {authModalMode === 'signup' && 'Join placement & mentorship suite'}
+                    {authModalMode === 'signup' && (isSignupSuccess ? 'Registration completed successfully' : 'Join placement & mentorship suite')}
                     {authModalMode === 'forgot' && 'Enter your email to receive a password reset link'}
                   </p>
                 </div>
@@ -225,6 +236,7 @@ export const AuthModal: React.FC = React.memo(() => {
                 <button
                   onClick={() => {
                     setErrorMsg(null);
+                    setIsSignupSuccess(false);
                     setAuthModalMode('login');
                   }}
                   className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
@@ -238,6 +250,7 @@ export const AuthModal: React.FC = React.memo(() => {
                 <button
                   onClick={() => {
                     setErrorMsg(null);
+                    setIsSignupSuccess(false);
                     setAuthModalMode('signup');
                   }}
                   className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
@@ -388,146 +401,232 @@ export const AuthModal: React.FC = React.memo(() => {
                       <LogIn className="w-3.5 h-3.5 text-black" />
                       <span>Sign In as {selectedRole === 'admin' ? 'Admin' : 'Student'}</span>
                     </button>
+
+                    <div className="pt-2 text-center text-xs text-zinc-400">
+                      Don't have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setErrorMsg(null);
+                          setIsSignupSuccess(false);
+                          setAuthModalMode('signup');
+                        }}
+                        className="text-white font-semibold hover:underline cursor-pointer"
+                      >
+                        Create one now
+                      </button>
+                    </div>
                   </motion.form>
                 )}
 
                 {/* TAB 2: SIGNUP */}
                 {authModalMode === 'signup' && (
-                  <motion.form
-                    key="signup"
-                    onSubmit={handleSignupSubmit}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
-                    className="space-y-3 font-sans"
-                  >
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-zinc-300">Full Name</label>
-                      <input
-                        type="text"
-                        className="w-full bg-white/5 text-xs text-white px-4 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
-                        placeholder={selectedRole === 'admin' ? 'Administrator Name' : 'Anand Nair'}
-                        value={signupName}
-                        onChange={e => setSignupName(e.target.value)}
-                        required
-                      />
-                    </div>
+                  <AnimatePresence mode="wait">
+                    {isSignupSuccess ? (
+                      <motion.div
+                        key="signup-success"
+                        initial={{ opacity: 0, scale: 0.96 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.96 }}
+                        transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                        className="text-center py-6 px-2 space-y-5 font-sans"
+                      >
+                        <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shadow-xl shadow-emerald-950/20">
+                          <CheckCircle2 className="w-8 h-8" />
+                        </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-zinc-300">Email Address</label>
-                      <input
-                        type="email"
-                        className="w-full bg-white/5 text-xs text-white px-4 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
-                        placeholder="student@gmail.com or official email"
-                        value={signupEmail}
-                        onChange={e => setSignupEmail(e.target.value)}
-                        required
-                      />
-                    </div>
+                        <div className="space-y-2">
+                          <h4 className="text-lg font-bold text-white font-sans tracking-tight">
+                            Account created successfully
+                          </h4>
+                          <p className="text-xs text-zinc-400 max-w-xs mx-auto leading-relaxed">
+                            Your account has been created successfully. Click the button below to sign in with your credentials.
+                          </p>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-zinc-300">
-                          {selectedRole === 'admin' ? 'Designation' : 'Year'}
-                        </label>
-                        <CustomSelect
-                          value={signupYear}
-                          onChange={setSignupYear}
-                          placeholder={selectedRole === 'admin' ? 'Select designation...' : 'Select year...'}
-                          options={
-                            selectedRole === 'admin'
-                              ? ['Faculty Admin', 'Placement Cell Officer']
-                              : ['1st Year', '2nd Year', '3rd Year', '4th Year']
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-zinc-300">Branch</label>
-                        <CustomSelect
-                          value={signupBranch}
-                          onChange={setSignupBranch}
-                          placeholder="Select branch..."
-                          options={['CSE', 'ECE', 'IT']}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-zinc-300">Domain Interest</label>
-                      <CustomSelect
-                        value={signupDomain}
-                        onChange={setSignupDomain}
-                        options={[
-                          'Software Engineering',
-                          'Data Science & AI',
-                          'Data Analytics & BI',
-                          'Backend & Cloud Engineering',
-                          'Cybersecurity & SOC',
-                          'Core Electronics & Embedded',
-                          'UI/UX & Product Design',
-                          'VLSI & Chip Design',
-                          'Management & Consulting'
-                        ]}
-                      />
-                    </div>
-
-                    {selectedRole === 'admin' && (
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-semibold text-zinc-300">Admin Security Passcode</label>
-                        <div className="relative">
-                          <input
-                            type={showAdminCode ? "text" : "password"}
-                            className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
-                            placeholder="Enter secret faculty passcode"
-                            value={adminSecurityCode}
-                            onChange={e => setAdminSecurityCode(e.target.value)}
-                            required
-                          />
+                        <div className="pt-2">
                           <button
                             type="button"
-                            onClick={() => setShowAdminCode(!showAdminCode)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
-                            title={showAdminCode ? "Hide passcode" : "Show passcode"}
-                            aria-label={showAdminCode ? "Hide passcode" : "Show passcode"}
-                            tabIndex={-1}
+                            onClick={() => {
+                              setIsSignupSuccess(false);
+                              setSignupPassword('');
+                              setErrorMsg(null);
+                              setSuccessMsg(null);
+                              setAuthModalMode('login');
+                            }}
+                            className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-[0.98] transition-transform duration-100"
                           >
-                            {showAdminCode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            <LogIn className="w-4 h-4 text-black" />
+                            <span>Go to Sign In</span>
                           </button>
                         </div>
-                      </div>
-                    )}
+                      </motion.div>
+                    ) : (
+                      <motion.form
+                        key="signup-form"
+                        onSubmit={handleSignupSubmit}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                        className="space-y-3 font-sans"
+                      >
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-zinc-300">Full Name</label>
+                          <input
+                            type="text"
+                            className="w-full bg-white/5 text-xs text-white px-4 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
+                            placeholder={selectedRole === 'admin' ? 'Administrator Name' : 'Anand Nair'}
+                            value={signupName}
+                            onChange={e => setSignupName(e.target.value)}
+                            required
+                          />
+                        </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-zinc-300">Password</label>
-                      <div className="relative">
-                        <input
-                          type={showSignupPassword ? "text" : "password"}
-                          className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
-                          placeholder="Min 8 characters"
-                          value={signupPassword}
-                          onChange={e => setSignupPassword(e.target.value)}
-                          required
-                        />
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-zinc-300">Email Address</label>
+                          <input
+                            type="email"
+                            className="w-full bg-white/5 text-xs text-white px-4 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
+                            placeholder="student@gmail.com or official email"
+                            value={signupEmail}
+                            onChange={e => setSignupEmail(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-zinc-300">
+                              {selectedRole === 'admin' ? 'Designation' : 'Year'}
+                            </label>
+                            <CustomSelect
+                              value={signupYear}
+                              onChange={setSignupYear}
+                              placeholder={selectedRole === 'admin' ? 'Select designation...' : 'Select year...'}
+                              options={
+                                selectedRole === 'admin'
+                                  ? ['Faculty Admin', 'Placement Cell Officer']
+                                  : ['1st Year', '2nd Year', '3rd Year', '4th Year']
+                              }
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-zinc-300">Branch</label>
+                            <CustomSelect
+                              value={signupBranch}
+                              onChange={setSignupBranch}
+                              placeholder="Select branch..."
+                              options={['CSE', 'ECE', 'IT']}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-zinc-300">Domain Interest</label>
+                          <CustomSelect
+                            value={signupDomain}
+                            onChange={setSignupDomain}
+                            options={[
+                              'Software Engineering',
+                              'Data Science & AI',
+                              'Data Analytics & BI',
+                              'Backend & Cloud Engineering',
+                              'Cybersecurity & SOC',
+                              'Core Electronics & Embedded',
+                              'UI/UX & Product Design',
+                              'VLSI & Chip Design',
+                              'Management & Consulting'
+                            ]}
+                          />
+                        </div>
+
+                        {selectedRole === 'admin' && (
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-zinc-300">Admin Security Passcode</label>
+                            <div className="relative">
+                              <input
+                                type={showAdminCode ? "text" : "password"}
+                                className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
+                                placeholder="Enter secret faculty passcode"
+                                value={adminSecurityCode}
+                                onChange={e => setAdminSecurityCode(e.target.value)}
+                                required
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowAdminCode(!showAdminCode)}
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
+                                title={showAdminCode ? "Hide passcode" : "Show passcode"}
+                                aria-label={showAdminCode ? "Hide passcode" : "Show passcode"}
+                                tabIndex={-1}
+                              >
+                                {showAdminCode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-zinc-300">Password</label>
+                          <div className="relative">
+                            <input
+                              type={showSignupPassword ? "text" : "password"}
+                              className="w-full bg-white/5 text-xs text-white pl-4 pr-10 py-2.5 rounded-full border border-white/15 outline-none focus:border-white transition-all font-sans placeholder-zinc-500"
+                              placeholder="Min 8 characters"
+                              value={signupPassword}
+                              onChange={e => setSignupPassword(e.target.value)}
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowSignupPassword(!showSignupPassword)}
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
+                              title={showSignupPassword ? "Hide password" : "Show password"}
+                              aria-label={showSignupPassword ? "Hide password" : "Show password"}
+                              tabIndex={-1}
+                            >
+                              {showSignupPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+
                         <button
-                          type="button"
-                          onClick={() => setShowSignupPassword(!showSignupPassword)}
-                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
-                          title={showSignupPassword ? "Hide password" : "Show password"}
-                          aria-label={showSignupPassword ? "Hide password" : "Show password"}
-                          tabIndex={-1}
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="btn-primary w-full py-3 text-xs font-bold rounded-full mt-1 cursor-pointer hover:scale-[1.01] active:scale-[0.98] transition-transform duration-100 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                          {showSignupPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          {isSubmitting ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                              <span>Creating Account...</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="w-3.5 h-3.5 text-black" />
+                              <span>Register {selectedRole === 'admin' ? 'Admin' : 'Student'} Account</span>
+                            </>
+                          )}
                         </button>
-                      </div>
-                    </div>
 
-                    <button type="submit" className="btn-primary w-full py-3 text-xs font-bold rounded-full mt-1 cursor-pointer hover:scale-[1.01] active:scale-[0.98] transition-transform duration-100">
-                      <UserPlus className="w-3.5 h-3.5 text-black" />
-                      <span>Register {selectedRole === 'admin' ? 'Admin' : 'Student'} Account</span>
-                    </button>
-                  </motion.form>
+                        <div className="pt-2 text-center text-xs text-zinc-400">
+                          Already have an account?{' '}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setErrorMsg(null);
+                              setIsSignupSuccess(false);
+                              setAuthModalMode('login');
+                            }}
+                            className="text-white font-semibold hover:underline cursor-pointer"
+                          >
+                            Sign In here
+                          </button>
+                        </div>
+                      </motion.form>
+                    )}
+                  </AnimatePresence>
                 )}
 
                 {/* TAB 3: DEDICATED FORGOT PASSWORD */}

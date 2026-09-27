@@ -418,25 +418,30 @@ class Database:
                 print("[Supabase users table save notice]:", e)
 
             try:
-                for rm in self.userRoadmaps:
-                    supabase_client.table("user_roadmaps").upsert({
+                rm_payloads = [
+                    {
                         "id": str(rm.get("id")),
                         "user_id": str(rm.get("userId")),
                         "domain": str(rm.get("domain")),
                         "overall_progress": int(rm.get("overallProgress", 0)),
                         "modules": rm.get("modules", []),
                         "last_updated": rm.get("lastUpdated") or datetime.now().isoformat()
-                    }, on_conflict="id").execute()
+                    }
+                    for rm in self.userRoadmaps
+                ]
+                for i in range(0, len(rm_payloads), 50):
+                    supabase_client.table("user_roadmaps").upsert(rm_payloads[i:i+50], on_conflict="id").execute()
             except Exception as e:
                 print("[Supabase user_roadmaps table save notice]:", e)
 
             # Sync to test_scores table
             try:
+                score_payloads = []
                 for score in self.testScores:
                     score_val = int(score.get("score", 0))
                     total_val = int(score.get("total") or score.get("totalQuestions") or 10)
                     pct_val = float(score.get("percentage") or ((score_val / total_val) * 100 if total_val > 0 else 0.0))
-                    supabase_client.table("test_scores").upsert({
+                    score_payloads.append({
                         "id": str(score.get("id")),
                         "user_id": str(score.get("userId")),
                         "test_id": str(score.get("testId")),
@@ -444,7 +449,9 @@ class Database:
                         "total": total_val,
                         "percentage": round(pct_val, 2),
                         "submitted_at": str(score.get("submittedAt") or score.get("submitted_at") or score.get("date") or datetime.now().isoformat())
-                    }, on_conflict="id").execute()
+                    })
+                for i in range(0, len(score_payloads), 50):
+                    supabase_client.table("test_scores").upsert(score_payloads[i:i+50], on_conflict="id").execute()
             except Exception as e:
                 print("[Supabase test_scores table save notice]:", e)
 
