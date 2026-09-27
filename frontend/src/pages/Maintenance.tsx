@@ -6,7 +6,7 @@ import OrangeBlackGradient from '../components/OrangeBlackGradient';
 export default function Maintenance() {
   return (
     <div className="min-h-screen bg-[#000000] text-white font-sans relative overflow-hidden flex items-center justify-center p-6 selection:bg-orange-500/30 selection:text-orange-200">
-      
+
       {/* ── Background Layer: Canvas PixelBlast / Orange Black Gradient ── */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <OrangeBlackGradient />
@@ -33,13 +33,13 @@ export default function Maintenance() {
         <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight font-heading leading-[1.1]">
           We're Upgrading <br />
           <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500 bg-clip-text text-transparent drop-shadow-sm">
-            Your Placement Engine
+            Your Placement Pre Platform
           </span>
         </h1>
 
         {/* Subtitle */}
         <p className="text-base sm:text-lg text-zinc-400 font-sans leading-relaxed max-w-2xl mx-auto">
-          The Impulse Placement Suite is currently undergoing a planned system optimization to deploy faster AI resume evaluation, updated mock test banks, and enhanced mentorship capabilities.
+          The Impulse Placement Suite is currently undergoing a planned system optimization to give you a better placement preparation experience.
         </p>
       </motion.div>
 

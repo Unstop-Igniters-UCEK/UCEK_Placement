@@ -50,11 +50,100 @@ export const StudentNavHeader: React.FC = React.memo(() => {
               <GraduationCap className="w-6 h-6 text-black" />
             </div>
             <span
-              className="text-xl sm:text-2xl font-normal text-white tracking-tight group-hover:text-orange-400 transition-colors"
+              className="text-xl sm:text-2xl font-normal text-white tracking-tight group-hover:text-orange-400 transition-colors hidden sm:inline"
               style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400 }}
             >
               Impulse
             </span>
+          </div>
+
+          {/* Center: Navigation Pill (Desktop & Mobile) */}
+          <div className="flex-1 flex justify-center items-center px-2">
+            {/* Desktop: Horizontal Pill Navigation Bar */}
+            <nav className="hidden lg:inline-flex items-center gap-1 p-1.5 rounded-full bg-[#0d0d12]/80 backdrop-blur-xl border border-white/10 shadow-xl">
+              {studentNavItems.map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative flex items-center gap-2 px-3.5 xl:px-4 py-2 rounded-full text-xs font-bold cursor-pointer transition-all active:scale-[0.97] ${
+                      isActive
+                        ? 'text-black font-extrabold'
+                        : 'text-zinc-300 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeStudentNavPill"
+                        className="absolute inset-0 bg-white rounded-full z-0 shadow-md"
+                        transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                      />
+                    )}
+                    <Icon className={`w-4 h-4 z-10 shrink-0 ${isActive ? 'text-black' : 'text-zinc-300'}`} />
+                    <span className="z-10 tracking-tight whitespace-nowrap">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Mobile: Pill-shaped Dropdown Navigation */}
+            <div className="relative lg:hidden w-full max-w-xs sm:max-w-sm mx-auto">
+              <button
+                type="button"
+                onClick={() => setMobileOpen(prev => !prev)}
+                className="w-full flex items-center justify-between gap-3 px-4 py-2 rounded-full bg-[#0d0d12]/90 backdrop-blur-xl border border-white/15 text-white shadow-xl cursor-pointer active:scale-[0.98] transition-all"
+              >
+                <div className="flex items-center gap-2.5 truncate">
+                  <ActiveIcon className="w-4 h-4 text-white shrink-0" />
+                  <span className="text-xs font-bold truncate text-white">{activeItem?.label || 'Select Page'}</span>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-200 shrink-0 ${mobileOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {mobileOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setMobileOpen(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                      transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+                      className="absolute top-full left-0 right-0 mt-2 z-50 p-1.5 rounded-2xl bg-[#0d0d12]/95 backdrop-blur-2xl border border-white/15 shadow-2xl space-y-1"
+                    >
+                      {studentNavItems.map(tab => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => {
+                              setActiveTab(tab.id);
+                              setMobileOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all active:scale-[0.98] ${
+                              isActive
+                                ? 'bg-white text-black font-extrabold shadow-sm'
+                                : 'text-zinc-300 hover:text-white hover:bg-white/10'
+                            }`}
+                          >
+                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-black' : 'text-zinc-400'}`} />
+                            <span className="truncate">{tab.label}</span>
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* Right: Standalone User Logo (Interactive) + Logout Button */}
@@ -146,95 +235,6 @@ export const StudentNavHeader: React.FC = React.memo(() => {
           </div>
         </div>
       </header>
-
-      {/* 2. HORIZONTAL PILL NAVIGATION (Directly below Header) */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-1 flex justify-center">
-        {/* Desktop: Horizontal Pill Navigation Bar */}
-        <nav className="hidden md:inline-flex items-center gap-1 p-1.5 rounded-full bg-[#0d0d12]/80 backdrop-blur-xl border border-white/10 shadow-xl">
-          {studentNavItems.map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold cursor-pointer transition-all active:scale-[0.97] ${
-                  isActive
-                    ? 'text-black font-extrabold'
-                    : 'text-zinc-300 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="activeStudentNavPill"
-                    className="absolute inset-0 bg-white rounded-full z-0 shadow-md"
-                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                  />
-                )}
-                <Icon className={`w-4 h-4 z-10 shrink-0 ${isActive ? 'text-black' : 'text-zinc-300'}`} />
-                <span className="z-10 tracking-tight whitespace-nowrap">{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Mobile: Pill-shaped Dropdown Navigation */}
-        <div className="relative md:hidden w-full max-w-sm">
-          <button
-            type="button"
-            onClick={() => setMobileOpen(prev => !prev)}
-            className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-full bg-[#0d0d12]/90 backdrop-blur-xl border border-white/15 text-white shadow-xl cursor-pointer active:scale-[0.98] transition-all"
-          >
-            <div className="flex items-center gap-2.5 truncate">
-              <ActiveIcon className="w-4 h-4 text-orange-400 shrink-0" />
-              <span className="text-xs font-bold truncate text-white">{activeItem?.label || 'Select Page'}</span>
-            </div>
-            <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-200 shrink-0 ${mobileOpen ? 'rotate-180' : ''}`} />
-          </button>
-
-          <AnimatePresence>
-            {mobileOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setMobileOpen(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                  transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-                  className="absolute top-full left-0 right-0 mt-2 z-50 p-1.5 rounded-2xl bg-[#0d0d12]/95 backdrop-blur-2xl border border-white/15 shadow-2xl space-y-1"
-                >
-                  {studentNavItems.map(tab => {
-                    const Icon = tab.icon;
-                    const isActive = activeTab === tab.id;
-
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => {
-                          setActiveTab(tab.id);
-                          setMobileOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all active:scale-[0.98] ${
-                          isActive
-                            ? 'bg-white text-black font-extrabold shadow-sm'
-                            : 'text-zinc-300 hover:text-white hover:bg-white/10'
-                        }`}
-                      >
-                        <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-black' : 'text-zinc-400'}`} />
-                        <span className="truncate">{tab.label}</span>
-                      </button>
-                    );
-                  })}
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
     </div>
   );
 });
