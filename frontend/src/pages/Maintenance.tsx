@@ -23,17 +23,14 @@ export default function Maintenance() {
       >
         {/* Eyebrow Chip */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-mono text-zinc-300 backdrop-blur-md shadow-inner">
-          <Wrench className="w-3.5 h-3.5 text-orange-400" />
           <span>Scheduled Platform Enhancement</span>
-          <span className="text-zinc-600">•</span>
-          <span className="text-orange-400 font-bold">System Upgrade</span>
         </div>
 
         {/* Main Title */}
         <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight font-heading leading-[1.1]">
           We're Upgrading <br />
           <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500 bg-clip-text text-transparent drop-shadow-sm">
-            Your Placement Pre Platform
+            Your Placement Prep Platform
           </span>
         </h1>
 
