@@ -82,7 +82,15 @@ export const Dashboard: React.FC = React.memo(() => {
   useEffect(() => {
     if (user) {
       getSpeechAnalyticsApi().then(data => {
-        setSpeechAnalytics(data);
+        if (data) {
+          setSpeechAnalytics(prev => ({
+            ...prev,
+            ...data,
+            featuredPrompts: Array.isArray(data.featuredPrompts) && data.featuredPrompts.length > 0
+              ? data.featuredPrompts
+              : (prev.featuredPrompts || []),
+          }));
+        }
       }).catch(err => console.warn('Failed to load speech analytics:', err));
     }
   }, [user]);
@@ -164,7 +172,7 @@ export const Dashboard: React.FC = React.memo(() => {
   const testsTaken = recentScores.length;
   const testsPassed = recentScores.filter(s => s && s.passed).length;
 
-  const filteredScores = [...recentScores].reverse().filter(s => {
+  const filteredScores = [...(recentScores || [])].reverse().filter(s => {
     if (!s) return false;
     if (driveFilter === 'all') return true;
     return s.category === driveFilter;
@@ -667,7 +675,7 @@ export const Dashboard: React.FC = React.memo(() => {
                     <span className="text-orange-400 font-mono font-semibold">RECOMMENDED</span>
                   </div>
                   <div className="space-y-2 text-xs">
-                    {speechAnalytics.featuredPrompts.map((promptText, idx) => (
+                    {(speechAnalytics?.featuredPrompts || []).map((promptText, idx) => (
                       <div
                         key={idx}
                         onClick={() => handleFeaturedQuestionClick(promptText, idx)}

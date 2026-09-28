@@ -1,87 +1,41 @@
-import uuid
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
-from backend.database import db
+"""
+routers/mentorship.py — Mentorship endpoints stub.
+
+Per Impulse_DB_Design.md:
+  "Mentor functionality is deferred and is not included in this schema."
+
+The mentorship page remains in the UI but all API endpoints return graceful
+empty/unavailable states rather than touching any database table.
+"""
+
+from fastapi import APIRouter, Depends
 from backend.auth import get_current_user
-from backend.schemas import RequestMentorRequest, AddCheckInLogRequest
 
 router = APIRouter(tags=["mentorship"])
 
+
 @router.get("/api/mentors")
 def get_mentors():
-    return {"mentors": db.get_all_mentors()}
+    """Mentorship is deferred. Returns an empty list."""
+    return {"mentors": [], "message": "Mentorship feature coming soon."}
+
 
 @router.get("/api/mentorship/my")
 @router.get("/api/mentorship/my-pair")
 def get_my_mentorship(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["id"]
-    pair = db.get_mentorship_for_user(user_id)
-    return {"mentorship": pair}
+    """Mentorship is deferred. Returns null pair."""
+    return {"mentorship": None, "message": "Mentorship feature coming soon."}
+
 
 @router.post("/api/mentors/request")
 @router.post("/api/mentorship/request")
-def request_mentor(req: RequestMentorRequest, current_user: dict = Depends(get_current_user)):
-    mentor = db.get_user_by_id(req.mentorId)
-    if not mentor:
-        raise HTTPException(status_code=404, detail="Mentor not found")
+def request_mentor(current_user: dict = Depends(get_current_user)):
+    """Mentorship requests are deferred."""
+    return {"message": "Mentorship feature coming soon."}
 
-    existing = db.get_mentorship_for_user(current_user["id"])
-    if existing and str(existing.get("status", "")).lower() in ("active",):
-        return {"message": "Active mentorship pair already exists", "pair": existing}
-
-    new_pair = {
-        "id": f"m_pair_{uuid.uuid4().hex[:8]}",
-        "mentor": {
-            "id": mentor["id"],
-            "name": mentor["name"],
-            "email": mentor["email"],
-            "role": mentor["role"],
-            "year": mentor.get("year"),
-            "branch": mentor.get("branch"),
-            "domainInterest": mentor.get("domainInterest"),
-            "bio": mentor.get("bio")
-        },
-        "mentee": {
-            "id": current_user["id"],
-            "name": current_user["name"],
-            "email": current_user["email"],
-            "role": current_user["role"],
-            "year": current_user.get("year"),
-            "branch": current_user.get("branch"),
-            "domainInterest": current_user.get("domainInterest")
-        },
-        "domain": req.domain or current_user.get("domainInterest", "Software Engineering"),
-        "status": "active",
-        "checkInLogs": [],
-        "createdAt": datetime.now().isoformat()
-    }
-
-    db.save_mentorship(new_pair)
-
-    return {"message": "Mentorship request sent successfully", "pair": new_pair}
 
 @router.post("/api/mentorship/checkin")
 @router.post("/api/mentorship/log")
-def add_checkin_log(req: AddCheckInLogRequest, current_user: dict = Depends(get_current_user)):
-    pair = db.get_mentorship_for_user(current_user["id"])
-    if not pair:
-        pair = next((m for m in db.mentorships if m["id"] == req.pairId), None)
-    if not pair:
-        raise HTTPException(status_code=404, detail="Mentorship pair not found")
-
-    new_log = {
-        "id": f"log_{uuid.uuid4().hex[:8]}",
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "topic": req.topic,
-        "mentorNotes": req.mentorNotes,
-        "actionItems": req.actionItems
-    }
-
-    if "checkInLogs" not in pair or not isinstance(pair["checkInLogs"], list):
-        pair["checkInLogs"] = []
-
-    pair["checkInLogs"].append(new_log)
-    db.save_mentorship(pair)
-
-    return {"message": "Check-in log added successfully", "mentorship": pair, "newLog": new_log}
-
+def add_checkin_log(current_user: dict = Depends(get_current_user)):
+    """Mentorship check-in logs are deferred."""
+    return {"message": "Mentorship feature coming soon."}

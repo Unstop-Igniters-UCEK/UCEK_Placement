@@ -1,259 +1,231 @@
+"""
+routers/admin.py — Admin dashboard and management endpoints.
+Aligned with Impulse_DB_Design.md §29 (Admin Dashboard Metrics), §30 (Student List).
+"""
+
 import uuid
+import os
+from datetime import datetime
 from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from backend.database import db, calculate_user_readiness
+
+from backend.database import db, supabase_client, hash_password
 from backend.auth import get_current_user
-from backend.schemas import CreateQuestionRequest, UpdateRoleRequest
+from backend.schemas import CreateStudentRequest, BatchCSVCreateRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-@router.get("/dashboard-stats")
-def get_dashboard_stats(
-    year: Optional[str] = Query(None),
-    branch: Optional[str] = Query(None),
-    current_user: dict = Depends(get_current_user)
-):
+
+def _require_admin(current_user: dict):
     if current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin authorization required")
+        raise HTTPException(status_code=403, detail="Admin authorization required.")
 
-    all_users = db.get_all_users_admin()
-    students = [u for u in all_users if u.get("role") != "admin"]
 
-    if year and year != "All" and year != "All Years":
-        clean_y = year.strip().lower()
-        students = [
-            u for u in students 
-            if clean_y in u.get("year", "").lower() or u.get("year", "").lower() in clean_y
-        ]
+# ─── Dashboard KPIs ───────────────────────────────────────────────────────────
 
-    if branch and branch != "All" and branch != "All Departments":
-        clean_b = branch.strip().lower()
-        students = [
-            u for u in students
-            if clean_b in u.get("branch", "").lower() or u.get("branch", "").lower() in clean_b or
-            (clean_b == "cse" and "computer" in u.get("branch", "").lower()) or
-            (clean_b == "ece" and "electronics" in u.get("branch", "").lower()) or
-            (clean_b == "it" and "information" in u.get("branch", "").lower()) or
-            (clean_b == "eee" and "electrical" in u.get("branch", "").lower()) or
-            (clean_b == "me" and "mechanical" in u.get("branch", "").lower()) or
-            (clean_b == "ce" and "civil" in u.get("branch", "").lower()) or
-            (clean_b in ["bio", "bt"] and "bio" in u.get("branch", "").lower())
-        ]
-
-    student_ids = set(str(u.get("id")) for u in students)
-
-    # 1. Bulk fetch all mock tests to build a request-scope lookup map {test_id: test_dict}
-    all_mock_tests = db.get_mock_tests()
-    mock_tests_map = {t["id"]: t for t in all_mock_tests}
-
-    # 2. Bulk fetch all test scores using pre-fetched mock tests map
-    test_scores = db.get_all_test_scores_admin(mock_tests_map=mock_tests_map)
-
-    # 3. Bulk fetch all user roadmaps in a single query
-    all_roadmaps = db.get_all_user_roadmaps_admin()
-    roadmaps_by_user = {}
-    for rm in all_roadmaps:
-        uid = str(rm.get("user_id") or rm.get("userId"))
-        if uid and uid not in roadmaps_by_user:
-            roadmaps_by_user[uid] = rm
-
-    # Group test scores by student user_id for instant local filtering
-    scores_by_user = {}
-    for s in test_scores:
-        uid = str(s.get("userId"))
-        if uid not in scores_by_user:
-            scores_by_user[uid] = []
-        scores_by_user[uid].append(s)
-
-    raw_resumes = (getattr(db, "resumeReviews", []) or []) + (getattr(db, "resumes", []) or [])
-
-    # Deduplicate resume reviews by ID
-    all_res_map = {}
-    for r in raw_resumes:
-        r_id = str(r.get("id") or id(r))
-        all_res_map[r_id] = r
-    resume_reviews = list(all_res_map.values())
-
-    interview_responses = getattr(db, "interviewResponses", []) or []
-
-    if (year and year != "All" and year != "All Years") or (branch and branch != "All" and branch != "All Departments"):
-        filtered_tests = [s for s in test_scores if str(s.get("userId")) in student_ids]
-        filtered_resumes = [r for r in resume_reviews if str(r.get("userId")) in student_ids]
-        filtered_interviews = [i for i in interview_responses if str(i.get("userId")) in student_ids]
-        
-        total_mock_tests = len(filtered_tests)
-        total_resume_reviews = len(filtered_resumes)
-        total_interviews = len(filtered_interviews)
-    else:
-        total_mock_tests = len(test_scores)
-        total_resume_reviews = len(resume_reviews)
-        total_interviews = len(interview_responses)
-
-    student_performance = []
-    for u in students:
-        u_id = str(u.get("id"))
-        u_tests_list = scores_by_user.get(u_id, [])
-        u_resumes_list = [r for r in resume_reviews if str(r.get("userId")) == u_id]
-        u_interviews_list = [i for i in interview_responses if str(i.get("userId")) == u_id]
-
-        u_rm = roadmaps_by_user.get(u_id)
-        u_ats = u.get("readinessScore")
-
-        dynamic_readiness = calculate_user_readiness(
-            user_id=u_id,
-            test_scores=u_tests_list,
-            ats_score=u_ats,
-            user_rm=u_rm,
-            mock_tests_map=mock_tests_map
-        )
-        u["readinessScore"] = dynamic_readiness
-
-        student_performance.append({
-            "id": u_id,
-            "name": u.get("name", "Unknown"),
-            "email": u.get("email", ""),
-            "branch": u.get("branch", "N/A"),
-            "year": u.get("year", "N/A"),
-            "readinessScore": dynamic_readiness,
-            "testsCompleted": len(u_tests_list),
-            "resumesReviewed": len(u_resumes_list),
-            "interviewsCompleted": len(u_interviews_list)
-        })
-
+@router.get("/dashboard-stats")
+def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
+    _require_admin(current_user)
+    kpis = db.get_admin_kpis()
     return {
         "kpis": {
-            "totalStudents": len(students),
-            "totalMockTestsTaken": total_mock_tests,
-            "mockTestsTaken": total_mock_tests,
-            "totalResumeReviews": total_resume_reviews,
-            "resumesReviewed": total_resume_reviews,
-            "totalAIResumeReviewsDone": total_resume_reviews,
-            "totalInterviewSimulationsCompleted": total_interviews,
-            "interviewsCompleted": total_interviews,
-            "totalInterviewsCompleted": total_interviews
-        },
-        "studentPerformance": student_performance
+            "totalStudents": kpis["total_students"],
+            "totalMockTestsTaken": kpis["total_mock_tests_taken"],
+            "totalResumeReviews": kpis["total_resumes_reviewed"],
+            "totalInterviewPractices": kpis["total_interview_practices"],
+        }
     }
 
-@router.get("/analytics")
-def get_admin_analytics(current_user: dict = Depends(get_current_user)):
-    all_users = db.get_all_users_admin()
-    test_scores = db.get_all_test_scores_admin()
-    all_roadmaps = db.get_all_user_roadmaps_admin()
-    total_students = len([u for u in all_users if u.get("role") == "mentee" or u.get("role") == "student"])
-    scores = [s["percentage"] for s in test_scores if "percentage" in s and s["percentage"] is not None]
-    avg_score = round(sum(scores) / len(scores)) if len(scores) > 0 else None
+
+# ─── Student List (paginated) ──────────────────────────────────────────────────
+
+@router.get("/students")
+@router.get("/users")
+def get_students(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    current_user: dict = Depends(get_current_user)
+):
+    _require_admin(current_user)
+    result = db.get_admin_student_list(page=page, page_size=page_size)
+    return {
+        "users": result["students"],
+        "students": result["students"],
+        "total": result["total"],
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+# ─── Create single student (admin onboarding) ─────────────────────────────────
+
+@router.post("/students")
+def create_student(req: CreateStudentRequest, current_user: dict = Depends(get_current_user)):
+    _require_admin(current_user)
+
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    email = req.email.strip().lower()
+    existing = db.get_user_by_email(email)
+    if existing:
+        raise HTTPException(status_code=400, detail="A student with this email already exists.")
+
+    dept = db.get_department_by_code(req.department_code.strip().upper())
+    if not dept:
+        raise HTTPException(status_code=400, detail=f"Unknown department code: {req.department_code}")
+
+    pw_hash = hash_password(req.password)
+    now = datetime.utcnow().isoformat()
+
+    try:
+        u_res = supabase_client.table("users").insert({
+            "name": req.name.strip(),
+            "email": email,
+            "password_hash": pw_hash,
+            "role": "student",
+            "is_active": True,
+            "must_change_password": True,
+            "created_at": now,
+            "updated_at": now,
+        }).execute()
+
+        if not u_res.data:
+            raise HTTPException(status_code=500, detail="Failed to create user.")
+
+        new_user_id = u_res.data[0]["id"]
+
+        supabase_client.table("student_profiles").insert({
+            "user_id": new_user_id,
+            "department_id": dept["id"],
+            "year": req.year,
+            "domain_id": None,
+            "readiness_score": 0,
+            "onboarding_source": "admin",
+            "onboarded_by": current_user["id"],
+            "created_at": now,
+            "updated_at": now,
+        }).execute()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print("[Admin create_student error]:", e)
+        raise HTTPException(status_code=500, detail="Failed to create student account.")
 
     return {
-        "totalStudents": total_students or len(all_users),
-        "averageScore": avg_score,
-        "activeRoadmaps": len(all_roadmaps),
-        "totalMockTestsTaken": len(test_scores),
-        "recentRegistrations": all_users[-5:] if all_users else []
+        "message": "Student account created successfully.",
+        "student": {
+            "id": str(new_user_id),
+            "name": req.name.strip(),
+            "email": email,
+            "department_code": dept["code"],
+            "year": req.year,
+        }
     }
 
-@router.post("/questions")
-def create_question(req: CreateQuestionRequest, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin authorization required")
 
-    q_id = f"q_{uuid.uuid4().hex[:6]}"
-    new_q = {
-        "id": q_id,
-        "title": req.title,
-        "type": req.type,
-        "difficulty": req.difficulty,
-        "options": req.options,
-        "correctOptionIndex": req.correctOptionIndex,
-        "explanation": req.explanation,
-        "companyTag": req.companyTag
-    }
+# ─── Batch CSV create students ─────────────────────────────────────────────────
 
-    db.questions.append(new_q)
-    # Sync just this new question to Supabase
-    from backend.database import supabase_client
-    if supabase_client:
+@router.post("/students/batch-csv")
+def batch_csv_create(req: BatchCSVCreateRequest, current_user: dict = Depends(get_current_user)):
+    _require_admin(current_user)
+
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    created = []
+    skipped = []
+    now = datetime.utcnow().isoformat()
+    default_pw = os.getenv("STUDENT_DEFAULT_PASSWORD", "College@2026")
+
+    for row in req.users:
+        email = str(row.get("email") or row.get("email_id") or "").strip().lower()
+        if not email or "@" not in email:
+            skipped.append({"row": row, "reason": "Invalid or missing email."})
+            continue
+
+        existing = db.get_user_by_email(email)
+        if existing:
+            skipped.append({"email": email, "reason": "Email already exists."})
+            continue
+
+        name = str(row.get("name") or row.get("Name") or "").strip()
+        if not name:
+            prefix = email.split("@")[0]
+            name = " ".join(p.capitalize() for p in prefix.replace(".", " ").replace("_", " ").split() if not p.isdigit()) or "Student"
+
+        dept_code = str(row.get("department_code") or row.get("dept") or "CSE").strip().upper()
+        dept = db.get_department_by_code(dept_code)
+        if not dept:
+            skipped.append({"email": email, "reason": f"Unknown department code: {dept_code}"})
+            continue
+
         try:
-            supabase_client.table("questions").upsert({
-                "id": str(new_q["id"]),
-                "title": str(new_q.get("title", "")),
-                "type": str(new_q.get("type", "MCQ")),
-                "difficulty": str(new_q.get("difficulty", "Medium")),
-                "options": new_q.get("options", []),
-                "correct_option_index": int(new_q.get("correctOptionIndex", 0)),
-                "explanation": str(new_q.get("explanation", "")),
-                "company_tag": str(new_q.get("companyTag", "General"))
-            }, on_conflict="id").execute()
+            year_raw = row.get("year", 4)
+            year = int(year_raw)
+            if year not in (1, 2, 3, 4):
+                year = 4
+        except (ValueError, TypeError):
+            year = 4
+
+        raw_pw = str(row.get("password") or "").strip()
+        pw_hash = hash_password(raw_pw if raw_pw else default_pw)
+
+        try:
+            u_res = supabase_client.table("users").insert({
+                "name": name,
+                "email": email,
+                "password_hash": pw_hash,
+                "role": "student",
+                "is_active": True,
+                "must_change_password": True,
+                "created_at": now,
+                "updated_at": now,
+            }).execute()
+
+            if not u_res.data:
+                skipped.append({"email": email, "reason": "DB insert failed."})
+                continue
+
+            new_user_id = u_res.data[0]["id"]
+
+            supabase_client.table("student_profiles").insert({
+                "user_id": new_user_id,
+                "department_id": dept["id"],
+                "year": year,
+                "domain_id": None,
+                "readiness_score": 0,
+                "onboarding_source": "admin",
+                "onboarded_by": current_user["id"],
+                "created_at": now,
+                "updated_at": now,
+            }).execute()
+
+            created.append({
+                "id": str(new_user_id),
+                "name": name,
+                "email": email,
+                "department_code": dept["code"],
+                "year": year,
+            })
         except Exception as e:
-            print("[Supabase question save notice]:", e)
+            print(f"[batch_csv_create {email}]:", e)
+            skipped.append({"email": email, "reason": str(e)})
 
-    return {"message": "Question added to UCEK Question Bank", "question": new_q}
+    return {
+        "message": f"Batch complete. {len(created)} created, {len(skipped)} skipped.",
+        "created_count": len(created),
+        "skipped_count": len(skipped),
+        "created_students": created,
+        "skipped": skipped,
+    }
 
-@router.put("/users/role")
-def update_user_role(req: UpdateRoleRequest, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin authorization required")
 
-    user = db.get_user_by_id(req.userId)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+# ─── Fetch all published tests (admin view) ───────────────────────────────────
 
-    user["role"] = req.role
-    db.save_user(user)
-
-    return {"message": f"User role updated to {req.role}"}
-
-@router.get("/users")
-def get_all_users(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin authorization required")
-    
-    all_users = db.get_all_users_admin()
-
-    # Pre-fetch mock tests, test scores, and roadmaps once in bulk to avoid N+1 loop
-    all_mock_tests = db.get_mock_tests()
-    mock_tests_map = {t["id"]: t for t in all_mock_tests}
-    all_test_scores = db.get_all_test_scores_admin(mock_tests_map=mock_tests_map)
-    all_roadmaps = db.get_all_user_roadmaps_admin()
-
-    scores_by_user = {}
-    for s in all_test_scores:
-        uid = str(s.get("userId"))
-        if uid not in scores_by_user:
-            scores_by_user[uid] = []
-        scores_by_user[uid].append(s)
-
-    roadmaps_by_user = {}
-    for rm in all_roadmaps:
-        uid = str(rm.get("user_id") or rm.get("userId"))
-        if uid and uid not in roadmaps_by_user:
-            roadmaps_by_user[uid] = rm
-
-    # Return user details including role
-    users_data = []
-    for u in all_users:
-        u_id = str(u.get("id"))
-        u_tests_list = scores_by_user.get(u_id, [])
-        u_rm = roadmaps_by_user.get(u_id)
-        u_ats = u.get("readinessScore")
-
-        dynamic_readiness = calculate_user_readiness(
-            user_id=u_id,
-            test_scores=u_tests_list,
-            ats_score=u_ats,
-            user_rm=u_rm,
-            mock_tests_map=mock_tests_map
-        )
-
-        users_data.append({
-            "id": u_id,
-            "name": u.get("name", "Unknown"),
-            "email": u.get("email", ""),
-            "role": u.get("role", "mentee"),
-            "branch": u.get("branch", "N/A"),
-            "year": u.get("year", "N/A"),
-            "readinessScore": dynamic_readiness,
-        })
-
-    return {"users": users_data}
-
+@router.get("/tests")
+def get_all_tests(current_user: dict = Depends(get_current_user)):
+    _require_admin(current_user)
+    return {"tests": db.get_all_published_tests()}

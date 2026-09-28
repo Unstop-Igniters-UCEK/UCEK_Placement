@@ -1,14 +1,21 @@
+"""
+database.py — Supabase/PostgreSQL data-access layer for Impulse UCEK Placement Suite.
+
+Targets the NEW database schema as defined in Impulse_DB_Design.md.
+
+Architecture: React Frontend → FastAPI Backend → Supabase/PostgreSQL
+PostgreSQL/Supabase is the single source of truth.
+"""
+
 import os
-import json
 import hashlib
 import base64
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-# Load env variables from .env files
+# ─── Load environment variables ────────────────────────────────────────────────
 for env_path in [
     os.path.join(os.getcwd(), '.env'),
-    os.path.join(os.getcwd(), 'frontend', '.env'),
     os.path.join(os.getcwd(), 'backend', '.env'),
 ]:
     if os.path.exists(env_path):
@@ -25,17 +32,15 @@ for env_path in [
         except Exception:
             pass
 
+# ─── Supabase client initialisation ───────────────────────────────────────────
+
 try:
     from supabase import create_client, Client
     HAS_SUPABASE_SDK = True
 except ImportError:
     HAS_SUPABASE_SDK = False
 
-SUPABASE_URL = (
-    os.getenv("SUPABASE_URL")
-    or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-    or "https://exybkbctsfjckzyszdcg.supabase.co"
-)
+SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
 SUPABASE_KEY = (
     os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     or os.getenv("SUPABASE_KEY")
@@ -44,6 +49,7 @@ SUPABASE_KEY = (
 )
 
 supabase_client: Optional[Any] = None
+
 if HAS_SUPABASE_SDK and SUPABASE_URL and SUPABASE_KEY:
     try:
         import httpx
@@ -53,796 +59,1029 @@ if HAS_SUPABASE_SDK and SUPABASE_URL and SUPABASE_KEY:
         http_client = httpx.Client(limits=limits, timeout=timeout)
         options = ClientOptions(httpx_client=http_client, postgrest_client_timeout=30)
         supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY, options=options)
-        print(f"[Supabase] Connected to Supabase DB at {SUPABASE_URL} (Pooled HTTP Client)")
+        print(f"[Supabase] Connected to Supabase DB at {SUPABASE_URL}")
     except Exception as err:
-        print("[Supabase] Failed to initialize client:", err)
+        print("[Supabase] Failed to initialise client:", err)
 
-# Helper function for password hashing using PBKDF2 HMAC SHA256 or bcrypt compatibility
-def hash_password(password: str, salt: str = "ucek_salt_2026") -> str:
+# ─── Password helpers ──────────────────────────────────────────────────────────
+
+def hash_password(password: str) -> str:
     try:
         import bcrypt
         return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(10)).decode('utf-8')
     except Exception:
+        salt = "ucek_salt_2026"
         key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
         return base64.b64encode(key).decode('utf-8')
 
-def verify_password(plain_password: str, hashed_password: str, salt: str = "ucek_salt_2026") -> bool:
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
     if not hashed_password or not plain_password:
         return False
-    # If standard bcrypt hash from node/python (starts with $2a$ or $2b$)
     if hashed_password.startswith('$2a$') or hashed_password.startswith('$2b$'):
         try:
             import bcrypt
             return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
         except Exception:
             pass
-    # Default PBKDF2 comparison
-    calc_hash = hash_password(plain_password, salt)
+    # PBKDF2 fallback
+    salt = "ucek_salt_2026"
+    key = hashlib.pbkdf2_hmac('sha256', plain_password.encode('utf-8'), salt.encode('utf-8'), 100000)
+    calc_hash = base64.b64encode(key).decode('utf-8')
     return calc_hash == hashed_password
 
+
+# ─── Database class ────────────────────────────────────────────────────────────
+
 class Database:
+    """
+    Thin data-access wrapper over Supabase/PostgreSQL.
+
+    Stateful in-memory storage is limited to:
+      - revokedTokens  — JWT revocation list (lost on restart; tokens are short-lived)
+      - otp_store      — Temporary OTP codes for password reset (in-memory is fine)
+    """
+
     def __init__(self):
         self.revokedTokens: List[str] = []
-        self.resetTokens: Dict[str, Any] = {}
         self.otp_store: Dict[str, Dict[str, Any]] = {}
-        self.load()
+        self._seed_default_admin()
 
-    def load(self):
-        # 1. Sync authentication metadata from Supabase app_state table (revoked/reset tokens only)
-        if supabase_client:
-            try:
-                res = supabase_client.table("app_state").select("data").eq("key", "ucek_db_state").execute()
-                if res.data and len(res.data) > 0:
-                    remote_data = res.data[0].get("data", {})
-                    if isinstance(remote_data, dict):
-                        self.revokedTokens = remote_data.get('revokedTokens', self.revokedTokens)
-                        self.resetTokens = remote_data.get('resetTokens', self.resetTokens)
-            except Exception as e:
-                print("[Supabase app_state load notice]:", e)
+    # ── Internal helpers ───────────────────────────────────────────────────────
 
-        # 2. Check or seed admin user in Supabase users table
-        self._seed_default_users()
-
-    def get_mock_tests(self) -> List[Dict[str, Any]]:
-        """Query Supabase mock_tests table directly on-demand."""
-        if supabase_client:
-            try:
-                mt_res = supabase_client.table("mock_tests").select("*").execute()
-                if mt_res.data and len(mt_res.data) > 0:
-                    loaded_tests = []
-                    for t in mt_res.data:
-                        tid = str(t.get("id"))
-                        q_ids = t.get("question_ids") or t.get("questions") or []
-                        dur = int(t.get("duration_mins") or 30)
-                        target_dept = t.get("target_dept") or "All"
-                        target_year = t.get("target_year") or "All"
-                        comp_tag = t.get("company_tag") or "Department Core"
-                        pass_pct = int(t.get("pass_percentage") or 60)
-
-                        if len(q_ids) > 0:
-                            loaded_tests.append({
-                                "id": tid,
-                                "title": str(t.get("title") or "Mock Assessment"),
-                                "category": str(t.get("category") or "Departmental"),
-                                "companyTag": comp_tag,
-                                "company_tag": comp_tag,
-                                "durationMins": dur,
-                                "durationMinutes": dur,
-                                "duration_mins": dur,
-                                "passPercentage": pass_pct,
-                                "pass_percentage": pass_pct,
-                                "questionIds": q_ids,
-                                "questions": q_ids,
-                                "question_ids": q_ids,
-                                "totalQuestions": len(q_ids),
-                                "targetDept": target_dept,
-                                "target_dept": target_dept,
-                                "targetYear": target_year,
-                                "target_year": target_year,
-                                "description": f"Departmental assessment for {target_dept} ({target_year})."
-                            })
-                    return loaded_tests
-            except Exception as e:
-                print("[Supabase get_mock_tests error]:", e)
-        return []
-
-    def get_mock_test_by_id(self, test_id: str) -> Optional[Dict[str, Any]]:
-        """Query Supabase mock_tests table directly for a specific test ID."""
-        tid = str(test_id)
-        if supabase_client:
-            try:
-                res = supabase_client.table("mock_tests").select("*").eq("id", tid).execute()
-                if res.data and len(res.data) > 0:
-                    t = res.data[0]
-                    q_ids = t.get("question_ids") or t.get("questions") or []
-                    dur = int(t.get("duration_mins") or 30)
-                    target_dept = t.get("target_dept") or "All"
-                    target_year = t.get("target_year") or "All"
-                    comp_tag = t.get("company_tag") or "Department Core"
-                    pass_pct = int(t.get("pass_percentage") or 60)
-                    return {
-                        "id": tid,
-                        "title": str(t.get("title") or "Mock Assessment"),
-                        "category": str(t.get("category") or "Departmental"),
-                        "companyTag": comp_tag,
-                        "company_tag": comp_tag,
-                        "durationMins": dur,
-                        "durationMinutes": dur,
-                        "duration_mins": dur,
-                        "passPercentage": pass_pct,
-                        "pass_percentage": pass_pct,
-                        "questionIds": q_ids,
-                        "questions": q_ids,
-                        "question_ids": q_ids,
-                        "totalQuestions": len(q_ids),
-                        "targetDept": target_dept,
-                        "target_dept": target_dept,
-                        "targetYear": target_year,
-                        "target_year": target_year,
-                        "description": f"Departmental assessment for {target_dept} ({target_year})."
-                    }
-            except Exception as e:
-                print(f"[Supabase get_mock_test_by_id notice for {tid}]:", e)
-        return None
-
-    def get_questions_by_ids(self, q_ids: List[Any]) -> List[Dict[str, Any]]:
-        """Query Supabase questions table directly on-demand."""
-        if not q_ids or not supabase_client:
-            return []
-        str_ids = [str(i) for i in q_ids if isinstance(i, (str, int))]
-        if str_ids:
-            try:
-                res = supabase_client.table("questions").select("*").in_("id", str_ids).execute()
-                if res.data:
-                    out = []
-                    for q in res.data:
-                        q_text = str(q.get("title") or q.get("question") or "")
-                        out.append({
-                            "id": str(q.get("id")),
-                            "title": q_text,
-                            "question": q_text,
-                            "options": q.get("options") or [],
-                            "correctOptionIndex": int(q.get("correct_option_index") or 0),
-                            "explanation": str(q.get("explanation") or ""),
-                            "category": str(q.get("category") or "General"),
-                            "difficulty": str(q.get("difficulty") or "Medium"),
-                            "companyTag": str(q.get("company_tag") or "General")
-                        })
-                    return out
-            except Exception as e:
-                print("[Supabase get_questions_by_ids notice]:", e)
-        return []
-
-    def save_mock_test(self, new_test: Dict[str, Any]) -> bool:
-        """Upsert a single mock test directly to Supabase mock_tests table."""
-        tid = str(new_test.get("id"))
-        if not supabase_client:
-            return True
-        try:
-            q_ids = new_test.get("questionIds") or new_test.get("question_ids") or []
-            payload = {
-                "id": tid,
-                "title": str(new_test.get("title", "")),
-                "category": str(new_test.get("category", "")),
-                "company_tag": str(new_test.get("companyTag") or new_test.get("company_tag") or "General Placement"),
-                "duration_mins": int(new_test.get("durationMins") or new_test.get("duration_mins") or 30),
-                "pass_percentage": int(new_test.get("passPercentage") or new_test.get("pass_percentage") or 60),
-                "question_ids": q_ids,
-                "target_dept": new_test.get("targetDept") or new_test.get("target_dept") or "All",
-                "target_year": new_test.get("targetYear") or new_test.get("target_year") or "All"
-            }
-            supabase_client.table("mock_tests").upsert(payload, on_conflict="id").execute()
-            return True
-        except Exception as e:
-            print(f"[Supabase save_mock_test notice for {tid}]:", e)
-            return False
-
-    def save_questions(self, questions: List[Dict[str, Any]]) -> bool:
-        """Upsert questions directly to Supabase questions table."""
-        if not supabase_client:
-            return True
-        try:
-            for q in questions:
-                supabase_client.table("questions").upsert({
-                    "id": str(q.get("id")),
-                    "title": str(q.get("title") or q.get("question") or ""),
-                    "question": str(q.get("title") or q.get("question") or ""),
-                    "options": q.get("options", []),
-                    "correct_option_index": int(q.get("correctOptionIndex", 0)),
-                    "explanation": str(q.get("explanation", "")),
-                    "category": str(q.get("category", "General")),
-                    "difficulty": str(q.get("difficulty", "Medium")),
-                    "created_at": datetime.now().isoformat()
-                }, on_conflict="id").execute()
-            return True
-        except Exception as e:
-            print("[Supabase save_questions notice]:", e)
-            return False
-
-    def save(self):
-        """Persist lightweight app-level metadata (revoked tokens, reset tokens)."""
-        self._save_app_state()
-
-    def _save_app_state(self):
-        """Write the lightweight app_state JSON blob (single Supabase row)."""
+    def _seed_default_admin(self):
+        """Ensure the default admin account exists in the `users` table."""
+        import logging
+        _logger = logging.getLogger("uvicorn.error")
+        admin_pw_env = os.getenv("ADMIN_DEFAULT_PASSWORD", "admin")
+        if admin_pw_env == "admin":
+            _logger.warning(
+                "[SECURITY WARNING] Default admin password is 'admin'. "
+                "Set ADMIN_DEFAULT_PASSWORD env var to a strong password."
+            )
+        admin_email = os.getenv("ADMIN_EMAIL", "unstopignitersucek@gmail.com").strip().lower()
         if not supabase_client:
             return
         try:
-            supabase_client.table("app_state").upsert({
-                "key": "ucek_db_state",
-                "data": {
-                    "revokedTokens": self.revokedTokens,
-                    "resetTokens": self.resetTokens,
-                },
-                "updated_at": datetime.now().isoformat()
-            }).execute()
+            res = supabase_client.table("users").select("id").eq("email", admin_email).execute()
+            if not res.data:
+                pw_hash = hash_password(admin_pw_env)
+                now = datetime.utcnow().isoformat()
+                supabase_client.table("users").insert({
+                    "name": "Admin UCEK",
+                    "email": admin_email,
+                    "password_hash": pw_hash,
+                    "role": "admin",
+                    "is_active": True,
+                    "must_change_password": False,
+                    "created_at": now,
+                    "updated_at": now,
+                }).execute()
         except Exception as e:
-            print("[Supabase app_state save notice]:", e)
+            print("[Supabase admin seed notice]:", e)
 
-    def _seed_default_users(self):
-        import logging
-        _seed_logger = logging.getLogger("uvicorn.error")
-        admin_pw_env = os.getenv("ADMIN_DEFAULT_PASSWORD", "admin")
-        if admin_pw_env == "admin":
-            _seed_logger.warning("[SECURITY WARNING] Default admin password is 'admin'. Set ADMIN_DEFAULT_PASSWORD env var to a strong password.")
-        pw_hash = hash_password(admin_pw_env)
-        now_str = datetime.now().isoformat()
-        admin_user = {
-            "id": "u_admin_ucek",
-            "name": "Admin UCEK",
-            "email": "unstopignitersucek@gmail.com",
-            "passwordHash": pw_hash,
-            "password_hash": pw_hash,
-            "role": "admin",
-            "year": "Faculty",
-            "branch": "Computer Science & Engg",
-            "domainInterest": "Software Engineering",
-            "isVerified": True,
-            "readinessScore": 100,
-            "createdAt": now_str
-        }
-        if supabase_client:
-            try:
-                res = supabase_client.table("users").select("id").eq("email", admin_user["email"]).execute()
-                if not res.data:
-                    supabase_client.table("users").insert({
-                        "id": admin_user["id"],
-                        "name": admin_user["name"],
-                        "email": admin_user["email"],
-                        "password_hash": admin_user["password_hash"],
-                        "role": admin_user["role"],
-                        "year": admin_user["year"],
-                        "branch": admin_user["branch"],
-                        "domain_interest": admin_user["domainInterest"],
-                        "is_verified": True,
-                        "created_at": admin_user["createdAt"]
-                    }).execute()
-            except Exception as e:
-                print("[Supabase admin check notice]:", e)
-        return False
-
-    @staticmethod
-    def _map_user(u: Dict[str, Any]) -> Dict[str, Any]:
-        """Normalize raw Supabase user row to standard backend dictionary."""
-        uid = str(u.get("id"))
-        role_str = str(u.get("role") or "mentee").strip().lower()
-        has_selected = bool(u.get("has_selected_domain") or u.get("hasSelectedDomain") or False)
-        domain_raw = u.get("domain_interest") or u.get("domainInterest")
-
-        if domain_raw and domain_raw.strip().lower() in ("software engineering",) and role_str != "admin":
-            has_selected = False
-            domain_val = None
-        elif domain_raw and (has_selected or domain_raw.strip().lower() not in ("software engineering",)):
-            has_selected = True
-            domain_val = domain_raw.strip()
-        elif has_selected and domain_raw:
-            domain_val = domain_raw.strip()
-        else:
-            domain_val = None
-            has_selected = False
-
-        target_drive_val = u.get("target_drive") or u.get("targetDrive") or None
-
-        return {
-            "id": uid,
-            "name": str(u.get("name", "")),
-            "email": str(u.get("email", "")),
-            "passwordHash": str(u.get("password_hash") or u.get("passwordHash") or ""),
-            "password_hash": str(u.get("password_hash") or u.get("passwordHash") or ""),
-            "role": str(u.get("role", "mentee")),
-            "year": str(u.get("year", "4th Year")),
-            "branch": str(u.get("branch", "CSE")),
-            "domainInterest": domain_val if has_selected else None,
-            "isVerified": bool(u.get("is_verified", True)),
-            "hasSelectedDomain": has_selected,
-            "targetDrive": target_drive_val,
-            "readinessScore": int(u["readiness_score"]) if u.get("readiness_score") is not None else None,
-            "bio": u.get("bio"),
-            "linkedInUrl": u.get("linkedin_url") or u.get("linkedInUrl"),
-            "githubUrl": u.get("github_url") or u.get("githubUrl"),
-            "createdAt": u.get("created_at") or datetime.now().isoformat()
-        }
+    # ── Users ──────────────────────────────────────────────────────────────────
 
     def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Query Supabase users table directly by ID."""
-        uid = str(user_id)
-        if supabase_client:
-            try:
-                res = supabase_client.table("users").select("*").eq("id", uid).execute()
-                if res.data and len(res.data) > 0:
-                    return self._map_user(res.data[0])
-            except Exception as e:
-                print(f"[Supabase get_user_by_id notice for {uid}]:", e)
+        """
+        Return a fully joined user+profile dict for the given user UUID,
+        or None if the user does not exist.
+        """
+        if not supabase_client or not user_id:
+            return None
+        try:
+            res = supabase_client.table("users").select(
+                "id, name, email, password_hash, role, is_active, must_change_password, created_at"
+            ).eq("id", str(user_id)).execute()
+            if not res.data:
+                return None
+            return self._join_user_profile(res.data[0])
+        except Exception as e:
+            print(f"[DB get_user_by_id {user_id}]:", e)
         return None
 
     def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
-        """Query Supabase users table directly by email."""
-        clean_email = email.strip().lower()
-        if supabase_client:
-            try:
-                res = supabase_client.table("users").select("*").eq("email", clean_email).execute()
-                if res.data and len(res.data) > 0:
-                    return self._map_user(res.data[0])
-            except Exception as e:
-                print(f"[Supabase get_user_by_email notice for {clean_email}]:", e)
+        """Return a fully joined user+profile dict for the given email."""
+        if not supabase_client or not email:
+            return None
+        clean = email.strip().lower()
+        try:
+            res = supabase_client.table("users").select(
+                "id, name, email, password_hash, role, is_active, must_change_password, created_at"
+            ).eq("email", clean).execute()
+            if not res.data:
+                return None
+            return self._join_user_profile(res.data[0])
+        except Exception as e:
+            print(f"[DB get_user_by_email {clean}]:", e)
         return None
 
-    def save_user(self, user_obj: Any) -> bool:
-        """Targeted upsert of a single user row to Supabase."""
-        if isinstance(user_obj, str):
-            u = self.get_user_by_id(user_obj)
-            if not u:
-                return False
-        elif isinstance(user_obj, dict):
-            u = user_obj
-        else:
-            return False
+    def _join_user_profile(self, user_row: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Given a raw `users` row, fetch the matching `student_profiles` row
+        (if the user is a student) and return a merged dict used throughout
+        the backend.
+        """
+        uid = str(user_row.get("id", ""))
+        role = str(user_row.get("role", "student"))
 
-        uid = str(u.get("id"))
-        if not supabase_client:
-            return True
+        profile: Dict[str, Any] = {}
+        department_code: Optional[str] = None
+        department_name: Optional[str] = None
+        department_id: Optional[str] = None
+        domain_id: Optional[str] = None
+        domain_name: Optional[str] = None
+        year: Optional[int] = None
+        readiness_score: Optional[float] = None
 
-        try:
-            payload = {
-                "id": uid,
-                "name": str(u.get("name", "")),
-                "email": str(u.get("email", "")),
-                "password_hash": str(u.get("passwordHash") or u.get("password_hash") or ""),
-                "role": str(u.get("role", "mentee")),
-                "year": str(u.get("year", "4th Year")),
-                "branch": str(u.get("branch", "CSE")),
-                "domain_interest": u.get("domainInterest") if u.get("hasSelectedDomain") else None,
-                "is_verified": bool(u.get("isVerified", True)),
-                "readiness_score": int(u["readinessScore"]) if u.get("readinessScore") is not None else None,
-                "bio": u.get("bio"),
-                "linkedin_url": u.get("linkedInUrl") or u.get("linkedin_url"),
-                "github_url": u.get("githubUrl") or u.get("github_url"),
-                "created_at": u.get("createdAt") or datetime.now().isoformat()
-            }
-            supabase_client.table("users").upsert(payload, on_conflict="email").execute()
-            return True
-        except Exception as e:
-            print(f"[Supabase save_user error for {uid}]:", e)
-            return False
-
-    def update_user_password(self, email: str, new_password_hash: str) -> bool:
-        """Targeted update of user password hash in Supabase users table."""
-        clean_email = email.strip().lower()
-        if supabase_client:
+        if role == "student" and supabase_client:
             try:
-                res = supabase_client.table("users").update({
-                    "password_hash": new_password_hash
-                }).eq("email", clean_email).execute()
-                print(f"[Supabase] Successfully updated password_hash for {clean_email} in Supabase users table.")
-                return bool(res.data)
+                sp_res = supabase_client.table("student_profiles").select(
+                    "department_id, year, domain_id, readiness_score, onboarding_source"
+                ).eq("user_id", uid).execute()
+                if sp_res.data:
+                    profile = sp_res.data[0]
+                    department_id = profile.get("department_id")
+                    domain_id = profile.get("domain_id")
+                    year = profile.get("year")
+                    readiness_score = profile.get("readiness_score")
             except Exception as e:
-                print(f"[Supabase password update error for {clean_email}]:", e)
-        for u in self.users:
-            if u.get("email", "").strip().lower() == clean_email:
-                u["passwordHash"] = new_password_hash
-                u["password_hash"] = new_password_hash
-                return True
+                print(f"[DB join_profile student {uid}]:", e)
+
+            # Resolve department code/name
+            if department_id and supabase_client:
+                try:
+                    dept_res = supabase_client.table("departments").select("code, name").eq("id", department_id).execute()
+                    if dept_res.data:
+                        department_code = dept_res.data[0].get("code")
+                        department_name = dept_res.data[0].get("name")
+                except Exception as e:
+                    print(f"[DB resolve department {department_id}]:", e)
+
+            # Resolve domain name
+            if domain_id and supabase_client:
+                try:
+                    dom_res = supabase_client.table("domains").select("name").eq("id", domain_id).execute()
+                    if dom_res.data:
+                        domain_name = dom_res.data[0].get("name")
+                except Exception as e:
+                    print(f"[DB resolve domain {domain_id}]:", e)
+
+        return {
+            "id": uid,
+            "name": str(user_row.get("name", "")),
+            "email": str(user_row.get("email", "")),
+            "password_hash": str(user_row.get("password_hash", "")),
+            "role": role,
+            "is_active": bool(user_row.get("is_active", True)),
+            "must_change_password": bool(user_row.get("must_change_password", False)),
+            "created_at": str(user_row.get("created_at", "")),
+            # Profile-level fields (students only)
+            "department_id": department_id,
+            "department_code": department_code,
+            "department_name": department_name,
+            "year": year,
+            "domain_id": domain_id,
+            "domain_name": domain_name,
+            "readiness_score": readiness_score,
+        }
+
+    def update_user_password(self, user_id: str, new_password_hash: str) -> bool:
+        """Update the password_hash for a user by ID."""
+        if not supabase_client:
+            return False
+        try:
+            now = datetime.utcnow().isoformat()
+            res = supabase_client.table("users").update({
+                "password_hash": new_password_hash,
+                "password_changed_at": now,
+                "updated_at": now,
+            }).eq("id", str(user_id)).execute()
+            return bool(res.data)
+        except Exception as e:
+            print(f"[DB update_user_password {user_id}]:", e)
         return False
 
-    @staticmethod
-    def _map_roadmap(r: Dict[str, Any]) -> Dict[str, Any]:
-        """Normalize raw Supabase user_roadmap row."""
-        return {
-            "id": str(r.get("id")),
-            "userId": str(r.get("user_id") or r.get("userId")),
-            "domain": str(r.get("domain")),
-            "overallProgress": int(r.get("overall_progress", 0)),
-            "modules": r.get("modules", []),
-            "lastUpdated": str(r.get("last_updated", ""))
-        }
+    # ── Departments / Domains (catalog) ──────────────────────────────────────
 
-    def get_user_roadmap(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Query Supabase user_roadmaps table directly for a specific student."""
-        uid = str(user_id)
-        if supabase_client:
-            try:
-                res = supabase_client.table("user_roadmaps").select("*").eq("user_id", uid).execute()
-                if res.data and len(res.data) > 0:
-                    return self._map_roadmap(res.data[0])
-            except Exception as e:
-                print(f"[Supabase get_user_roadmap notice for {uid}]:", e)
+    def get_all_departments(self) -> List[Dict[str, Any]]:
+        """Return all active departments from the `departments` table."""
+        if not supabase_client:
+            return []
+        try:
+            res = supabase_client.table("departments").select("id, code, name").eq("is_active", True).execute()
+            return res.data or []
+        except Exception as e:
+            print("[DB get_all_departments]:", e)
+        return []
+
+    def get_department_by_id(self, dept_id: str) -> Optional[Dict[str, Any]]:
+        if not supabase_client or not dept_id:
+            return None
+        try:
+            res = supabase_client.table("departments").select("id, code, name").eq("id", dept_id).execute()
+            return res.data[0] if res.data else None
+        except Exception as e:
+            print(f"[DB get_department_by_id {dept_id}]:", e)
         return None
 
-    def save_roadmap(self, roadmap_obj: Any) -> bool:
-        """Targeted upsert of a single user roadmap row to Supabase."""
-        if isinstance(roadmap_obj, str):
-            rm = self.get_user_roadmap(roadmap_obj)
-            if not rm:
-                return False
-        elif isinstance(roadmap_obj, dict):
-            rm = roadmap_obj
-        else:
-            return False
+    def get_department_by_code(self, code: str) -> Optional[Dict[str, Any]]:
+        if not supabase_client or not code:
+            return None
+        try:
+            res = supabase_client.table("departments").select("id, code, name").eq("code", code.upper()).execute()
+            return res.data[0] if res.data else None
+        except Exception as e:
+            print(f"[DB get_department_by_code {code}]:", e)
+        return None
 
-        uid = str(rm.get("userId") or rm.get("user_id"))
+    def get_all_domains(self) -> List[Dict[str, Any]]:
+        """Return all active domains from the `domains` table."""
         if not supabase_client:
-            return True
+            return []
+        try:
+            res = supabase_client.table("domains").select("id, name, slug").eq("is_active", True).execute()
+            return res.data or []
+        except Exception as e:
+            print("[DB get_all_domains]:", e)
+        return []
+
+    def get_domain_by_id(self, domain_id: str) -> Optional[Dict[str, Any]]:
+        if not supabase_client or not domain_id:
+            return None
+        try:
+            res = supabase_client.table("domains").select("id, name, slug").eq("id", domain_id).execute()
+            return res.data[0] if res.data else None
+        except Exception as e:
+            print(f"[DB get_domain_by_id {domain_id}]:", e)
+        return None
+
+    def get_domain_by_name_or_slug(self, identifier: str) -> Optional[Dict[str, Any]]:
+        """Resolve a domain by UUID, slug, or name (case-insensitive)."""
+        if not supabase_client or not identifier:
+            return None
+        ident = str(identifier).strip()
+        # 1. Try by UUID if it matches UUID format
+        if len(ident) == 36 and ident.count("-") == 4:
+            dom = self.get_domain_by_id(ident)
+            if dom:
+                return dom
+        # 2. Try by exact slug
+        try:
+            res = supabase_client.table("domains").select("id, name, slug").eq("slug", ident.lower()).execute()
+            if res.data:
+                return res.data[0]
+        except Exception:
+            pass
+        # 3. Try by exact name
+        try:
+            res = supabase_client.table("domains").select("id, name, slug").ilike("name", ident).execute()
+            if res.data:
+                return res.data[0]
+        except Exception:
+            pass
+        # 4. Try alias mapping for known product titles
+        _alias_map = {
+            "software engineering": "software-engineering",
+            "swe": "software-engineering",
+            "backend & cloud engineering": "backend-engineering",
+            "backend engineering": "backend-engineering",
+            "dev": "backend-engineering",
+            "ui/ux & product design": "ui-ux",
+            "ui/ux": "ui-ux",
+            "ui": "ui-ux",
+            "video editing": "video-editing",
+            "graphics designing": "graphics-designing",
+            "cybersecurity & soc": "cybersecurity",
+            "cybersecurity": "cybersecurity",
+        }
+        mapped_slug = _alias_map.get(ident.lower())
+        if mapped_slug:
+            try:
+                res = supabase_client.table("domains").select("id, name, slug").eq("slug", mapped_slug).execute()
+                if res.data:
+                    return res.data[0]
+            except Exception:
+                pass
+        # 5. Try prefix / substring
+        try:
+            res = supabase_client.table("domains").select("id, name, slug").ilike("name", f"%{ident[:6]}%").execute()
+            if res.data:
+                return res.data[0]
+        except Exception:
+            pass
+        return None
+
+    # ── Readiness ─────────────────────────────────────────────────────────────
+
+    def calculate_and_store_readiness(self, student_id: str) -> Optional[float]:
+        """
+        Calculate readiness per Impulse_DB_Design.md §8 and persist the
+        snapshot in student_profiles.readiness_score.
+
+        Components:
+          Aptitude  = AVG(score_percentage) of aptitude attempts
+          Technical = AVG(score_percentage) of technical attempts
+          ATS       = latest ATS score from resume_reviews (for student's current domain)
+
+        Overall = (Aptitude + Technical + ATS) / 3
+        Missing components treated as 0.
+        """
+        if not supabase_client:
+            return None
+        uid = str(student_id)
+
+        apt_scores: List[float] = []
+        tech_scores: List[float] = []
 
         try:
-            supabase_client.table("user_roadmaps").upsert({
-                "id": str(rm.get("id")),
-                "user_id": uid,
-                "domain": str(rm.get("domain")),
-                "overall_progress": int(rm.get("overallProgress", 0)),
-                "modules": rm.get("modules", []),
-                "last_updated": rm.get("lastUpdated") or datetime.now().isoformat()
-            }, on_conflict="id").execute()
+            att_res = supabase_client.table("mock_test_attempts").select(
+                "score_percentage, test_id"
+            ).eq("student_id", uid).eq("status", "submitted").execute()
+            if att_res.data:
+                test_ids = list({a["test_id"] for a in att_res.data if a.get("test_id")})
+                type_map: Dict[str, str] = {}
+                if test_ids:
+                    t_res = supabase_client.table("mock_tests").select("id, test_type").in_("id", test_ids).execute()
+                    if t_res.data:
+                        type_map = {r["id"]: r.get("test_type", "") for r in t_res.data}
+                for a in att_res.data:
+                    sp = float(a.get("score_percentage", 0))
+                    tt = type_map.get(a.get("test_id", ""), "")
+                    if tt == "aptitude":
+                        apt_scores.append(sp)
+                    elif tt == "technical":
+                        tech_scores.append(sp)
+        except Exception as e:
+            print(f"[DB readiness attempt fetch error {uid}]:", e)
+
+        aptitude_avg = (sum(apt_scores) / len(apt_scores)) if apt_scores else 0.0
+        technical_avg = (sum(tech_scores) / len(tech_scores)) if tech_scores else 0.0
+
+        # ATS: latest review score for student's current domain
+        ats_score = 0.0
+        try:
+            # Get student's current domain_id
+            sp_res = supabase_client.table("student_profiles").select("domain_id").eq("user_id", uid).execute()
+            current_domain_id = sp_res.data[0].get("domain_id") if sp_res.data else None
+
+            if current_domain_id:
+                rr_res = supabase_client.table("resume_reviews").select("ats_score, domain_id").eq("student_id", uid).execute()
+                if rr_res.data:
+                    # Only applicable if the review domain matches current domain
+                    review = rr_res.data[0]
+                    if review.get("domain_id") == current_domain_id:
+                        ats_score = float(review.get("ats_score", 0))
+        except Exception as e:
+            print(f"[DB readiness ATS fetch {uid}]:", e)
+
+        readiness = round((aptitude_avg + technical_avg + ats_score) / 3, 2)
+
+        # Persist snapshot
+        try:
+            now = datetime.utcnow().isoformat()
+            supabase_client.table("student_profiles").update({
+                "readiness_score": readiness,
+                "readiness_calculated_at": now,
+                "updated_at": now,
+            }).eq("user_id", uid).execute()
+        except Exception as e:
+            print(f"[DB readiness snapshot update {uid}]:", e)
+
+        return readiness
+
+    def get_readiness_components(self, student_id: str) -> Dict[str, Any]:
+        """
+        Return readiness breakdown {aptitude, technical, ats, score} for a student.
+        Does NOT recalculate or store — reads from existing data on-demand.
+        Used for API responses where we need component breakdown.
+        """
+        if not supabase_client:
+            return {"score": None, "aptitude": None, "technical": None, "ats": None}
+
+        uid = str(student_id)
+        apt_scores: List[float] = []
+        tech_scores: List[float] = []
+        ats_score: Optional[float] = None
+
+        try:
+            att_res = supabase_client.table("mock_test_attempts").select(
+                "score_percentage, test_id"
+            ).eq("student_id", uid).eq("status", "submitted").execute()
+
+            if att_res.data:
+                test_ids = list({a.get("test_id") for a in att_res.data if a.get("test_id")})
+                type_map: Dict[str, str] = {}
+                if test_ids:
+                    mt_res = supabase_client.table("mock_tests").select("id, test_type").in_("id", test_ids).execute()
+                    if mt_res.data:
+                        type_map = {r["id"]: r.get("test_type", "") for r in mt_res.data}
+                for a in att_res.data:
+                    sp = float(a.get("score_percentage", 0))
+                    tt = type_map.get(a.get("test_id", ""), "")
+                    if tt == "aptitude":
+                        apt_scores.append(sp)
+                    elif tt == "technical":
+                        tech_scores.append(sp)
+        except Exception as e:
+            print(f"[DB readiness components {uid}]:", e)
+
+        try:
+            sp_res = supabase_client.table("student_profiles").select("domain_id").eq("user_id", uid).execute()
+            current_domain_id = sp_res.data[0].get("domain_id") if sp_res.data else None
+            if current_domain_id:
+                rr_res = supabase_client.table("resume_reviews").select("ats_score, domain_id").eq("student_id", uid).execute()
+                if rr_res.data:
+                    review = rr_res.data[0]
+                    if review.get("domain_id") == current_domain_id:
+                        ats_score = float(review.get("ats_score", 0))
+        except Exception as e:
+            print(f"[DB readiness ATS components {uid}]:", e)
+
+        aptitude_avg = round(sum(apt_scores) / len(apt_scores), 2) if apt_scores else None
+        technical_avg = round(sum(tech_scores) / len(tech_scores), 2) if tech_scores else None
+
+        components = [
+            aptitude_avg if aptitude_avg is not None else 0.0,
+            technical_avg if technical_avg is not None else 0.0,
+            ats_score if ats_score is not None else 0.0,
+        ]
+        final_score = round(sum(components) / 3, 2)
+
+        return {
+            "score": final_score,
+            "aptitude": aptitude_avg,
+            "technical": technical_avg,
+            "ats": ats_score,
+        }
+
+    # ── Mock Tests ─────────────────────────────────────────────────────────────
+
+    def get_published_tests_for_student(self, department_id: Optional[str], year: Optional[int]) -> List[Dict[str, Any]]:
+        """
+        Return published mock tests that match the student's department and year.
+        Targeting rules:
+          target_department_id IS NULL → all departments
+          target_year IS NULL          → all years
+        """
+        if not supabase_client:
+            return []
+        try:
+            res = supabase_client.table("mock_tests").select(
+                "id, title, duration_minutes, target_department_id, target_year, test_type, status, published_at"
+            ).eq("status", "published").execute()
+            if not res.data:
+                return []
+
+            matching = []
+            for t in res.data:
+                td = t.get("target_department_id")
+                ty = t.get("target_year")
+                dept_match = (td is None) or (department_id is not None and str(td) == str(department_id))
+                year_match = (ty is None) or (year is not None and int(ty) == int(year))
+                if dept_match and year_match:
+                    # Count questions
+                    q_res = supabase_client.table("mock_test_questions").select("id", count="exact").eq("test_id", t["id"]).execute()
+                    q_count = q_res.count if hasattr(q_res, 'count') and q_res.count is not None else len(q_res.data or [])
+                    matching.append({
+                        "id": str(t["id"]),
+                        "title": str(t.get("title", "")),
+                        "duration_minutes": int(t.get("duration_minutes", 30)),
+                        "test_type": str(t.get("test_type", "general")),
+                        "status": str(t.get("status", "published")),
+                        "total_questions": q_count,
+                        "target_department_id": str(td) if td else None,
+                        "target_year": int(ty) if ty else None,
+                        "published_at": str(t.get("published_at", "")),
+                    })
+            return matching
+        except Exception as e:
+            print("[DB get_published_tests_for_student]:", e)
+        return []
+
+    def get_all_published_tests(self) -> List[Dict[str, Any]]:
+        """Return all published mock tests (for admin)."""
+        if not supabase_client:
+            return []
+        try:
+            res = supabase_client.table("mock_tests").select(
+                "id, title, duration_minutes, target_department_id, target_year, test_type, status, published_at"
+            ).eq("status", "published").execute()
+            out = []
+            for t in (res.data or []):
+                q_res = supabase_client.table("mock_test_questions").select("id", count="exact").eq("test_id", t["id"]).execute()
+                q_count = q_res.count if hasattr(q_res, 'count') and q_res.count is not None else len(q_res.data or [])
+                out.append({
+                    "id": str(t["id"]),
+                    "title": str(t.get("title", "")),
+                    "duration_minutes": int(t.get("duration_minutes", 30)),
+                    "test_type": str(t.get("test_type", "general")),
+                    "status": str(t.get("status", "published")),
+                    "total_questions": q_count,
+                    "target_department_id": str(t["target_department_id"]) if t.get("target_department_id") else None,
+                    "target_year": int(t["target_year"]) if t.get("target_year") else None,
+                    "published_at": str(t.get("published_at", "")),
+                })
+            return out
+        except Exception as e:
+            print("[DB get_all_published_tests]:", e)
+        return []
+
+    def get_test_by_id(self, test_id: str) -> Optional[Dict[str, Any]]:
+        """Return a single mock test by ID."""
+        if not supabase_client or not test_id:
+            return None
+        try:
+            res = supabase_client.table("mock_tests").select("*").eq("id", test_id).execute()
+            if not res.data:
+                return None
+            t = res.data[0]
+            return {
+                "id": str(t["id"]),
+                "title": str(t.get("title", "")),
+                "duration_minutes": int(t.get("duration_minutes", 30)),
+                "test_type": str(t.get("test_type", "general")),
+                "status": str(t.get("status", "")),
+                "target_department_id": str(t["target_department_id"]) if t.get("target_department_id") else None,
+                "target_year": int(t["target_year"]) if t.get("target_year") else None,
+                "published_at": str(t.get("published_at", "")),
+                "created_by": str(t.get("created_by", "")),
+            }
+        except Exception as e:
+            print(f"[DB get_test_by_id {test_id}]:", e)
+        return None
+
+    def get_questions_for_test(self, test_id: str) -> List[Dict[str, Any]]:
+        """Return all questions for a test, ordered by question_order."""
+        if not supabase_client or not test_id:
+            return []
+        try:
+            res = supabase_client.table("mock_test_questions").select(
+                "id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, question_order"
+            ).eq("test_id", test_id).order("question_order").execute()
+            return res.data or []
+        except Exception as e:
+            print(f"[DB get_questions_for_test {test_id}]:", e)
+        return []
+
+    def get_question_by_id(self, question_id: str) -> Optional[Dict[str, Any]]:
+        """Return a single question by ID."""
+        if not supabase_client or not question_id:
+            return None
+        try:
+            res = supabase_client.table("mock_test_questions").select("*").eq("id", question_id).execute()
+            return res.data[0] if res.data else None
+        except Exception as e:
+            print(f"[DB get_question_by_id {question_id}]:", e)
+        return None
+
+    def get_student_attempt(self, student_id: str, test_id: str, status: str = "in_progress") -> Optional[Dict[str, Any]]:
+        """Return an in-progress (or other status) attempt for student+test."""
+        if not supabase_client:
+            return None
+        try:
+            res = supabase_client.table("mock_test_attempts").select("*").eq(
+                "student_id", str(student_id)
+            ).eq("test_id", str(test_id)).eq("status", status).order("created_at", desc=True).limit(1).execute()
+            return res.data[0] if res.data else None
+        except Exception as e:
+            print(f"[DB get_student_attempt {student_id}/{test_id}]:", e)
+        return None
+
+    def get_attempt_by_id(self, attempt_id: str) -> Optional[Dict[str, Any]]:
+        if not supabase_client:
+            return None
+        try:
+            res = supabase_client.table("mock_test_attempts").select("*").eq("id", attempt_id).execute()
+            return res.data[0] if res.data else None
+        except Exception as e:
+            print(f"[DB get_attempt_by_id {attempt_id}]:", e)
+        return None
+
+    def get_student_test_history(self, student_id: str) -> List[Dict[str, Any]]:
+        """Return submitted attempts for a student, joined with test titles."""
+        if not supabase_client:
+            return []
+        uid = str(student_id)
+        try:
+            res = supabase_client.table("mock_test_attempts").select(
+                "id, test_id, attempt_number, marks_obtained, total_marks, score_percentage, status, started_at, submitted_at"
+            ).eq("student_id", uid).eq("status", "submitted").order("submitted_at", desc=True).execute()
+            if not res.data:
+                return []
+
+            # Bulk-fetch test titles
+            test_ids = list({a["test_id"] for a in res.data if a.get("test_id")})
+            title_map: Dict[str, str] = {}
+            type_map: Dict[str, str] = {}
+            if test_ids:
+                mt_res = supabase_client.table("mock_tests").select("id, title, test_type").in_("id", test_ids).execute()
+                if mt_res.data:
+                    title_map = {r["id"]: r.get("title", "") for r in mt_res.data}
+                    type_map = {r["id"]: r.get("test_type", "") for r in mt_res.data}
+
+            out = []
+            for a in res.data:
+                tid = a.get("test_id", "")
+                out.append({
+                    "id": str(a["id"]),
+                    "test_id": str(tid),
+                    "test_title": title_map.get(tid, "Mock Test"),
+                    "test_type": type_map.get(tid, "general"),
+                    "attempt_number": int(a.get("attempt_number", 1)),
+                    "marks_obtained": int(a.get("marks_obtained", 0)),
+                    "total_marks": int(a.get("total_marks", 0)),
+                    "score_percentage": float(a.get("score_percentage", 0)),
+                    "status": str(a.get("status", "")),
+                    "submitted_at": str(a.get("submitted_at", "")),
+                    "cleared": float(a.get("score_percentage", 0)) > 65,
+                })
+            return out
+        except Exception as e:
+            print(f"[DB get_student_test_history {uid}]:", e)
+        return []
+
+    # ── Admin metrics ──────────────────────────────────────────────────────────
+
+    def get_admin_student_list(self, page: int = 1, page_size: int = 50) -> Dict[str, Any]:
+        """
+        Return paginated student list for the admin dashboard.
+        Reads readiness_score snapshot from student_profiles directly.
+        """
+        if not supabase_client:
+            return {"students": [], "total": 0}
+        try:
+            offset = (page - 1) * page_size
+            # Join users + student_profiles + departments using explicit foreign key
+            res = supabase_client.table("users").select(
+                "id, name, email, created_at, "
+                "student_profiles!student_profiles_user_id_fkey(department_id, year, readiness_score, domain_id, departments(code, name))"
+            ).eq("role", "student").eq("is_active", True).order("created_at", desc=True).range(offset, offset + page_size - 1).execute()
+
+            total_res = supabase_client.table("users").select("id", count="exact").eq("role", "student").eq("is_active", True).execute()
+            total = total_res.count if hasattr(total_res, 'count') and total_res.count is not None else 0
+
+            students = []
+            for u in (res.data or []):
+                profile = u.get("student_profiles")
+                if isinstance(profile, list) and profile:
+                    profile = profile[0]
+                elif not isinstance(profile, dict):
+                    profile = {}
+                dept = profile.get("departments") or {}
+                if isinstance(dept, list) and dept:
+                    dept = dept[0]
+                elif not isinstance(dept, dict):
+                    dept = {}
+                students.append({
+                    "id": str(u["id"]),
+                    "name": str(u.get("name", "")),
+                    "email": str(u.get("email", "")),
+                    "department_code": dept.get("code"),
+                    "department_name": dept.get("name"),
+                    "branch": dept.get("code"),
+                    "year": profile.get("year"),
+                    "readiness_score": profile.get("readiness_score"),
+                    "created_at": str(u.get("created_at", "")),
+                })
+            return {"students": students, "total": total}
+        except Exception as e:
+            print("[DB get_admin_student_list]:", e)
+        return {"students": [], "total": 0}
+
+    def get_admin_kpis(self) -> Dict[str, Any]:
+        """
+        Return the four admin dashboard KPIs using aggregate queries.
+        See Impulse_DB_Design.md §29.
+        """
+        if not supabase_client:
+            return {"total_students": 0, "total_mock_tests_taken": 0, "total_resumes_reviewed": 0, "total_interview_practices": 0}
+        try:
+            # 1. Total onboarded (active) students
+            s_res = supabase_client.table("users").select("id", count="exact").eq("role", "student").eq("is_active", True).execute()
+            total_students = s_res.count if hasattr(s_res, 'count') and s_res.count is not None else 0
+
+            # 2. Total mock tests taken = distinct (student_id, test_id) combos
+            mt_res = supabase_client.table("mock_test_attempts").select("student_id, test_id").execute()
+            distinct_pairs = set()
+            for a in (mt_res.data or []):
+                distinct_pairs.add((a.get("student_id"), a.get("test_id")))
+            total_mock_tests_taken = len(distinct_pairs)
+
+            # 3. Total resumes reviewed = unique students with a resume_reviews row
+            rr_res = supabase_client.table("resume_reviews").select("student_id", count="exact").execute()
+            total_resumes_reviewed = rr_res.count if hasattr(rr_res, 'count') and rr_res.count is not None else 0
+
+            # 4. Total interview practices = total rows in hr_interview_attempts
+            ia_res = supabase_client.table("hr_interview_attempts").select("id", count="exact").execute()
+            total_interview_practices = ia_res.count if hasattr(ia_res, 'count') and ia_res.count is not None else 0
+
+            return {
+                "total_students": total_students,
+                "total_mock_tests_taken": total_mock_tests_taken,
+                "total_resumes_reviewed": total_resumes_reviewed,
+                "total_interview_practices": total_interview_practices,
+            }
+        except Exception as e:
+            print("[DB get_admin_kpis]:", e)
+        return {"total_students": 0, "total_mock_tests_taken": 0, "total_resumes_reviewed": 0, "total_interview_practices": 0}
+
+    # ── Roadmap ────────────────────────────────────────────────────────────────
+
+    def get_roadmap_for_domain(self, domain_id: str) -> List[Dict[str, Any]]:
+        """Return all roadmap items for a domain, ordered by sort_order."""
+        if not supabase_client or not domain_id:
+            return []
+        try:
+            res = supabase_client.table("roadmap_items").select(
+                "id, parent_id, title, description, item_type, sort_order"
+            ).eq("domain_id", domain_id).eq("is_active", True).order("sort_order").execute()
+            return res.data or []
+        except Exception as e:
+            print(f"[DB get_roadmap_for_domain {domain_id}]:", e)
+        return []
+
+    def get_student_roadmap_progress(self, student_id: str) -> List[Dict[str, Any]]:
+        """Return a student's roadmap progress rows."""
+        if not supabase_client:
+            return []
+        try:
+            res = supabase_client.table("student_roadmap_progress").select(
+                "roadmap_item_id, completed, completed_at"
+            ).eq("student_id", str(student_id)).execute()
+            return res.data or []
+        except Exception as e:
+            print(f"[DB get_student_roadmap_progress {student_id}]:", e)
+        return []
+
+    def upsert_roadmap_progress(self, student_id: str, roadmap_item_id: str, completed: bool) -> bool:
+        """Mark a roadmap item as completed/incomplete for a student."""
+        if not supabase_client:
+            return False
+        try:
+            now = datetime.utcnow().isoformat()
+            payload = {
+                "student_id": str(student_id),
+                "roadmap_item_id": str(roadmap_item_id),
+                "completed": completed,
+                "completed_at": now if completed else None,
+                "updated_at": now,
+            }
+            supabase_client.table("student_roadmap_progress").upsert(
+                payload, on_conflict="student_id,roadmap_item_id"
+            ).execute()
             return True
         except Exception as e:
-            print(f"[Supabase save_roadmap error for user {uid}]:", e)
-            return False
+            print(f"[DB upsert_roadmap_progress {student_id}/{roadmap_item_id}]:", e)
+        return False
 
-    def _map_test_score(self, s: Dict[str, Any], mock_tests_map: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Normalize raw Supabase test_score row."""
-        score_id = str(s.get("id"))
-        score_val = int(s.get("score", 0))
-        total_val = int(s.get("total") or s.get("total_questions") or s.get("totalQuestions") or 10)
-        pct_val = float(s.get("percentage") or ((score_val / total_val) * 100 if total_val > 0 else 0.0))
-        test_id_str = str(s.get("test_id") or s.get("testId") or "")
+    # ── Resume ────────────────────────────────────────────────────────────────
 
-        # Look up category and title from mock_tests catalog if missing
-        found_test = None
-        if not (s.get("category") and (s.get("test_title") or s.get("testTitle"))):
-            if mock_tests_map is not None:
-                found_test = mock_tests_map.get(test_id_str)
+    def get_student_resume(self, student_id: str) -> Optional[Dict[str, Any]]:
+        """Return the student's resume record with all section sub-tables."""
+        if not supabase_client:
+            return None
+        uid = str(student_id)
+        try:
+            res = supabase_client.table("student_resumes").select("*").eq("student_id", uid).execute()
+            if not res.data:
+                return None
+            resume = res.data[0]
+            resume_id = resume["id"]
+
+            skills_res = supabase_client.table("resume_skills").select("*").eq("resume_id", resume_id).order("sort_order").execute()
+            projects_res = supabase_client.table("resume_projects").select("*").eq("resume_id", resume_id).order("sort_order").execute()
+            experience_res = supabase_client.table("resume_experience").select("*").eq("resume_id", resume_id).order("sort_order").execute()
+            education_res = supabase_client.table("resume_education").select("*").eq("resume_id", resume_id).order("sort_order").execute()
+            certs_res = supabase_client.table("resume_certifications").select("*").eq("resume_id", resume_id).order("sort_order").execute()
+            achievements_res = supabase_client.table("resume_achievements").select("*").eq("resume_id", resume_id).order("sort_order").execute()
+
+            resume["skills"] = skills_res.data or []
+            resume["projects"] = projects_res.data or []
+            resume["experience"] = experience_res.data or []
+            resume["education"] = education_res.data or []
+            resume["certifications"] = certs_res.data or []
+            resume["achievements"] = achievements_res.data or []
+            return resume
+        except Exception as e:
+            print(f"[DB get_student_resume {uid}]:", e)
+        return None
+
+    def upsert_student_resume(self, student_id: str, data: Dict[str, Any]) -> Optional[str]:
+        """
+        Create or update the student_resumes row, and persist all section sub-tables
+        if provided in data: skills, projects, experience, education, certifications, achievements.
+        Returns the resume UUID on success, None on failure.
+        """
+        if not supabase_client:
+            return None
+        uid = str(student_id)
+        now = datetime.utcnow().isoformat()
+        try:
+            existing = supabase_client.table("student_resumes").select("id").eq("student_id", uid).execute()
+            payload = {
+                "student_id": uid,
+                "summary": data.get("summary"),
+                "phone": data.get("phone"),
+                "location": data.get("location"),
+                "linkedin_url": data.get("linkedin_url") or data.get("linkedIn"),
+                "github_url": data.get("github_url") or data.get("github"),
+                "template_type": "modern" if str(data.get("template_type", "")).lower() == "modern" else "ats",
+                "source_type": "uploaded" if str(data.get("source_type", "")).lower() == "uploaded" else "builder",
+                "updated_at": now,
+            }
+            if existing.data:
+                resume_id = existing.data[0]["id"]
+                supabase_client.table("student_resumes").update(payload).eq("id", resume_id).execute()
             else:
-                found_test = self.get_mock_test_by_id(test_id_str)
-        category_val = s.get("category") or (found_test.get("category") if found_test else "Company Drive")
-        title_val = s.get("test_title") or s.get("testTitle") or (found_test.get("title") if found_test else "Mock Assessment Drive")
+                payload["created_at"] = now
+                ins_res = supabase_client.table("student_resumes").insert(payload).execute()
+                if not ins_res.data:
+                    return None
+                resume_id = ins_res.data[0]["id"]
 
-        return {
-            "id": score_id,
-            "userId": str(s.get("user_id") or s.get("userId")),
-            "testId": test_id_str,
-            "testTitle": title_val,
-            "category": category_val,
-            "score": score_val,
-            "total": total_val,
-            "totalQuestions": total_val,
-            "percentage": pct_val,
-            "passed": bool(s.get("passed") if s.get("passed") is not None else pct_val >= 60),
-            "timeTakenSec": int(s.get("time_taken_sec") or s.get("timeTakenSec") or 0),
-            "submittedAt": str(s.get("submitted_at") or s.get("submittedAt") or s.get("date") or ""),
-            "submitted_at": str(s.get("submitted_at") or s.get("submittedAt") or s.get("date") or ""),
-            "date": str(s.get("submitted_at") or s.get("submittedAt") or s.get("date") or "").split("T")[0]
-        }
+            # Persist section sub-tables if provided
+            if "skills" in data and isinstance(data["skills"], list):
+                supabase_client.table("resume_skills").delete().eq("resume_id", resume_id).execute()
+                for i, item in enumerate(data["skills"]):
+                    if isinstance(item, dict):
+                        supabase_client.table("resume_skills").insert({
+                            "resume_id": resume_id,
+                            "skill": str(item.get("skill") or item.get("items") or item.get("name") or "").strip(),
+                            "category": item.get("category"),
+                            "sort_order": int(item.get("sort_order", i)),
+                        }).execute()
 
-    def get_user_test_scores(self, user_id: str) -> List[Dict[str, Any]]:
-        """Query Supabase test_scores table directly for a specific student."""
-        uid = str(user_id)
-        if supabase_client:
-            try:
-                res = supabase_client.table("test_scores").select("*").eq("user_id", uid).order("submitted_at", desc=True).execute()
-                if res.data:
-                    return [self._map_test_score(s) for s in res.data]
-            except Exception as e:
-                print(f"[Supabase get_user_test_scores notice for {uid}]:", e)
-        return []
+            if "projects" in data and isinstance(data["projects"], list):
+                supabase_client.table("resume_projects").delete().eq("resume_id", resume_id).execute()
+                for i, item in enumerate(data["projects"]):
+                    if isinstance(item, dict):
+                        supabase_client.table("resume_projects").insert({
+                            "resume_id": resume_id,
+                            "title": str(item.get("title") or "Project").strip(),
+                            "description": item.get("description"),
+                            "technologies": item.get("technologies") or item.get("techStack"),
+                            "project_url": item.get("project_url") or item.get("link"),
+                            "sort_order": int(item.get("sort_order", i)),
+                        }).execute()
 
-    def save_test_score(self, score_obj: Any) -> bool:
-        """Targeted upsert of a single test score row to Supabase."""
-        if isinstance(score_obj, str):
-            score = self.get_user_test_scores(score_obj)
-            if not score:
-                return False
-            score = score[0]
-        elif isinstance(score_obj, dict):
-            score = score_obj
-        else:
-            return False
+            if "experience" in data and isinstance(data["experience"], list):
+                supabase_client.table("resume_experience").delete().eq("resume_id", resume_id).execute()
+                for i, item in enumerate(data["experience"]):
+                    if isinstance(item, dict):
+                        ent_type = str(item.get("entry_type", "experience")).lower()
+                        if ent_type not in ("experience", "leadership"):
+                            ent_type = "experience"
+                        supabase_client.table("resume_experience").insert({
+                            "resume_id": resume_id,
+                            "entry_type": ent_type,
+                            "organization": str(item.get("organization") or item.get("company") or "Company").strip(),
+                            "role": str(item.get("role") or item.get("position") or "Role").strip(),
+                            "description": item.get("description") or "\n".join(item.get("bullets", []) if isinstance(item.get("bullets"), list) else []),
+                            "start_date": item.get("start_date") or None,
+                            "end_date": item.get("end_date") or None,
+                            "is_current": bool(item.get("is_current", False)),
+                            "sort_order": int(item.get("sort_order", i)),
+                        }).execute()
 
-        score_id = str(score.get("id"))
-        if not supabase_client:
-            return True
+            if "education" in data and isinstance(data["education"], list):
+                supabase_client.table("resume_education").delete().eq("resume_id", resume_id).execute()
+                for i, item in enumerate(data["education"]):
+                    if isinstance(item, dict):
+                        supabase_client.table("resume_education").insert({
+                            "resume_id": resume_id,
+                            "institution": str(item.get("institution") or "University").strip(),
+                            "degree": str(item.get("degree") or "Degree").strip(),
+                            "field_of_study": item.get("field_of_study") or item.get("fieldOfStudy"),
+                            "start_year": int(item["start_year"]) if item.get("start_year") else None,
+                            "end_year": int(item["end_year"]) if item.get("end_year") else None,
+                            "grade": item.get("grade") or item.get("gpa"),
+                            "sort_order": int(item.get("sort_order", i)),
+                        }).execute()
 
-        try:
-            score_val = int(score.get("score", 0))
-            total_val = int(score.get("total") or score.get("totalQuestions") or 10)
-            pct_val = float(score.get("percentage") or ((score_val / total_val) * 100 if total_val > 0 else 0.0))
-            supabase_client.table("test_scores").upsert({
-                "id": score_id,
-                "user_id": str(score.get("userId")),
-                "test_id": str(score.get("testId")),
-                "score": score_val,
-                "total": total_val,
-                "percentage": round(pct_val, 2),
-                "submitted_at": str(score.get("submittedAt") or score.get("submitted_at") or score.get("date") or datetime.now().isoformat())
-            }, on_conflict="id").execute()
-            return True
+            if "certifications" in data and isinstance(data["certifications"], list):
+                supabase_client.table("resume_certifications").delete().eq("resume_id", resume_id).execute()
+                for i, item in enumerate(data["certifications"]):
+                    if isinstance(item, dict):
+                        supabase_client.table("resume_certifications").insert({
+                            "resume_id": resume_id,
+                            "name": str(item.get("name") or "Certification").strip(),
+                            "issuer": item.get("issuer"),
+                            "issue_date": item.get("issue_date") or None,
+                            "credential_url": item.get("credential_url"),
+                            "sort_order": int(item.get("sort_order", i)),
+                        }).execute()
+                    elif isinstance(item, str) and item.strip():
+                        supabase_client.table("resume_certifications").insert({
+                            "resume_id": resume_id,
+                            "name": item.strip(),
+                            "issuer": None,
+                            "sort_order": i,
+                        }).execute()
+
+            if "achievements" in data and isinstance(data["achievements"], list):
+                supabase_client.table("resume_achievements").delete().eq("resume_id", resume_id).execute()
+                for i, item in enumerate(data["achievements"]):
+                    if isinstance(item, dict):
+                        supabase_client.table("resume_achievements").insert({
+                            "resume_id": resume_id,
+                            "title": str(item.get("title") or "Achievement").strip(),
+                            "description": item.get("description"),
+                            "sort_order": int(item.get("sort_order", i)),
+                        }).execute()
+
+            return resume_id
         except Exception as e:
-            print(f"[Supabase save_test_score error for {score_id}]:", e)
-            return False
-
-    def delete_user_test_scores(self, user_id: str) -> bool:
-        """Delete all test scores for a specific user from Supabase."""
-        uid = str(user_id)
-        if supabase_client:
-            try:
-                supabase_client.table("test_scores").delete().eq("user_id", uid).execute()
-                return True
-            except Exception as e:
-                print(f"[Supabase delete_user_test_scores notice for {uid}]:", e)
-        return True
-
-    def get_all_mentors(self) -> List[Dict[str, Any]]:
-        """Query Supabase users table directly for users with mentor role."""
-        mentors = []
-        if supabase_client:
-            try:
-                res = supabase_client.table("users").select("*").eq("role", "mentor").execute()
-                if res.data:
-                    for u in res.data:
-                        mentors.append({
-                            "id": str(u.get("id")),
-                            "name": str(u.get("name", "Mentor")),
-                            "email": str(u.get("email", "")),
-                            "role": "mentor",
-                            "year": str(u.get("year", "Faculty")),
-                            "branch": str(u.get("branch", "CSE")),
-                            "domainInterest": u.get("domain_interest"),
-                            "bio": u.get("bio", "Experienced mentor at UCEK ready to help with Placement prep."),
-                            "linkedInUrl": u.get("linkedin_url"),
-                            "githubUrl": u.get("github_url"),
-                            "readinessScore": u.get("readiness_score")
-                        })
-            except Exception as e:
-                print("[Supabase get_all_mentors notice]:", e)
-        return mentors
-
-    def get_mentorship_for_user(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Query Supabase mentorships table directly for a specific student/mentor."""
-        uid = str(user_id)
-        if supabase_client:
-            try:
-                res = supabase_client.table("mentorships").select("*").or_(f"mentee_id.eq.{uid},mentor_id.eq.{uid}").execute()
-                if res.data and len(res.data) > 0:
-                    m = res.data[0]
-                    return {
-                        "id": str(m.get("id")),
-                        "mentorId": str(m.get("mentor_id")),
-                        "mentorName": str(m.get("mentor_name")),
-                        "menteeId": str(m.get("mentee_id")),
-                        "menteeName": str(m.get("mentee_name")),
-                        "status": str(m.get("status", "Active")),
-                        "nextMeetingDate": str(m.get("next_meeting_date", "")),
-                        "logs": m.get("logs", [])
-                    }
-            except Exception as e:
-                print(f"[Supabase get_mentorship_for_user notice for {uid}]:", e)
+            print(f"[DB upsert_student_resume {uid}]:", e)
         return None
 
-    def save_mentorship(self, mentorship_obj: Any) -> bool:
-        """Targeted upsert of a single mentorship pair to Supabase."""
-        if not isinstance(mentorship_obj, dict):
-            return False
+    # ── HR Practice Questions ──────────────────────────────────────────────────
 
-        mid = str(mentorship_obj.get("id"))
+    def get_hr_questions(self) -> List[Dict[str, Any]]:
+        """Return all active HR practice questions."""
         if not supabase_client:
-            return True
-
+            return []
         try:
-            supabase_client.table("mentorships").upsert({
-                "id": mid,
-                "mentor_id": str(mentorship_obj.get("mentorId") or (mentorship_obj.get("mentor") or {}).get("id", "")),
-                "mentor_name": str(mentorship_obj.get("mentorName") or (mentorship_obj.get("mentor") or {}).get("name", "")),
-                "mentee_id": str(mentorship_obj.get("menteeId") or (mentorship_obj.get("mentee") or {}).get("id", "")),
-                "mentee_name": str(mentorship_obj.get("menteeName") or (mentorship_obj.get("mentee") or {}).get("name", "")),
-                "status": str(mentorship_obj.get("status", "Active")),
-                "next_meeting_date": str(mentorship_obj.get("nextMeetingDate", "")),
-                "logs": mentorship_obj.get("logs") or mentorship_obj.get("checkInLogs") or []
-            }, on_conflict="id").execute()
+            res = supabase_client.table("hr_practice_questions").select(
+                "id, question, is_active"
+            ).eq("is_active", True).execute()
+            return res.data or []
+        except Exception as e:
+            print("[DB get_hr_questions]:", e)
+        return []
+
+    def get_hr_question_by_id(self, question_id: str) -> Optional[Dict[str, Any]]:
+        if not supabase_client or not question_id:
+            return None
+        try:
+            res = supabase_client.table("hr_practice_questions").select("id, question").eq("id", question_id).execute()
+            return res.data[0] if res.data else None
+        except Exception as e:
+            print(f"[DB get_hr_question_by_id {question_id}]:", e)
+        return None
+
+    def save_hr_interview_attempt(self, student_id: str, question_id: str, score: float, pace_wpm: float, confidence_score: float) -> bool:
+        """Persist one HR interview attempt."""
+        if not supabase_client:
+            return False
+        try:
+            now = datetime.utcnow().isoformat()
+            supabase_client.table("hr_interview_attempts").insert({
+                "student_id": str(student_id),
+                "question_id": str(question_id),
+                "score": round(score, 2),
+                "pace_wpm": round(pace_wpm, 2),
+                "confidence_score": round(confidence_score, 2),
+                "completed_at": now,
+                "created_at": now,
+            }).execute()
             return True
         except Exception as e:
-            print(f"[Supabase save_mentorship error for {mid}]:", e)
-            return False
+            print(f"[DB save_hr_interview_attempt {student_id}]:", e)
+        return False
 
-    def get_all_users_admin(self) -> List[Dict[str, Any]]:
-        """Query Supabase users table directly for Admin Dashboard."""
-        if supabase_client:
-            try:
-                res = supabase_client.table("users").select("*").execute()
-                if res.data:
-                    return [self._map_user(u) for u in res.data]
-            except Exception as e:
-                print("[Supabase get_all_users_admin notice]:", e)
-        return []
+    def get_student_latest_hr_attempt(self, student_id: str) -> Optional[Dict[str, Any]]:
+        """Return the most recent HR interview attempt for a student."""
+        if not supabase_client:
+            return None
+        try:
+            res = supabase_client.table("hr_interview_attempts").select(
+                "id, question_id, score, pace_wpm, confidence_score, completed_at"
+            ).eq("student_id", str(student_id)).order("completed_at", desc=True).limit(1).execute()
+            return res.data[0] if res.data else None
+        except Exception as e:
+            print(f"[DB get_student_latest_hr_attempt {student_id}]:", e)
+        return None
 
-    def get_all_test_scores_admin(self, mock_tests_map: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        """Query Supabase test_scores table directly for Admin Dashboard with optional mock tests batch lookup."""
-        if supabase_client:
-            try:
-                if mock_tests_map is None:
-                    # Fetch all mock tests in 1 single query to avoid N+1 queries during mapping
-                    all_tests = self.get_mock_tests()
-                    mock_tests_map = {t["id"]: t for t in all_tests}
-
-                res = supabase_client.table("test_scores").select("*").execute()
-                if res.data:
-                    return [self._map_test_score(s, mock_tests_map=mock_tests_map) for s in res.data]
-            except Exception as e:
-                print("[Supabase get_all_test_scores_admin notice]:", e)
-        return []
-
-    def get_all_user_roadmaps_admin(self) -> List[Dict[str, Any]]:
-        """Query Supabase user_roadmaps table in 1 single bulk query for Admin Dashboard."""
-        if supabase_client:
-            try:
-                res = supabase_client.table("user_roadmaps").select("id,user_id,domain,overall_progress,modules").execute()
-                if res.data:
-                    return res.data
-            except Exception as e:
-                print("[Supabase get_all_user_roadmaps_admin notice]:", e)
+    def get_student_hr_attempts(self, student_id: str) -> List[Dict[str, Any]]:
+        """Return all HR interview attempts for a student."""
+        if not supabase_client:
+            return []
+        try:
+            res = supabase_client.table("hr_interview_attempts").select(
+                "id, question_id, score, pace_wpm, confidence_score, completed_at"
+            ).eq("student_id", str(student_id)).order("completed_at", desc=True).execute()
+            return res.data or []
+        except Exception as e:
+            print(f"[DB get_student_hr_attempts {student_id}]:", e)
         return []
 
 
+# ─── Module-level singleton ────────────────────────────────────────────────────
 db = Database()
 
 
-def get_user_readiness_metrics(
-    user_id: str,
-    test_scores: Optional[List[Dict[str, Any]]] = None,
-    ats_score: Optional[int] = None,
-    user_rm: Optional[Dict[str, Any]] = None,
-    mock_tests_map: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
-    """Calculate genuine readiness metrics directly from Supabase DB records for this student."""
-    u_id = str(user_id)
+# ─── Convenience functions (keep the same call sites as before) ────────────────
 
-    # 1. Fetch test scores for this user from Supabase test_scores table if not supplied
-    u_tests = test_scores
-    if u_tests is None and supabase_client:
-        try:
-            ts_res = supabase_client.table("test_scores").select("score,total,percentage,test_id").eq("user_id", u_id).execute()
-            if ts_res.data:
-                u_tests = ts_res.data
-            else:
-                u_tests = []
-        except Exception as e:
-            print(f"[Supabase readiness test_scores notice for {u_id}]:", e)
-            u_tests = []
-    elif u_tests is None:
-        u_tests = []
-
-    # 2. Fetch ATS score for this user from Supabase users table readiness_score column if not supplied
-    if ats_score is None and supabase_client:
-        try:
-            u_res = supabase_client.table("users").select("readiness_score").eq("id", u_id).execute()
-            if u_res.data and len(u_res.data) > 0 and u_res.data[0].get("readiness_score") is not None:
-                ats_score = int(u_res.data[0]["readiness_score"])
-        except Exception as e:
-            print(f"[Supabase readiness ats_score notice for {u_id}]:", e)
-
-    # 3. Fetch user roadmap progress from Supabase user_roadmaps table if not supplied
-    if user_rm is None and supabase_client:
-        try:
-            rm_res = supabase_client.table("user_roadmaps").select("overall_progress,modules").eq("user_id", u_id).execute()
-            if rm_res.data and len(rm_res.data) > 0:
-                user_rm = rm_res.data[0]
-        except Exception as e:
-            print(f"[Supabase readiness roadmap notice for {u_id}]:", e)
-
-    def get_test_pct(s):
-        if not s:
-            return 0.0
-        if "percentage" in s and s["percentage"] is not None:
-            return float(s["percentage"])
-        tot = max(1, int(s.get("total") or 10))
-        score_val = float(s.get("score", 0))
-        return (score_val / tot) * 100.0
-
-    def get_test_cat(s):
-        cat = s.get("category")
-        if cat:
-            return str(cat).lower()
-        t_id = str(s.get("test_id") or s.get("testId") or "")
-        found_test = None
-        if mock_tests_map is not None:
-            found_test = mock_tests_map.get(t_id)
-        elif t_id:
-            found_test = db.get_mock_test_by_id(t_id)
-        if found_test and found_test.get("category"):
-            return str(found_test["category"]).lower()
-        return "company drive"
-
-    apt_tests = [s for s in u_tests if "aptitude" in get_test_cat(s) or "company" in get_test_cat(s)]
-    tech_tests = [s for s in u_tests if "technical" in get_test_cat(s) or "coding" in get_test_cat(s) or "department" in get_test_cat(s)]
-
-    apt_score = None
-    if apt_tests:
-        apt_score = round(sum(get_test_pct(s) for s in apt_tests) / len(apt_tests))
-    elif u_tests and not tech_tests:
-        apt_score = round(sum(get_test_pct(s) for s in u_tests) / len(u_tests))
-
-    tech_score = None
-    if tech_tests:
-        tech_score = round(sum(get_test_pct(s) for s in tech_tests) / len(tech_tests))
-    elif u_tests and not apt_tests:
-        tech_score = round(sum(get_test_pct(s) for s in u_tests) / len(u_tests))
-
-    tot_t = 0
-    done_t = 0
-    if user_rm and isinstance(user_rm.get("modules"), list):
-        for m in user_rm["modules"]:
-            if isinstance(m, dict) and isinstance(m.get("milestones"), list):
-                for ms in m["milestones"]:
-                    tot_t += 1
-                    if isinstance(ms, dict) and ms.get("completed"):
-                        done_t += 1
-
-    domain_pct = None
-    if tot_t > 0 and done_t > 0:
-        domain_pct = round((done_t / tot_t) * 100)
-    elif user_rm and isinstance(user_rm.get("overall_progress"), (int, float)) and user_rm["overall_progress"] > 0:
-        domain_pct = int(user_rm["overall_progress"])
-
-    # Calculate overall readiness score based strictly on genuine data available
-    # Requires at least one core evaluation (Aptitude, Technical, or ATS) to produce an overall score
-    if apt_score is None and tech_score is None and ats_score is None:
-        final_readiness = None
-    else:
-        components = []
-        if apt_score is not None:
-            components.append((apt_score, 0.35))
-        if tech_score is not None:
-            components.append((tech_score, 0.35))
-        if ats_score is not None:
-            components.append((ats_score, 0.20))
-        if domain_pct is not None:
-            components.append((domain_pct, 0.10))
-
-        if components:
-            total_weight = sum(w for _, w in components)
-            calc_readiness = round(sum(val * w for val, w in components) / total_weight)
-            final_readiness = min(100, max(0, calc_readiness))
-        else:
-            final_readiness = None
-
-    return {
-        "score": final_readiness,
-        "aptitude": apt_score,
-        "technical": tech_score,
-        "ats": ats_score
-    }
+def get_user_readiness_metrics(user_id: str, **kwargs) -> Dict[str, Any]:
+    """Public helper used by routers to get readiness breakdown."""
+    user = db.get_user_by_id(str(user_id))
+    if not user or user.get("role") != "student":
+        return {"score": None, "aptitude": None, "technical": None, "ats": None}
+    return db.get_readiness_components(str(user_id))
 
 
-def calculate_user_readiness(
-    user_id: str,
-    test_scores: Optional[List[Dict[str, Any]]] = None,
-    ats_score: Optional[int] = None,
-    user_rm: Optional[Dict[str, Any]] = None,
-    mock_tests_map: Optional[Dict[str, Any]] = None
-) -> Optional[int]:
-    metrics = get_user_readiness_metrics(
-        user_id=user_id,
-        test_scores=test_scores,
-        ats_score=ats_score,
-        user_rm=user_rm,
-        mock_tests_map=mock_tests_map
-    )
-    return metrics["score"]
-
+def calculate_user_readiness(user_id: str, **kwargs) -> Optional[float]:
+    """Return only the overall readiness score."""
+    metrics = get_user_readiness_metrics(user_id)
+    return metrics.get("score")

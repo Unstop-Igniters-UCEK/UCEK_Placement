@@ -1,3 +1,5 @@
-from backend.routers.tests import router, map_target_dept, map_target_year, upload_csv_test, get_tests, get_test_details, submit_test
+# quiz_router.py is kept for legacy compatibility.
+# All test functionality is now in backend.routers.tests
+from backend.routers.tests import router
 
-__all__ = ["router", "map_target_dept", "map_target_year", "upload_csv_test", "get_tests", "get_test_details", "submit_test"]
+__all__ = ["router"]

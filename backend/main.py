@@ -10,24 +10,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from fastapi.responses import JSONResponse
+
 from backend.routers import auth, user, roadmap, tests, mentorship, ai_suite, admin
 from backend.routers.onboarding_router import onboarding_router
 
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
-    title="UCEK Unstop Igniters Placement API",
-    description="Python FastAPI backend powering Placement Prep, Roadmap Tracking, AI Resume Audit, and Mentorship.",
-    version="1.0.0"
+    title="Impulse — UCEK Placement API",
+    description="FastAPI backend for Impulse: Placement Prep, Roadmap Tracking, AI Resume Suite, and Mock Drive.",
+    version="2.0.0"
 )
 
-from fastapi.responses import JSONResponse
 
 def custom_rate_limit_handler(request, exc: RateLimitExceeded):
     return JSONResponse(
         status_code=429,
         content={"detail": "Too many attempts in a short time. Please wait a minute before trying again."}
     )
+
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
@@ -51,32 +53,40 @@ app.add_middleware(
 
 from datetime import datetime
 
-# Healthcheck (Supports HEAD, GET, POST for UptimeRobot free tier)
+
+# ─── Health Check (supports HEAD, GET, POST for UptimeRobot) ──────────────────
 @app.api_route("/api/health", methods=["GET", "HEAD", "POST"])
 def health_check():
-    return {"status": "ok", "backend": "Python FastAPI", "platform": "UCEK Unstop Igniters"}
+    return {"status": "ok", "backend": "Impulse FastAPI", "platform": "UCEK Unstop Igniters"}
 
-# Keep-Alive for UptimeRobot / Cron monitoring (Supports HEAD, GET, POST to keep Render container + Supabase warm 24/7)
+
+# ─── Keep-Alive (UptimeRobot / Cron monitoring) ───────────────────────────────
 @app.api_route("/api/keep-alive", methods=["GET", "HEAD", "POST"])
 def keep_alive():
     db_status = "idle"
     try:
         from backend.database import supabase_client
         if supabase_client:
-            supabase_client.table("questions").select("id").limit(1).execute()
+            supabase_client.table("users").select("id").limit(1).execute()
             db_status = "connected"
     except Exception as err:
-        db_status = f"active (db: {str(err)})"
+        db_status = f"error: {str(err)[:80]}"
 
     return {
         "status": "alive",
-        "service": "UCEK Placement API",
-        "backend": "Render.com",
+        "service": "Impulse UCEK API",
         "database": db_status,
         "timestamp": datetime.utcnow().isoformat() + "Z"
     }
 
-# Include Routers
+
+@app.get("/api/domains")
+def get_domains_root():
+    from backend.database import db
+    return {"domains": db.get_all_domains()}
+
+
+# ─── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(roadmap.router)

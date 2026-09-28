@@ -1,101 +1,251 @@
+"""
+routers/user.py — Student profile & dashboard endpoints.
+Aligned with Impulse_DB_Design.md §32 (Profile Updates) and §8 (Readiness).
+"""
+
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
-from backend.database import db, get_user_readiness_metrics, calculate_user_readiness
+
+from backend.database import db, supabase_client, get_user_readiness_metrics
 from backend.auth import get_current_user
-from backend.schemas import ProfileUpdateRequest
+from backend.schemas import ProfileUpdateRequest, SelectDomainRequest
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 
-@router.get("/readiness")
-def get_readiness(current_user: dict = Depends(get_current_user)):
-    metrics = get_user_readiness_metrics(current_user["id"])
-    return {"readiness": metrics}
 
-@router.get("/dashboard")
-def get_dashboard(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["id"]
-    
-    # User roadmap directly queried from Supabase user_roadmaps table
-    roadmap = None
-    if current_user.get("hasSelectedDomain") and current_user.get("domainInterest"):
-        roadmap = db.get_user_roadmap(user_id)
-
-    # Recent test scores directly queried from Supabase test_scores table
-    user_scores = db.get_user_test_scores(user_id)
-
-    # Genuine readiness metrics calculated strictly from real Supabase DB data
-    readiness_metrics = get_user_readiness_metrics(user_id)
-
-    # Mentors queried directly from Supabase users table where role == 'mentor'
-    mentors = db.get_all_mentors()
-
-    user_payload = {
-        "id": current_user["id"],
-        "name": current_user["name"],
-        "email": current_user["email"],
-        "role": current_user["role"],
-        "year": current_user["year"],
-        "branch": current_user["branch"],
-        "domainInterest": current_user.get("domainInterest") if current_user.get("hasSelectedDomain") else None,
-        "hasSelectedDomain": current_user.get("hasSelectedDomain", False),
-        "isVerified": current_user.get("isVerified", True),
-        "readinessScore": readiness_metrics["score"],
-        "readiness": readiness_metrics,
-        "bio": current_user.get("bio"),
-        "linkedInUrl": current_user.get("linkedInUrl"),
-        "githubUrl": current_user.get("githubUrl"),
-        "targetDrive": current_user.get("targetDrive")
-    }
+def _build_profile_payload(user: dict, readiness: dict | None = None) -> dict:
+    dept_code = user.get("department_code")
+    year_int = user.get("year")
+    year_str = "4th Year"
+    if year_int == 1:
+        year_str = "1st Year"
+    elif year_int == 2:
+        year_str = "2nd Year"
+    elif year_int == 3:
+        year_str = "3rd Year"
+    elif year_int == 4:
+        year_str = "4th Year"
+    elif year_int:
+        year_str = f"{year_int}th Year"
 
     return {
-        "user": user_payload,
-        "readiness": readiness_metrics,
-        "roadmap": roadmap,
-        "recentScores": user_scores,
-        "recommendedMentors": mentors
-    }
-
-@router.put("/profile")
-def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_current_user)):
-    user = db.get_user_by_id(current_user["id"])
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if req.name is not None: user["name"] = req.name.strip()
-    if req.year is not None: user["year"] = req.year
-    if req.branch is not None: user["branch"] = req.branch
-    if req.hasSelectedDomain is not None: user["hasSelectedDomain"] = req.hasSelectedDomain
-    if req.bio is not None: user["bio"] = req.bio
-    if req.linkedInUrl is not None: user["linkedInUrl"] = req.linkedInUrl
-    if req.githubUrl is not None: user["githubUrl"] = req.githubUrl
-
-    if req.domainInterest is not None:
-        user["domainInterest"] = req.domainInterest
-        user["hasSelectedDomain"] = True
-
-    if req.targetDrive is not None:
-        user["targetDrive"] = req.targetDrive.strip()
-
-    success = db.save_user(user)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to persist profile changes to Supabase database")
-
-    updated_payload = {
         "id": user["id"],
         "name": user["name"],
         "email": user["email"],
         "role": user["role"],
-        "year": user["year"],
-        "branch": user["branch"],
-        "domainInterest": user["domainInterest"] if user.get("hasSelectedDomain") else None,
-        "hasSelectedDomain": user.get("hasSelectedDomain", False),
-        "isVerified": user.get("isVerified", True),
-        "readinessScore": calculate_user_readiness(user["id"]),
-        "bio": user.get("bio"),
-        "linkedInUrl": user.get("linkedInUrl"),
-        "githubUrl": user.get("githubUrl"),
-        "targetDrive": user.get("targetDrive")
+        "department_id": user.get("department_id"),
+        "department_code": dept_code,
+        "department_name": user.get("department_name"),
+        "branch": dept_code,                      # Frontend compatibility
+        "year": year_str,                          # Frontend compatibility (string)
+        "year_int": year_int,                      # Integer
+        "domain_id": user.get("domain_id"),
+        "domain_name": user.get("domain_name"),
+        "domain": user.get("domain_name"),        # Frontend compatibility
+        "domainInterest": user.get("domain_name"),# Frontend compatibility
+        "hasSelectedDomain": bool(user.get("domain_id")),
+        "readiness_score": (readiness or {}).get("score") if readiness else user.get("readiness_score"),
+        "readiness": readiness,
+        "is_active": user.get("is_active", True),
+        "must_change_password": user.get("must_change_password", False),
     }
 
-    return {"message": "Profile updated successfully", "user": updated_payload}
 
+@router.get("/readiness")
+def get_readiness(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "student":
+        return {"readiness": {"score": None, "aptitude": None, "technical": None, "ats": None}}
+    metrics = get_user_readiness_metrics(current_user["id"])
+    return {"readiness": metrics}
+
+
+@router.get("/profile")
+def get_profile(current_user: dict = Depends(get_current_user)):
+    """Return the authenticated user's full profile."""
+    readiness = None
+    if current_user.get("role") == "student":
+        readiness = get_user_readiness_metrics(current_user["id"])
+    return {"user": _build_profile_payload(current_user, readiness)}
+
+
+@router.put("/profile")
+def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_current_user)):
+    """
+    Students can update: name, department_code/branch, year, domain.
+    Email and role are read-only.
+    Backend identifies the student from the auth token — user_id NOT trusted from frontend.
+    """
+    uid = current_user["id"]
+    role = current_user.get("role", "student")
+
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    now = datetime.utcnow().isoformat()
+
+    # ── Update users.name ──────────────────────────────────────────────────────
+    if req.name is not None:
+        try:
+            supabase_client.table("users").update({
+                "name": req.name.strip(),
+                "updated_at": now,
+            }).eq("id", uid).execute()
+        except Exception as e:
+            print(f"[Profile update name {uid}]:", e)
+            raise HTTPException(status_code=500, detail="Failed to update name.")
+
+    # ── Update student_profiles (students only) ────────────────────────────────
+    if role == "student":
+        profile_updates: dict = {"updated_at": now}
+
+        dept_code = req.resolved_dept_code()
+        if dept_code:
+            dept = db.get_department_by_code(dept_code)
+            if not dept:
+                raise HTTPException(status_code=400, detail=f"Unknown department code: {dept_code}")
+            profile_updates["department_id"] = dept["id"]
+
+        year_val = req.resolved_year()
+        if year_val:
+            profile_updates["year"] = year_val
+
+        dom_ident = req.resolved_domain_identifier()
+        if dom_ident:
+            domain = db.get_domain_by_name_or_slug(dom_ident)
+            if not domain:
+                raise HTTPException(status_code=400, detail=f"Unknown domain: {dom_ident}")
+            new_domain_id = domain["id"]
+
+            # If switching domain, delete old roadmap progress per Impulse_DB_Design.md §10
+            old_domain_id = current_user.get("domain_id")
+            if old_domain_id and str(old_domain_id) != str(new_domain_id):
+                try:
+                    supabase_client.table("student_roadmap_progress").delete().eq("student_id", uid).execute()
+                except Exception as e:
+                    print(f"[Domain switch delete roadmap {uid}]:", e)
+
+            profile_updates["domain_id"] = new_domain_id
+
+        if len(profile_updates) > 1:   # more than just updated_at
+            try:
+                supabase_client.table("student_profiles").update(profile_updates).eq("user_id", uid).execute()
+            except Exception as e:
+                print(f"[Profile update student_profiles {uid}]:", e)
+                raise HTTPException(status_code=500, detail="Failed to update profile.")
+
+    # Re-fetch updated user
+    updated_user = db.get_user_by_id(uid)
+    if not updated_user:
+        raise HTTPException(status_code=500, detail="Could not retrieve updated profile.")
+
+    readiness = get_user_readiness_metrics(uid) if role == "student" else None
+    return {
+        "message": "Profile updated successfully.",
+        "user": _build_profile_payload(updated_user, readiness),
+    }
+
+
+@router.post("/select-domain")
+@router.post("/domain")
+def select_domain(req: SelectDomainRequest, current_user: dict = Depends(get_current_user)):
+    """
+    Student selects or changes their active domain.
+    On domain switch: old roadmap progress is deleted and fresh progress starts.
+    See Impulse_DB_Design.md §10 Domain switch behavior.
+    """
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Only students can select a domain.")
+
+    uid = current_user["id"]
+
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    # Validate domain exists
+    dom_ident = req.resolved_identifier()
+    domain = db.get_domain_by_name_or_slug(dom_ident)
+    if not domain:
+        raise HTTPException(status_code=400, detail=f"Unknown domain: {dom_ident}")
+
+    now = datetime.utcnow().isoformat()
+    new_domain_id = domain["id"]
+
+    # Get old domain_id
+    old_domain_id = current_user.get("domain_id")
+
+    if old_domain_id and str(old_domain_id) != str(new_domain_id):
+        # Delete old roadmap progress
+        try:
+            supabase_client.table("student_roadmap_progress").delete().eq("student_id", uid).execute()
+        except Exception as e:
+            print(f"[select_domain delete old progress {uid}]:", e)
+
+    # Update domain
+    try:
+        supabase_client.table("student_profiles").update({
+            "domain_id": new_domain_id,
+            "updated_at": now,
+        }).eq("user_id", uid).execute()
+    except Exception as e:
+        print(f"[select_domain update {uid}]:", e)
+        raise HTTPException(status_code=500, detail="Failed to update domain selection.")
+
+    updated_user = db.get_user_by_id(uid)
+    readiness = get_user_readiness_metrics(uid)
+    return {
+        "message": "Domain selected successfully.",
+        "user": _build_profile_payload(updated_user, readiness),
+    }
+
+
+# ─── Student Resume ───────────────────────────────────────────────────────────
+
+@router.get("/resume")
+def get_resume(current_user: dict = Depends(get_current_user)):
+    """Return the student's persistent resume from PostgreSQL."""
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Only students have resumes.")
+    resume = db.get_student_resume(current_user["id"])
+    return {"resume": resume}
+
+
+@router.put("/resume")
+@router.post("/resume")
+def save_resume(data: dict, current_user: dict = Depends(get_current_user)):
+    """Persist or update student's resume and sections in PostgreSQL."""
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Only students can save resumes.")
+    resume_id = db.upsert_student_resume(current_user["id"], data)
+    if not resume_id:
+        raise HTTPException(status_code=500, detail="Failed to save resume.")
+    updated_resume = db.get_student_resume(current_user["id"])
+    return {"message": "Resume saved successfully.", "resume": updated_resume}
+
+
+@router.get("/dashboard")
+def get_dashboard(current_user: dict = Depends(get_current_user)):
+    """Student dashboard — returns user profile, readiness, recent test history."""
+    uid = current_user["id"]
+
+    readiness = get_user_readiness_metrics(uid) if current_user.get("role") == "student" else None
+    recent_scores = db.get_student_test_history(uid)[:5] if current_user.get("role") == "student" else []
+    latest_hr = db.get_student_latest_hr_attempt(uid) if current_user.get("role") == "student" else None
+
+    return {
+        "user": _build_profile_payload(current_user, readiness),
+        "readiness": readiness,
+        "recent_test_scores": recent_scores,
+        "latest_hr_attempt": latest_hr,
+    }
+
+
+@router.get("/departments")
+def get_departments():
+    """Return the list of active departments (catalog data)."""
+    return {"departments": db.get_all_departments()}
+
+
+@router.get("/domains")
+def get_domains():
+    """Return the list of active domains (catalog data)."""
+    return {"domains": db.get_all_domains()}

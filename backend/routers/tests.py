@@ -1,282 +1,412 @@
+"""
+routers/tests.py — Mock test endpoints for Impulse UCEK Placement Suite.
+Aligned with Impulse_DB_Design.md §11–§18.
+
+Test flow:
+  1. GET  /api/tests           — list published tests for the student (filtered by dept/year)
+  2. GET  /api/tests/{id}      — test metadata + questions (correct_option hidden)
+  3. POST /api/tests/{id}/start — create an in_progress attempt
+  4. POST /api/tests/{id}/submit — score the attempt and store mock_test_attempt_answers
+  5. GET  /api/tests/history/my — submitted attempt history
+"""
+
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Dict
+
 from fastapi import APIRouter, Depends, HTTPException
-from backend.database import db
+
+from backend.database import db, supabase_client
 from backend.auth import get_current_user
 from backend.schemas import SubmitTestRequest, UploadCSVTestRequest
 
 router = APIRouter(prefix="/api/tests", tags=["tests"])
 
-import re
 
-def map_target_dept(dept_str: str) -> str:
-    """Normalize input department strings to canonical labels."""
-    d = str(dept_str or '').strip().lower()
-    if d in ['all', 'all departments', '']:
-        return 'All'
-    if 'comp' in d or re.search(r'\bcs\b|\bcse\b', d):
-        return 'Computer Science & Engg'
-    if ('electr' in d and 'comm' in d) or re.search(r'\bec\b|\bece\b', d):
-        return 'Electronics & Comm Engg'
-    if 'info' in d or re.search(r'\bit\b', d):
-        return 'Information Technology'
-    if 'electr' in d or re.search(r'\beee\b', d):
-        return 'Electrical & Electronics Engg'
-    if 'mech' in d or re.search(r'\bme\b', d):
-        return 'Mechanical Engg'
-    if 'civil' in d or re.search(r'\bce\b', d):
-        return 'Civil Engg'
-    return dept_str.strip()
-
-def map_target_year(year_str: str) -> str:
-    """Normalize input year strings to canonical labels."""
-    y = str(year_str or '').strip().lower()
-    if y in ['all', 'all years', '']:
-        return 'All'
-    if '1' in y or 'first' in y:
-        return '1st Year'
-    if '2' in y or 'second' in y:
-        return '2nd Year'
-    if '3' in y or 'third' in y:
-        return '3rd Year'
-    if '4' in y or 'fourth' in y:
-        return '4th Year'
-    return year_str.strip()
-
-def is_dept_match(t_dept: str, user_branch: str) -> bool:
-    norm_target = map_target_dept(t_dept)
-    if norm_target == 'All':
-        return True
-    if not user_branch or not str(user_branch).strip():
-        return False
-    norm_user = map_target_dept(user_branch)
-    return norm_target == norm_user
-
-def is_year_match(t_year: str, user_year: str) -> bool:
-    norm_target = map_target_year(t_year)
-    if norm_target == 'All':
-        return True
-    if not user_year or not str(user_year).strip():
-        return False
-    norm_user = map_target_year(user_year)
-    return norm_target == norm_user
+# ─── List tests for student ───────────────────────────────────────────────────
 
 @router.get("")
 def get_tests(current_user: dict = Depends(get_current_user)):
-    all_tests = db.get_mock_tests()
-    # Filter out empty 0-question dummy tests
-    valid_tests = []
-    for test in all_tests:
-        q_ids = test.get("questionIds") or test.get("questions") or test.get("question_ids") or []
-        tot = test.get("totalQuestions") or len(q_ids)
-        if tot > 0 and len(q_ids) > 0:
-            valid_tests.append(test)
+    """Return published tests relevant to the authenticated student."""
+    role = current_user.get("role", "student")
 
-    user_role = current_user.get("role", "mentee")
-    if user_role == "admin":
-        return {"tests": valid_tests}
+    if role == "admin":
+        return {"tests": db.get_all_published_tests()}
 
-    user_branch = current_user.get("branch", "")
-    user_year = current_user.get("year", "")
+    dept_id = current_user.get("department_id")
+    year = current_user.get("year")
 
-    filtered = []
-    for test in valid_tests:
-        t_dept = test.get("targetDept")
-        t_year = test.get("targetYear")
+    tests = db.get_published_tests_for_student(department_id=dept_id, year=year)
+    return {"tests": tests}
 
-        if is_dept_match(t_dept, user_branch) and is_year_match(t_year, user_year):
-            filtered.append(test)
 
-    return {"tests": filtered}
-
-@router.post("/upload-csv-test")
-def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin privilege required")
-
-    raw_dept = req.target_dept or req.targetDept or "All"
-    raw_year = req.target_year or req.targetYear or "All"
-    mapped_dept = map_target_dept(raw_dept)
-    mapped_year = map_target_year(raw_year)
-
-    question_ids = []
-    created_questions = []
-    for q in req.questions:
-        q_id = f"q_{uuid.uuid4().hex[:8]}"
-        q_obj = {
-            "id": q_id,
-            "title": q.question or q.title or "Untitled Question",
-            "question": q.question or q.title or "Untitled Question",
-            "type": "Technical" if mapped_dept != "All" else "Aptitude",
-            "difficulty": "Medium",
-            "options": q.options,
-            "correctOptionIndex": q.correctOptionIndex,
-            "explanation": q.explanation or ""
-        }
-        question_ids.append(q_id)
-        created_questions.append(q_obj)
-
-    test_id = f"test_{uuid.uuid4().hex[:8]}"
-    new_test = {
-        "id": test_id,
-        "title": req.title,
-        "category": "Departmental",
-        "companyTag": mapped_dept if mapped_dept != "All" else "Department Core",
-        "company_tag": mapped_dept if mapped_dept != "All" else "Department Core",
-        "durationMins": req.duration,
-        "durationMinutes": req.duration,
-        "duration_mins": req.duration,
-        "questionIds": question_ids,
-        "questions": question_ids,
-        "question_ids": question_ids,
-        "totalQuestions": len(question_ids),
-        "passPercentage": 60,
-        "pass_percentage": 60,
-        "description": f"Departmental assessment for {mapped_dept} ({raw_year}).",
-        "targetDept": mapped_dept,
-        "target_dept": mapped_dept,
-        "targetYear": raw_year,
-        "target_year": raw_year
-    }
-
-    db.save_questions(created_questions)
-    db.save_mock_test(new_test)
-
-    return {
-        "message": "Departmental quiz created successfully via CSV upload",
-        "test": new_test
-    }
-
+# ─── Test history ─────────────────────────────────────────────────────────────
 
 @router.get("/history/my")
 def get_test_history(current_user: dict = Depends(get_current_user)):
-    user_scores = db.get_user_test_scores(current_user["id"])
-    return {"scores": user_scores}
+    """Return the student's submitted mock test attempt history."""
+    scores = db.get_student_test_history(current_user["id"])
+    return {"scores": scores}
 
-@router.delete("/history/my")
-def clear_test_history(current_user: dict = Depends(get_current_user)):
-    user_id = str(current_user["id"])
-    db.delete_user_test_scores(user_id)
-    return {"message": "Test history cleared successfully"}
 
+# ─── Get test detail + questions (correct_option hidden before submission) ─────
 
 @router.get("/{test_id}")
-def get_test_details(test_id: str):
-    test = db.get_mock_test_by_id(test_id)
+def get_test_details(test_id: str, current_user: dict = Depends(get_current_user)):
+    test = db.get_test_by_id(test_id)
     if not test:
-        raise HTTPException(status_code=404, detail="Mock test not found")
+        raise HTTPException(status_code=404, detail="Mock test not found.")
 
-    q_ids = test.get("questionIds") or test.get("questions") or test.get("question_ids") or []
-    raw_questions = []
+    if test.get("status") != "published" and current_user.get("role") != "admin":
+        raise HTTPException(status_code=404, detail="Mock test not found.")
 
-    # Extract question objects from db or query via question_ids
-    string_ids = []
-    if isinstance(q_ids, list):
-        for item in q_ids:
-            if isinstance(item, dict):
-                raw_questions.append(item)
-            elif isinstance(item, str):
-                string_ids.append(item)
+    raw_questions = db.get_questions_for_test(test_id)
 
-    if string_ids:
-        raw_questions.extend(db.get_questions_by_ids(string_ids))
-
-    # Hide correctOptionIndex and explanation for security before test submission
+    # Strip correct_option and explanation for non-admin (security)
     public_questions = []
     for q in raw_questions:
-        q_text = q.get("title") or q.get("question") or "Question"
-        public_questions.append({
-            "id": str(q.get("id")),
-            "title": q_text,
+        opt_a = q.get("option_a", "")
+        opt_b = q.get("option_b", "")
+        opt_c = q.get("option_c", "")
+        opt_d = q.get("option_d", "")
+        q_text = q.get("question_text", "")
+        pub = {
+            "id": str(q["id"]),
             "question": q_text,
-            "options": q.get("options", []),
-            "type": q.get("type", "Technical"),
-            "difficulty": q.get("difficulty", "Medium"),
-            "companyTag": q.get("companyTag", "General")
-        })
+            "question_text": q_text,
+            "option_a": opt_a,
+            "option_b": opt_b,
+            "option_c": opt_c,
+            "option_d": opt_d,
+            "options": [opt_a, opt_b, opt_c, opt_d],
+            "question_order": q["question_order"],
+        }
+        if current_user.get("role") == "admin":
+            pub["correct_option"] = q.get("correct_option")
+            pub["explanation"] = q.get("explanation")
+        public_questions.append(pub)
 
     return {"test": test, "questions": public_questions}
 
+
+# ─── Start attempt ────────────────────────────────────────────────────────────
+
+@router.post("/{test_id}/start")
+def start_test(test_id: str, current_user: dict = Depends(get_current_user)):
+    """
+    Create an in_progress attempt for the student.
+    If one already exists, return it.
+    """
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Only students can start tests.")
+
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    test = db.get_test_by_id(test_id)
+    if not test or test.get("status") != "published":
+        raise HTTPException(status_code=404, detail="Mock test not found or not published.")
+
+    # Check for existing in_progress attempt
+    existing = db.get_student_attempt(current_user["id"], test_id, "in_progress")
+    if existing:
+        # Check not expired
+        if existing.get("expires_at") and datetime.utcnow().isoformat() > str(existing["expires_at"]):
+            # Mark as expired
+            try:
+                supabase_client.table("mock_test_attempts").update({
+                    "status": "expired"
+                }).eq("id", existing["id"]).execute()
+            except Exception:
+                pass
+        else:
+            return {"attempt_id": str(existing["id"]), "status": "in_progress", "expires_at": str(existing.get("expires_at", ""))}
+
+    # Count total marks (= number of questions)
+    questions = db.get_questions_for_test(test_id)
+    total_marks = len(questions)
+    if total_marks == 0:
+        raise HTTPException(status_code=400, detail="This test has no questions.")
+
+    # Determine attempt_number
+    prev_res = supabase_client.table("mock_test_attempts").select("attempt_number").eq("student_id", current_user["id"]).eq("test_id", test_id).execute()
+    attempt_number = len(prev_res.data or []) + 1
+
+    now = datetime.utcnow()
+    expires_at = now + timedelta(minutes=test["duration_minutes"])
+
+    try:
+        ins_res = supabase_client.table("mock_test_attempts").insert({
+            "student_id": current_user["id"],
+            "test_id": test_id,
+            "attempt_number": attempt_number,
+            "marks_obtained": 0,
+            "total_marks": total_marks,
+            "score_percentage": 0,
+            "status": "in_progress",
+            "started_at": now.isoformat(),
+            "expires_at": expires_at.isoformat(),
+            "created_at": now.isoformat(),
+        }).execute()
+
+        if not ins_res.data:
+            raise HTTPException(status_code=500, detail="Failed to start test attempt.")
+
+        attempt_id = ins_res.data[0]["id"]
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[start_test {test_id}]:", e)
+        raise HTTPException(status_code=500, detail="Failed to start test attempt.")
+
+    return {
+        "attempt_id": str(attempt_id),
+        "status": "in_progress",
+        "expires_at": expires_at.isoformat(),
+        "total_questions": total_marks,
+    }
+
+
+# ─── Submit attempt ───────────────────────────────────────────────────────────
+
 @router.post("/{test_id}/submit")
 def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depends(get_current_user)):
-    test = db.get_mock_test_by_id(test_id)
-    
-    test_title = req.testTitle or (test["title"] if test else "Mock Assessment Drive")
-    category = req.category or (test.get("category") if test else "Company Drive")
-    
-    q_ids = test.get("questionIds") or test.get("questions") or test.get("question_ids") or [] if test else []
-    questions = []
-    string_ids = []
-    if isinstance(q_ids, list):
-        for item in q_ids:
-            if isinstance(item, dict):
-                questions.append(item)
-            elif isinstance(item, str):
-                string_ids.append(item)
-    if string_ids:
-        questions.extend(db.get_questions_by_ids(string_ids))
-    
-    # Normalize user answers input (accepts answers dict {qId: optIdx} or userAnswers list)
-    user_ans_dict: Dict[str, int] = {}
-    if req.answers is not None:
-        user_ans_dict = req.answers
-    elif req.userAnswers:
-        for ans in req.userAnswers:
-            user_ans_dict[ans.questionId] = ans.selectedOption
+    """
+    Score the test attempt and store answers.
+    req.answers = {question_id: "A"|"B"|"C"|"D"}
+    """
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Only students can submit tests.")
 
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    test = db.get_test_by_id(test_id)
+    if not test:
+        raise HTTPException(status_code=404, detail="Mock test not found.")
+
+    # Find the most recent in_progress attempt
+    attempt = db.get_student_attempt(current_user["id"], test_id, "in_progress")
+    if not attempt:
+        # Fallback: allow submission without an explicit start (for compatibility)
+        attempt = None
+
+    # Load questions with correct_option
+    questions = db.get_questions_for_test(test_id)
+    if not questions:
+        raise HTTPException(status_code=400, detail="This test has no questions.")
+
+    # ── Normalise answers — accept both integer index (0→A, 1→B, 2→C, 3→D)
+    #    and letter format (A/B/C/D)
+    _idx_to_letter = {0: "A", 1: "B", 2: "C", 3: "D"}
+    submitted_answers = req.resolved_answers()
+    normalised_answers: dict = {}
+    for q_id_key, val in submitted_answers.items():
+        if isinstance(val, int) or (isinstance(val, str) and str(val).isdigit()):
+            normalised_answers[str(q_id_key)] = _idx_to_letter.get(int(val), "")
+        else:
+            normalised_answers[str(q_id_key)] = str(val).strip().upper()
+
+    # Score
     score = 0
+    answers_payload = []
     review_list = []
 
     for q in questions:
-        q_id = str(q.get("id"))
-        correct_idx = q.get("correctOptionIndex", 0)
-        selected_idx = user_ans_dict.get(q_id, -1)
-        is_correct = (selected_idx == correct_idx)
+        q_id = str(q["id"])
+        correct = str(q.get("correct_option", "")).upper()
+        selected = normalised_answers.get(q_id, "").upper()
+        is_correct = selected == correct and bool(correct)
         if is_correct:
             score += 1
-            
-        review_list.append({
-            "id": q_id,
-            "title": q.get("title") or q.get("question", ""),
-            "question": q.get("title") or q.get("question", ""),
-            "options": q.get("options", []),
-            "selectedOption": selected_idx,
-            "userAnswer": selected_idx,
-            "correctOptionIndex": correct_idx,
-            "isCorrect": is_correct,
-            "explanation": q.get("explanation", "")
+
+        answers_payload.append({
+            "question_id": q_id,
+            "selected_option": selected if selected in ("A", "B", "C", "D") else None,
+            "is_correct": is_correct,
         })
 
-    total = len(questions) if len(questions) > 0 else (req.totalQuestions or 10)
-    percentage = round((score / total) * 100) if total > 0 else 0
-    pass_mark = test.get("passPercentage", 60) if test else 60
-    passed = percentage >= pass_mark
+        opt_a = q.get("option_a", "")
+        opt_b = q.get("option_b", "")
+        opt_c = q.get("option_c", "")
+        opt_d = q.get("option_d", "")
+        q_text = q.get("question_text", "")
+        review_list.append({
+            "id": q_id,
+            "question": q_text,
+            "question_text": q_text,
+            "option_a": opt_a,
+            "option_b": opt_b,
+            "option_c": opt_c,
+            "option_d": opt_d,
+            "options": [opt_a, opt_b, opt_c, opt_d],
+            "correct_option": correct,
+            "selected_option": selected if selected in ("A", "B", "C", "D") else None,
+            "is_correct": is_correct,
+            "explanation": q.get("explanation", ""),
+        })
 
-    new_score = {
-        "id": f"score_{uuid.uuid4().hex[:8]}",
-        "userId": current_user["id"],
-        "testId": test_id,
-        "testTitle": test_title,
-        "category": category,
-        "score": score,
-        "total": total,
-        "totalQuestions": total,
-        "percentage": percentage,
-        "passed": passed,
-        "timeTakenSec": req.timeTakenSec or 0,
-        "userAnswers": user_ans_dict,
-        "submittedAt": datetime.now().isoformat(),
-        "date": datetime.now().isoformat().split('T')[0]
-    }
+    total = len(questions)
+    score_pct = round((score / total) * 100, 2) if total > 0 else 0.0
+    now = datetime.utcnow().isoformat()
 
-    db.save_test_score(new_score)
+    # Create or update the attempt row
+    try:
+        if attempt:
+            attempt_id = str(attempt["id"])
+            supabase_client.table("mock_test_attempts").update({
+                "marks_obtained": score,
+                "total_marks": total,
+                "score_percentage": score_pct,
+                "status": "submitted",
+                "submitted_at": now,
+            }).eq("id", attempt_id).execute()
+        else:
+            # If no in_progress attempt existed, count previous attempts
+            prev_res = supabase_client.table("mock_test_attempts").select("attempt_number").eq("student_id", current_user["id"]).eq("test_id", test_id).execute()
+            attempt_number = len(prev_res.data or []) + 1
+
+            ins_res = supabase_client.table("mock_test_attempts").insert({
+                "student_id": current_user["id"],
+                "test_id": test_id,
+                "attempt_number": attempt_number,
+                "marks_obtained": score,
+                "total_marks": total,
+                "score_percentage": score_pct,
+                "status": "submitted",
+                "started_at": now,
+                "expires_at": now,
+                "submitted_at": now,
+                "created_at": now,
+            }).execute()
+
+            if not ins_res.data:
+                raise HTTPException(status_code=500, detail="Failed to record attempt.")
+            attempt_id = str(ins_res.data[0]["id"])
+
+        # Store per-question answers
+        for ans in answers_payload:
+            try:
+                supabase_client.table("mock_test_attempt_answers").insert({
+                    "attempt_id": attempt_id,
+                    "question_id": ans["question_id"],
+                    "selected_option": ans["selected_option"],
+                    "is_correct": ans["is_correct"],
+                    "created_at": now,
+                }).execute()
+            except Exception as e:
+                print(f"[submit_test answer insert {attempt_id}]:", e)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[submit_test {test_id}]:", e)
+        raise HTTPException(status_code=500, detail="Failed to submit test.")
+
+    # Recalculate and store readiness snapshot
+    try:
+        db.calculate_and_store_readiness(current_user["id"])
+    except Exception as e:
+        print(f"[submit_test readiness recalc {current_user['id']}]:", e)
+
+    cleared = score_pct > 65
 
     return {
-        "message": "Test submitted successfully",
+        "message": "Test submitted successfully.",
         "score": score,
+        "total_questions": total,
         "totalQuestions": total,
-        "percentage": percentage,
-        "passed": passed,
+        "score_percentage": score_pct,
+        "percentage": score_pct,
+        "cleared": cleared,
+        "passed": cleared,
         "review": review_list,
-        "result": new_score
+    }
+
+
+# ─── Admin: Upload CSV test ───────────────────────────────────────────────────
+
+@router.post("/upload-csv-test")
+def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_current_user)):
+    """Admin uploads a CSV to create a new published mock test."""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privilege required.")
+
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    # Resolve department
+    target_dept_id = None
+    dept_code = req.resolved_dept_code()
+    if dept_code:
+        dept = db.get_department_by_code(dept_code)
+        if not dept:
+            raise HTTPException(status_code=400, detail=f"Unknown department code: {dept_code}")
+        target_dept_id = dept["id"]
+
+    target_year = req.resolved_year()
+    duration = req.resolved_duration()
+    test_type = (req.test_type or "aptitude").lower()
+    if test_type not in ("aptitude", "technical", "general"):
+        raise HTTPException(status_code=400, detail="test_type must be aptitude, technical, or general.")
+
+    now = datetime.utcnow().isoformat()
+
+    # Validate questions
+    valid_opts = {"A", "B", "C", "D"}
+    for i, q in enumerate(req.questions):
+        q_text = q.question or ""
+        if not q_text.strip():
+            raise HTTPException(status_code=400, detail=f"Question {i+1} is missing question text.")
+        correct = q.resolved_correct_option()
+        if correct not in valid_opts:
+            raise HTTPException(status_code=400, detail=f"Question {i+1}: correct_option must be A, B, C, or D.")
+
+    try:
+        # Insert mock_tests row
+        test_res = supabase_client.table("mock_tests").insert({
+            "title": req.title.strip(),
+            "duration_minutes": duration,
+            "test_type": test_type,
+            "target_department_id": target_dept_id,
+            "target_year": target_year,
+            "status": "published",
+            "created_by": current_user["id"],
+            "published_at": now,
+            "created_at": now,
+            "updated_at": now,
+        }).execute()
+
+        if not test_res.data:
+            raise HTTPException(status_code=500, detail="Failed to create test.")
+
+        test_id = test_res.data[0]["id"]
+
+        # Insert questions
+        for i, q in enumerate(req.questions):
+            supabase_client.table("mock_test_questions").insert({
+                "test_id": test_id,
+                "question_text": (q.question or "").strip(),
+                "option_a": q.resolved_option_a().strip(),
+                "option_b": q.resolved_option_b().strip(),
+                "option_c": q.resolved_option_c().strip(),
+                "option_d": q.resolved_option_d().strip(),
+                "correct_option": q.resolved_correct_option(),
+                "explanation": (q.explanation or "").strip(),
+                "question_order": i + 1,
+                "created_at": now,
+            }).execute()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print("[upload_csv_test error]:", e)
+        raise HTTPException(status_code=500, detail="Failed to create test. Please try again.")
+
+    return {
+        "message": f"Mock test '{req.title}' created with {len(req.questions)} questions.",
+        "test_id": str(test_id),
+        "title": req.title,
+        "test_type": test_type,
+        "total_questions": len(req.questions),
     }

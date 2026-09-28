@@ -24,7 +24,8 @@ import {
   Trash2,
   RefreshCw,
   ChevronDown,
-  Edit3
+  Edit3,
+  User as UserIcon
 } from 'lucide-react';
 
 
@@ -92,7 +93,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // SUB-TAB 2: BUILDER STATE
-  const [builderTemplate, setBuilderTemplate] = useState<'ats' | 'modern' | 'academic'>('ats');
+  const [builderTemplate, setBuilderTemplate] = useState<'ats' | 'modern'>('ats');
   const [enhancingBulletIndex, setEnhancingBulletIndex] = useState<{ section: string; idx: number; bulletIdx: number } | null>(null);
 
   // SUB-TAB 3: JD MATCHER STATE
@@ -487,14 +488,13 @@ export const AIResumeSuite: React.FC = React.memo(() => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 text-xs font-bold text-orange-400 uppercase tracking-wider">
-              <Sparkles className="w-4 h-4 text-orange-400" />
               <span>AI RESUME & CAREER SUITE</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-heading">
-              Placement Resume Suite
+              Resume Suite
             </h1>
             <p className="text-xs text-zinc-400 max-w-2xl">
-              ATS Resume Reviewer, AI Resume Builder with STAR bullet enhancer, and Job Description Matcher.
+              Optimize your resume for campus placements with ATS scoring, STAR-format bullet rewrites, and job description matching.
             </p>
           </div>
 
@@ -504,8 +504,8 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               type="button"
               onClick={() => setActiveSubTab('reviewer')}
               className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${activeSubTab === 'reviewer'
-                  ? 'bg-white text-black shadow-md'
-                  : 'text-zinc-400 hover:text-white'
+                ? 'bg-white text-black shadow-md'
+                : 'text-zinc-400 hover:text-white'
                 }`}
             >
               AI Reviewer
@@ -514,8 +514,8 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               type="button"
               onClick={() => setActiveSubTab('builder')}
               className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${activeSubTab === 'builder'
-                  ? 'bg-white text-black shadow-md'
-                  : 'text-zinc-400 hover:text-white'
+                ? 'bg-white text-black shadow-md'
+                : 'text-zinc-400 hover:text-white'
                 }`}
             >
               Resume Builder
@@ -524,8 +524,8 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               type="button"
               onClick={() => setActiveSubTab('matcher')}
               className={`px-2 sm:px-4 py-2 rounded-xl sm:rounded-full font-bold transition-all cursor-pointer text-center text-[11px] sm:text-xs ${activeSubTab === 'matcher'
-                  ? 'bg-white text-black shadow-md'
-                  : 'text-zinc-400 hover:text-white'
+                ? 'bg-white text-black shadow-md'
+                : 'text-zinc-400 hover:text-white'
                 }`}
             >
               JD Matcher
@@ -546,24 +546,13 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                 <FileText className="w-4 h-4 text-orange-400" />
                 Upload or Paste Resume Content
               </h2>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept=".pdf,.txt,.md,.doc,.docx"
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={parsePdfLoading}
-                  className="px-3 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
-                >
-                  <Upload className="w-3.5 h-3.5 text-orange-400" />
-                  <span>Upload File</span>
-                </button>
-              </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".pdf,.txt,.md,.doc,.docx"
+                className="hidden"
+              />
             </div>
 
             {/* ANIMATED BAR LOADER FOR PDF PARSING */}
@@ -586,7 +575,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
             )}
 
             <div className="space-y-1.5 pt-1">
-              <label className="text-[11px] font-medium text-zinc-400">Target Placement Role / Domain</label>
+              <label className="text-[11px] font-medium text-zinc-400">Target Role / Domain</label>
               <input
                 type="text"
                 className="w-full bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none font-sans"
@@ -776,10 +765,10 @@ export const AIResumeSuite: React.FC = React.memo(() => {
           <div className="mono-card p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <h2 className="font-bold text-base sm:text-lg text-white font-heading">Interactive Resume Content Builder</h2>
-              <p className="text-xs text-zinc-400">Select template format and optimize achievements using STAR Method AI Enhance.</p>
+              <p className="text-xs text-zinc-400">Choose a layout, tailor your resume to job descriptions, and turn weak bullet points into impactful STAR-format achievements.</p>
             </div>
 
-            <div className="grid grid-cols-3 sm:flex items-center gap-1.5 bg-[#121212] border border-white/10 p-1.5 rounded-2xl sm:rounded-full text-xs font-semibold w-full sm:w-auto">
+            <div className="grid grid-cols-2 sm:flex items-center gap-1.5 bg-[#121212] border border-white/10 p-1.5 rounded-2xl sm:rounded-full text-xs font-semibold w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setBuilderTemplate('ats')}
@@ -796,14 +785,6 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               >
                 Modern Exec
               </button>
-              <button
-                type="button"
-                onClick={() => setBuilderTemplate('academic')}
-                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${builderTemplate === 'academic' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
-                  }`}
-              >
-                Academic
-              </button>
             </div>
           </div>
 
@@ -813,62 +794,68 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               {/* 1. PERSONAL HEADER INFORMATION & PROFESSIONAL SUMMARY */}
               <div className="mono-card p-4 sm:p-6 space-y-4">
                 <h3 className="font-bold text-xs text-orange-400 uppercase tracking-wider font-heading">Personal Header Information & Summary</h3>
-                {/* PROFILE PHOTO UPLOADER (FOR MODERN EXEC TEMPLATE) */}
-                <div className="p-3 bg-[#121212] rounded-xl border border-white/10 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full border-2 border-orange-500/50 overflow-hidden bg-zinc-800 shrink-0">
-                      <img
-                        src={resumeData.personal.avatar || user?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200"}
-                        alt="Resume Photo Preview"
-                        className="w-full h-full object-cover"
-                      />
+                {/* PROFILE PHOTO UPLOADER (FOR MODERN EXEC TEMPLATE ONLY) */}
+                {builderTemplate === 'modern' && (
+                  <div className="p-3 bg-[#121212] rounded-xl border border-white/10 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full border-2 border-orange-500/50 overflow-hidden bg-zinc-800 shrink-0 flex items-center justify-center">
+                        {(resumeData.personal.avatar || user?.avatar) ? (
+                          <img
+                            src={resumeData.personal.avatar || user?.avatar}
+                            alt="Resume Photo Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <UserIcon className="w-6 h-6 text-zinc-400" />
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-white block">Modern Exec Profile Photo</span>
+                        <span className="text-[10px] text-zinc-400 block">Upload custom headshot image (PNG / JPG)</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-xs font-semibold text-white block">Modern Exec Profile Photo</span>
-                      <span className="text-[10px] text-zinc-400 block">Upload custom headshot image (PNG / JPG)</span>
+                    <div className="flex items-center gap-2">
+                      <label className="px-3 py-1.5 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/40 text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const base64 = event.target?.result as string;
+                                if (base64) {
+                                  setResumeData({
+                                    ...resumeData,
+                                    personal: { ...resumeData.personal, avatar: base64 }
+                                  });
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                      {resumeData.personal.avatar && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedPersonal = { ...resumeData.personal };
+                            delete updatedPersonal.avatar;
+                            setResumeData({ ...resumeData, personal: updatedPersonal });
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white text-xs font-medium border border-white/10"
+                        >
+                          Reset
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <label className="px-3 py-1.5 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/40 text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>Upload Photo</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              const base64 = event.target?.result as string;
-                              if (base64) {
-                                setResumeData({
-                                  ...resumeData,
-                                  personal: { ...resumeData.personal, avatar: base64 }
-                                });
-                              }
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                    </label>
-                    {resumeData.personal.avatar && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const updatedPersonal = { ...resumeData.personal };
-                          delete updatedPersonal.avatar;
-                          setResumeData({ ...resumeData, personal: updatedPersonal });
-                        }}
-                        className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white text-xs font-medium border border-white/10"
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
@@ -1441,9 +1428,8 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               {/* RENDERED PREVIEW DOCUMENT PANE (Target of @media print) */}
               <div
                 id="resume-preview-document"
-                className={`bg-white text-black rounded-2xl shadow-2xl font-sans text-xs min-h-[680px] leading-normal select-text overflow-hidden ${
-                  builderTemplate === 'modern' ? 'p-0' : 'p-6 space-y-4'
-                }`}
+                className={`bg-white text-black rounded-2xl shadow-2xl font-sans text-xs min-h-[680px] leading-normal select-text overflow-hidden ${builderTemplate === 'modern' ? 'p-0' : 'p-6 space-y-4'
+                  }`}
               >
                 {builderTemplate === 'modern' ? (
                   /* MODERN EXEC TEMPLATE MATCHING USER SCREENSHOT */
@@ -1451,12 +1437,16 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                     {/* TOP OLIVE GREEN BANNER HEADER */}
                     <div className="bg-[#6b7036] text-white pt-9 pb-8 px-6 relative min-h-[96px] flex items-center justify-between">
                       {/* Profile Picture Overhang - Perfectly centered in left sidebar section */}
-                      <div className="absolute left-6 -bottom-8 w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-zinc-200 shadow-md shrink-0 z-20">
-                        <img
-                          src={resumeData.personal.avatar || user?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200"}
-                          alt="Profile Avatar"
-                          className="w-full h-full object-cover"
-                        />
+                      <div className="absolute left-6 -bottom-8 w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-zinc-200 shadow-md shrink-0 z-20 flex items-center justify-center">
+                        {(resumeData.personal.avatar || user?.avatar) ? (
+                          <img
+                            src={resumeData.personal.avatar || user?.avatar}
+                            alt="Profile Avatar"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <UserIcon className="w-12 h-12 text-zinc-400" />
+                        )}
                       </div>
                       <div className="w-full text-right z-10">
                         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-wider uppercase text-white font-heading">
@@ -1861,8 +1851,8 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                         setCompanyDropdownOpen(false);
                       }}
                       className={`px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center justify-between ${selectedCompanyDriveId === drive.id
-                          ? 'bg-orange-500/15 text-orange-400 font-bold border border-orange-500/30'
-                          : 'text-zinc-300 hover:text-white hover:bg-white/5'
+                        ? 'bg-orange-500/15 text-orange-400 font-bold border border-orange-500/30'
+                        : 'text-zinc-300 hover:text-white hover:bg-white/5'
                         }`}
                     >
                       <span>{drive.company}</span>

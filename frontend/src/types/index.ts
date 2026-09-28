@@ -157,7 +157,7 @@ export interface MentorshipPair {
 }
 
 export interface ResumeData {
-  template: 'ats' | 'modern' | 'academic';
+  template: 'ats' | 'modern';
   personal: {
     fullName: string;
     email: string;
