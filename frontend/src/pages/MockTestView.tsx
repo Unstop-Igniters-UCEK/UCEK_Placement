@@ -685,9 +685,6 @@ export const MockTestView: React.FC = () => {
     const qCount = t.total_questions ?? t.totalQuestions ?? t.questionCount ?? (t.questions ? t.questions.length : 0);
     if (qCount <= 0) return false;
     if (selectedCategory === 'All') return true;
-    if (selectedCategory === 'Departmental') {
-      return t.target_department_id != null;
-    }
     const tt = (t.test_type || t.category || '').toLowerCase();
     if (selectedCategory === 'Aptitude') return tt === 'aptitude';
     if (selectedCategory === 'Technical') return tt === 'technical';
@@ -1454,7 +1451,7 @@ export const MockTestView: React.FC = () => {
                   className="absolute right-0 mt-2 w-48 rounded-2xl bg-[#141414] border border-white/10 shadow-2xl p-1.5 z-40 backdrop-blur-xl"
                   role="listbox"
                 >
-                  {['All', 'Departmental', 'Aptitude', 'Technical', 'General'].map(cat => {
+                  {['All', 'Aptitude', 'Technical', 'General'].map(cat => {
                     const isSelected = selectedCategory === cat;
                     return (
                       <button
