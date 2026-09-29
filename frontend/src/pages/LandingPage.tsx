@@ -4,7 +4,7 @@ import { UserRole } from '../types';
 import Grainient from '../components/Grainient';
 import { CustomSelect } from '../components/CustomSelect';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogIn, UserPlus, X, AlertCircle, Eye, EyeOff, KeyRound, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { LogIn, UserPlus, X, AlertCircle, Eye, EyeOff, KeyRound, CheckCircle2 } from 'lucide-react';
 import { sendOtpApi, verifyOtpResetApi, getRegistrationStatusApi } from '../lib/api';
 
 export const LandingPage: React.FC = React.memo(() => {
@@ -635,30 +635,17 @@ export const LandingPage: React.FC = React.memo(() => {
                       transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
                       className="space-y-4 pt-1 font-sans"
                     >
-                      <div className="p-4 rounded-2xl bg-orange-500/10 border border-orange-500/25 space-y-3">
-                        <div className="flex items-center gap-2 text-orange-400 font-semibold text-xs">
-                          <ShieldAlert className="w-4 h-4 shrink-0" />
-                          <span>Self-Registration Restricted</span>
-                        </div>
-                        <p className="text-xs text-zinc-300 leading-relaxed">
+                      <div className="space-y-3 text-xs text-zinc-300 leading-relaxed font-sans pt-1">
+                        <p>
                           Impulse is currently exclusive to students of the{' '}
                           <strong className="text-white font-semibold">
                             University College of Engineering Kariavattom (UCEK)
                           </strong>.
                         </p>
-                        <p className="text-xs text-zinc-400 leading-relaxed">
+                        <p className="text-zinc-400">
                           Student self-registration is temporarily unavailable. If you are a UCEK student, please contact an admin or faculty member to have your account onboarded.
                         </p>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={handleCloseRestrictionModal}
-                        className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.98] transition-transform duration-150"
-                      >
-                        <LogIn className="w-4 h-4 text-black" />
-                        <span>Proceed to Student Sign In</span>
-                      </button>
                     </motion.div>
                   ) : (
                     <motion.form
@@ -840,48 +827,50 @@ export const LandingPage: React.FC = React.memo(() => {
         </div>
       </div>
 
-      {/* ── DEDICATED RESTRICTION POPUP MODAL ── */}
+      {/* ── RESTRICTION POPUP MODAL ── */}
       <AnimatePresence>
         {showRestrictionModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+            onClick={handleCloseRestrictionModal}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 8 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="relative w-full max-w-md bg-[#18181b] border border-orange-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 text-left font-sans overflow-hidden"
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+              className="relative w-full max-w-md backdrop-blur-2xl bg-black/90 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4 text-left font-sans pointer-events-auto overflow-hidden"
+              onClick={e => e.stopPropagation()}
             >
-              {/* Top Accent Gradient Bar */}
-              <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-orange-500 via-amber-400 to-orange-600" />
+              {/* Subtle ambient orange accent in the corner */}
+              <div className="absolute -top-12 -right-12 w-36 h-36 bg-orange-500/12 rounded-full blur-2xl pointer-events-none" />
 
               {/* Close Button (X) at Top-Right */}
               <button
                 type="button"
                 onClick={handleCloseRestrictionModal}
-                className="absolute top-5 right-5 p-2 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer focus:outline-none"
-                title="Close and return to Student Login"
+                className="absolute top-5 right-5 p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer focus:outline-none"
+                title="Close"
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
               </button>
 
-              {/* Icon & Title */}
-              <div className="space-y-3 pt-1">
-                <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/25 flex items-center justify-center text-orange-400 shadow-inner">
-                  <ShieldAlert className="w-6 h-6" />
+              {/* Header */}
+              <div className="space-y-1.5 pr-8">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0 shadow-[0_0_6px_rgba(249,115,22,0.8)]" />
+                  <span className="text-[11px] font-semibold tracking-wider uppercase text-orange-400 font-mono">
+                    UCEK Exclusive Access
+                  </span>
                 </div>
-                <div>
-                  <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight font-sans">
-                    Student Registration Unavailable
-                  </h3>
-                  <p className="text-xs text-orange-400/90 font-medium mt-0.5">
-                    UCEK Institutional Access Only
-                  </p>
-                </div>
+                <h3 className="text-xl font-bold text-white tracking-tight font-sans">
+                  Account Registration Notice
+                </h3>
               </div>
 
-              {/* Explanatory Content */}
-              <div className="space-y-3 text-xs text-zinc-300 leading-relaxed font-sans bg-white/[0.02] border border-white/5 rounded-2xl p-4">
+              {/* Message */}
+              <div className="space-y-3 text-xs text-zinc-300 leading-relaxed font-sans pt-1">
                 <p>
                   Impulse is currently exclusive to students of the{' '}
                   <strong className="text-white font-semibold">
@@ -891,19 +880,6 @@ export const LandingPage: React.FC = React.memo(() => {
                 <p className="text-zinc-400">
                   Student self-registration is temporarily unavailable. If you are a UCEK student, please contact an admin or faculty member to have your account onboarded.
                 </p>
-              </div>
-
-              {/* Action Button: Proceed to Student Login */}
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={handleCloseRestrictionModal}
-                  className="btn-primary w-full py-3 px-5 text-xs font-bold rounded-full shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
-                  style={{ fontFamily: 'Poppins, sans-serif' }}
-                >
-                  <LogIn className="w-4 h-4 text-black" />
-                  <span>Proceed to Student Sign In</span>
-                </button>
               </div>
             </motion.div>
           </div>
