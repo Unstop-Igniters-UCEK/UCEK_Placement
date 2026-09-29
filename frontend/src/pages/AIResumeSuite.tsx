@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, Variants } from 'framer-motion';
 import { ResumeReviewResult, JDMatchResult } from '../types';
-import { reviewResumeApi, matchJDApi, enhanceBulletApi, parsePdfApi } from '../lib/api';
+import { reviewResumeApi, matchJDApi, enhanceBulletApi, parsePdfApi, saveResumeApi, getResumeApi } from '../lib/api';
 import {
   FileText,
   Sparkles,
@@ -93,8 +93,117 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // SUB-TAB 2: BUILDER STATE
-  const [builderTemplate, setBuilderTemplate] = useState<'ats' | 'modern'>('ats');
+  const [builderTemplate, setBuilderTemplate] = useState<'ats' | 'modern'>(resumeData.template || 'ats');
   const [enhancingBulletIndex, setEnhancingBulletIndex] = useState<{ section: string; idx: number; bulletIdx: number } | null>(null);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Synchronize builderTemplate when resumeData changes
+  useEffect(() => {
+    if (resumeData.template) {
+      setBuilderTemplate(resumeData.template);
+    }
+  }, [resumeData.template]);
+
+  // Load authentic saved resume directly when entering builder tab
+  useEffect(() => {
+    if (user && user.role !== 'admin') {
+      getResumeApi()
+        .then(res => {
+          if (res && res.resume) {
+            const r = res.resume;
+            const mappedTemplate: 'ats' | 'modern' = (r.template_type === 'modern' || r.template_type === 'modern_executive') ? 'modern' : 'ats';
+            setBuilderTemplate(mappedTemplate);
+
+            const mappedSkills = Array.isArray(r.skills)
+              ? r.skills.map((sk: any, idx: number) => ({
+                  id: sk.id ? String(sk.id) : `sk_${idx}`,
+                  category: sk.category || 'Technical Skills',
+                  items: sk.skill || sk.items || ''
+                }))
+              : [];
+
+            const mappedProjects = Array.isArray(r.projects)
+              ? r.projects.map((p: any, idx: number) => {
+                  let bullets: string[] = [];
+                  if (Array.isArray(p.bullets) && p.bullets.length > 0) {
+                    bullets = p.bullets;
+                  } else if (p.description) {
+                    bullets = String(p.description).split('\n').filter((b: string) => b.trim().length > 0);
+                  }
+                  return {
+                    id: p.id ? String(p.id) : `proj_${idx}`,
+                    title: p.title || 'Project',
+                    techStack: p.technologies || p.techStack || '',
+                    description: p.description || '',
+                    link: p.project_url || p.link || '',
+                    bullets: bullets.length > 0 ? bullets : ['Project implementation and key contributions.']
+                  };
+                })
+              : [];
+
+            const mappedExperience = Array.isArray(r.experience)
+              ? r.experience.map((exp: any, idx: number) => {
+                  let bullets: string[] = [];
+                  if (Array.isArray(exp.bullets) && exp.bullets.length > 0) {
+                    bullets = exp.bullets;
+                  } else if (exp.description) {
+                    bullets = String(exp.description).split('\n').filter((b: string) => b.trim().length > 0);
+                  }
+                  return {
+                    id: exp.id ? String(exp.id) : `exp_${idx}`,
+                    company: exp.organization || exp.company || 'Company',
+                    position: exp.role || exp.position || 'Role',
+                    startDate: exp.start_date || exp.startDate || '',
+                    endDate: exp.end_date || exp.endDate || '',
+                    isCurrent: Boolean(exp.is_current ?? exp.isCurrent ?? false),
+                    bullets: bullets.length > 0 ? bullets : ['Key responsibility and outcome.']
+                  };
+                })
+              : [];
+
+            const mappedEducation = Array.isArray(r.education)
+              ? r.education.map((edu: any, idx: number) => ({
+                  id: edu.id ? String(edu.id) : `edu_${idx}`,
+                  institution: edu.institution || 'University',
+                  degree: edu.degree || 'Degree',
+                  fieldOfStudy: edu.field_of_study || edu.fieldOfStudy || '',
+                  startDate: edu.start_year ? String(edu.start_year) : (edu.startDate ? String(edu.startDate) : ''),
+                  endDate: edu.end_year ? String(edu.end_year) : (edu.endDate ? String(edu.endDate) : ''),
+                  gpa: edu.grade || edu.gpa || ''
+                }))
+              : [];
+
+            const mappedCertifications = Array.isArray(r.certifications)
+              ? r.certifications.map((c: any) => typeof c === 'string' ? c : (c.name || 'Certification'))
+              : [];
+
+            setResumeData({
+              template: mappedTemplate,
+              personal: {
+                fullName: user.name || '',
+                email: user.email || '',
+                phone: r.phone || '',
+                location: r.location || '',
+                linkedIn: r.linkedin_url || '',
+                github: r.github_url || '',
+                summary: r.summary || '',
+                avatar: r.photo_storage_path || undefined
+              },
+              skills: mappedSkills,
+              projects: mappedProjects,
+              experience: mappedExperience,
+              education: mappedEducation,
+              certifications: mappedCertifications
+            });
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to load resume on builder mount:', err);
+        });
+    }
+  }, [user?.id]);
 
   // SUB-TAB 3: JD MATCHER STATE
   const [selectedCompanyDriveId, setSelectedCompanyDriveId] = useState('tcs');
@@ -362,6 +471,77 @@ export const AIResumeSuite: React.FC = React.memo(() => {
       console.warn('Bullet enhance fallback:', err);
     } finally {
       setEnhancingBulletIndex(null);
+    }
+  };
+
+  // HANDLER: Explicit Save Resume Action (persists entire builder state to PostgreSQL)
+  const handleSaveResume = async () => {
+    setSaveLoading(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+
+    try {
+      const payload = {
+        fullName: resumeData.personal.fullName || user?.name || '',
+        name: resumeData.personal.fullName || user?.name || '',
+        summary: resumeData.personal.summary || '',
+        phone: resumeData.personal.phone || '',
+        location: resumeData.personal.location || '',
+        linkedin_url: resumeData.personal.linkedIn || '',
+        github_url: resumeData.personal.github || '',
+        template_type: builderTemplate === 'modern' ? 'modern_executive' : 'ats',
+        source_type: 'builder',
+        skills: resumeData.skills.map((sk, idx) => ({
+          skill: sk.items || sk.category || '',
+          items: sk.items || '',
+          category: sk.category || 'Technical Skills',
+          sort_order: idx
+        })),
+        projects: resumeData.projects.map((proj, idx) => ({
+          title: proj.title || 'Project',
+          description: proj.bullets && proj.bullets.length > 0 ? proj.bullets.join('\n') : (proj.description || ''),
+          technologies: proj.techStack || '',
+          project_url: proj.link || '',
+          bullets: proj.bullets || [],
+          sort_order: idx
+        })),
+        experience: resumeData.experience.map((exp, idx) => ({
+          entry_type: 'experience',
+          organization: exp.company || 'Company',
+          role: exp.position || 'Role',
+          description: exp.bullets && exp.bullets.length > 0 ? exp.bullets.join('\n') : '',
+          bullets: exp.bullets || [],
+          start_date: exp.startDate || null,
+          end_date: exp.endDate || null,
+          is_current: Boolean(exp.isCurrent),
+          sort_order: idx
+        })),
+        education: resumeData.education.map((edu, idx) => ({
+          institution: edu.institution || 'University',
+          degree: edu.degree || 'Degree',
+          field_of_study: edu.fieldOfStudy || '',
+          start_year: edu.startDate ? parseInt(edu.startDate.replace(/\D/g, ''), 10) || null : null,
+          end_year: edu.endDate ? parseInt(edu.endDate.replace(/\D/g, ''), 10) || null : null,
+          grade: edu.gpa || '',
+          sort_order: idx
+        })),
+        certifications: resumeData.certifications.map((cert, idx) => ({
+          name: typeof cert === 'string' ? cert : (cert as any).name || 'Certification',
+          sort_order: idx
+        })),
+        achievements: []
+      };
+
+      await saveResumeApi(payload);
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3500);
+    } catch (err: any) {
+      console.error('Save Resume Error:', err);
+      setSaveError(err?.message || 'Unable to save resume. Please try again.');
+    } finally {
+      setSaveLoading(false);
     }
   };
 
@@ -768,25 +948,68 @@ export const AIResumeSuite: React.FC = React.memo(() => {
               <p className="text-xs text-zinc-400">Choose a layout, tailor your resume to job descriptions, and turn weak bullet points into impactful STAR-format achievements.</p>
             </div>
 
-            <div className="grid grid-cols-2 sm:flex items-center gap-1.5 bg-[#121212] border border-white/10 p-1.5 rounded-2xl sm:rounded-full text-xs font-semibold w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setBuilderTemplate('ats')}
-                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${builderTemplate === 'ats' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
-                  }`}
-              >
-                ATS Clean
-              </button>
-              <button
-                type="button"
-                onClick={() => setBuilderTemplate('modern')}
-                className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${builderTemplate === 'modern' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
-                  }`}
-              >
-                Modern Exec
-              </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+              <div className="grid grid-cols-2 sm:flex items-center gap-1.5 bg-[#121212] border border-white/10 p-1.5 rounded-2xl sm:rounded-full text-xs font-semibold w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setBuilderTemplate('ats')}
+                  className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${builderTemplate === 'ats' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
+                    }`}
+                >
+                  ATS Clean
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBuilderTemplate('modern')}
+                  className={`px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-full cursor-pointer transition-all text-center text-[10px] sm:text-xs font-bold ${builderTemplate === 'modern' ? 'bg-orange-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
+                    }`}
+                >
+                  Modern Exec
+                </button>
+              </div>
+
+              {/* SAVE RESUME ACTION */}
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={handleSaveResume}
+                  disabled={saveLoading}
+                  className="btn-primary px-4 py-2 sm:py-1.5 rounded-xl sm:rounded-full text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-60 shadow-md min-w-[120px]"
+                >
+                  {saveLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+                      <span>Saving...</span>
+                    </>
+                  ) : saveSuccess ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-black" />
+                      <span>Resume saved</span>
+                    </>
+                  ) : (
+                    <span>Save Resume</span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* SAVE ERROR BANNER */}
+          {saveError && (
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{saveError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSaveError(null)}
+                className="text-zinc-400 hover:text-white text-xs font-bold px-2 py-0.5"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* LEFT INPUT FORM EDITORS (Responsive Container) */}
@@ -868,9 +1091,10 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                   <input
                     type="email"
                     placeholder="Email"
-                    className="bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none w-full"
-                    value={resumeData.personal.email}
-                    onChange={e => setResumeData({ ...resumeData, personal: { ...resumeData.personal, email: e.target.value } })}
+                    readOnly
+                    className="bg-[#121212] text-xs text-zinc-400 p-3 rounded-xl border border-white/10 outline-none w-full cursor-not-allowed select-none opacity-80"
+                    value={resumeData.personal.email || user?.email || ''}
+                    title="Account email is authoritative and read-only"
                   />
                   <input
                     type="text"

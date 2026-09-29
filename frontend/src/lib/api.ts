@@ -539,6 +539,41 @@ export async function enhanceBulletApi(payload: {
 }
 
 /**
+ * Fetch the authenticated student's persistent resume from PostgreSQL.
+ */
+export async function getResumeApi(): Promise<{ resume: any | null }> {
+  const res = await authFetch(`${BASE_URL}/api/user/resume`, {
+    headers: authHeaders(),
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) return { resume: null };
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to load resume (${res.status})`));
+  }
+
+  return await res.json();
+}
+
+/**
+ * Persist or update the complete student resume and child sections to PostgreSQL.
+ */
+export async function saveResumeApi(payload: any): Promise<{ message: string; resume: any }> {
+  const res = await authFetch(`${BASE_URL}/api/user/resume`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Unable to save resume. Please try again.`));
+  }
+
+  return await res.json();
+}
+
+/**
  * Parse an uploaded PDF file and return clean plain text from FastAPI backend.
  */
 export async function parsePdfApi(file: File): Promise<string> {

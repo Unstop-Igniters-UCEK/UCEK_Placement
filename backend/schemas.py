@@ -350,69 +350,89 @@ class BatchCSVCreateRequest(BaseModel):
 # ─── Resume Builder ───────────────────────────────────────────────────────────
 
 class ResumeSkillItem(BaseModel):
-    skill: str
+    skill: Optional[str] = None
+    items: Optional[str] = None
     category: Optional[str] = None
-    sort_order: int = 0
+    sort_order: Optional[int] = 0
 
 
 class ResumeProjectItem(BaseModel):
-    title: str
+    title: Optional[str] = "Project"
     description: Optional[str] = None
     technologies: Optional[str] = None
+    techStack: Optional[str] = None
     project_url: Optional[str] = None
-    sort_order: int = 0
+    link: Optional[str] = None
+    bullets: Optional[List[str]] = None
+    sort_order: Optional[int] = 0
 
 
 class ResumeExperienceItem(BaseModel):
-    entry_type: str = "experience"   # "experience" or "leadership"
-    organization: str
-    role: str
+    entry_type: Optional[str] = "experience"   # "experience" or "leadership"
+    organization: Optional[str] = None
+    company: Optional[str] = None
+    role: Optional[str] = None
+    position: Optional[str] = None
     description: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    is_current: bool = False
-    sort_order: int = 0
+    bullets: Optional[List[str]] = None
+    start_date: Optional[Any] = None
+    startDate: Optional[Any] = None
+    end_date: Optional[Any] = None
+    endDate: Optional[Any] = None
+    is_current: Optional[bool] = False
+    isCurrent: Optional[bool] = False
+    sort_order: Optional[int] = 0
 
 
 class ResumeEducationItem(BaseModel):
-    institution: str
-    degree: str
+    institution: Optional[str] = "University"
+    degree: Optional[str] = "Degree"
     field_of_study: Optional[str] = None
-    start_year: Optional[int] = None
-    end_year: Optional[int] = None
+    fieldOfStudy: Optional[str] = None
+    start_year: Optional[Any] = None
+    startDate: Optional[Any] = None
+    end_year: Optional[Any] = None
+    endDate: Optional[Any] = None
     grade: Optional[str] = None
-    sort_order: int = 0
+    gpa: Optional[str] = None
+    sort_order: Optional[int] = 0
 
 
 class ResumeCertificationItem(BaseModel):
-    name: str
+    name: Optional[str] = "Certification"
     issuer: Optional[str] = None
-    issue_date: Optional[str] = None
+    issue_date: Optional[Any] = None
     credential_url: Optional[str] = None
-    sort_order: int = 0
+    sort_order: Optional[int] = 0
 
 
 class ResumeAchievementItem(BaseModel):
-    title: str
+    title: Optional[str] = "Achievement"
     description: Optional[str] = None
-    sort_order: int = 0
+    sort_order: Optional[int] = 0
 
 
 class SaveResumeRequest(BaseModel):
+    fullName: Optional[str] = None
+    name: Optional[str] = None
     summary: Optional[str] = None
     phone: Optional[str] = None
     location: Optional[str] = None
     linkedin_url: Optional[str] = None
+    linkedIn: Optional[str] = None
     github_url: Optional[str] = None
+    github: Optional[str] = None
     portfolio_url: Optional[str] = None
+    portfolio: Optional[str] = None
     template_type: Optional[str] = "ats"
+    template: Optional[str] = None
     source_type: Optional[str] = "builder"
-    skills: Optional[List[ResumeSkillItem]] = None
-    projects: Optional[List[ResumeProjectItem]] = None
-    experience: Optional[List[ResumeExperienceItem]] = None
-    education: Optional[List[ResumeEducationItem]] = None
-    certifications: Optional[List[ResumeCertificationItem]] = None
-    achievements: Optional[List[ResumeAchievementItem]] = None
+    skills: Optional[List[Any]] = None
+    projects: Optional[List[Any]] = None
+    experience: Optional[List[Any]] = None
+    education: Optional[List[Any]] = None
+    certifications: Optional[List[Any]] = None
+    achievements: Optional[List[Any]] = None
 
 
 # ─── Platform Settings ────────────────────────────────────────────────────────

@@ -29,7 +29,8 @@ import {
   getTests,
   getStoredToken,
   setStoredToken,
-  clearStoredToken
+  clearStoredToken,
+  getResumeApi
 } from '../lib/api';
 
 export type Theme = 'dark' | 'light';
@@ -264,6 +265,105 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setRoadmaps([]);
     }
   }, [user?.id, user?.domain, user?.hasSelectedDomain]);
+
+  // Sync authentic persistent resume from PostgreSQL when student user is authenticated
+  useEffect(() => {
+    const token = getStoredToken();
+    if (token && user && user.role !== 'admin') {
+      getResumeApi()
+        .then(res => {
+          if (res && res.resume) {
+            const r = res.resume;
+            const mappedTemplate: 'ats' | 'modern' = (r.template_type === 'modern' || r.template_type === 'modern_executive') ? 'modern' : 'ats';
+
+            const mappedSkills = Array.isArray(r.skills)
+              ? r.skills.map((sk: any, idx: number) => ({
+                  id: sk.id ? String(sk.id) : `sk_${idx}`,
+                  category: sk.category || 'Technical Skills',
+                  items: sk.skill || sk.items || ''
+                }))
+              : [];
+
+            const mappedProjects = Array.isArray(r.projects)
+              ? r.projects.map((p: any, idx: number) => {
+                  let bullets: string[] = [];
+                  if (Array.isArray(p.bullets) && p.bullets.length > 0) {
+                    bullets = p.bullets;
+                  } else if (p.description) {
+                    bullets = String(p.description).split('\n').filter((b: string) => b.trim().length > 0);
+                  }
+                  return {
+                    id: p.id ? String(p.id) : `proj_${idx}`,
+                    title: p.title || 'Project',
+                    techStack: p.technologies || p.techStack || '',
+                    description: p.description || '',
+                    link: p.project_url || p.link || '',
+                    bullets: bullets.length > 0 ? bullets : ['Project implementation and key contributions.']
+                  };
+                })
+              : [];
+
+            const mappedExperience = Array.isArray(r.experience)
+              ? r.experience.map((exp: any, idx: number) => {
+                  let bullets: string[] = [];
+                  if (Array.isArray(exp.bullets) && exp.bullets.length > 0) {
+                    bullets = exp.bullets;
+                  } else if (exp.description) {
+                    bullets = String(exp.description).split('\n').filter((b: string) => b.trim().length > 0);
+                  }
+                  return {
+                    id: exp.id ? String(exp.id) : `exp_${idx}`,
+                    company: exp.organization || exp.company || 'Company',
+                    position: exp.role || exp.position || 'Role',
+                    startDate: exp.start_date || exp.startDate || '',
+                    endDate: exp.end_date || exp.endDate || '',
+                    isCurrent: Boolean(exp.is_current ?? exp.isCurrent ?? false),
+                    bullets: bullets.length > 0 ? bullets : ['Key responsibility and outcome.']
+                  };
+                })
+              : [];
+
+            const mappedEducation = Array.isArray(r.education)
+              ? r.education.map((edu: any, idx: number) => ({
+                  id: edu.id ? String(edu.id) : `edu_${idx}`,
+                  institution: edu.institution || 'University',
+                  degree: edu.degree || 'Degree',
+                  fieldOfStudy: edu.field_of_study || edu.fieldOfStudy || '',
+                  startDate: edu.start_year ? String(edu.start_year) : (edu.startDate ? String(edu.startDate) : ''),
+                  endDate: edu.end_year ? String(edu.end_year) : (edu.endDate ? String(edu.endDate) : ''),
+                  gpa: edu.grade || edu.gpa || ''
+                }))
+              : [];
+
+            const mappedCertifications = Array.isArray(r.certifications)
+              ? r.certifications.map((c: any) => typeof c === 'string' ? c : (c.name || 'Certification'))
+              : [];
+
+            setResumeData({
+              template: mappedTemplate,
+              personal: {
+                fullName: user.name || '',
+                email: user.email || '',
+                phone: r.phone || '',
+                location: r.location || '',
+                linkedIn: r.linkedin_url || '',
+                github: r.github_url || '',
+                summary: r.summary || '',
+                avatar: r.photo_storage_path || undefined
+              },
+              skills: mappedSkills,
+              projects: mappedProjects,
+              experience: mappedExperience,
+              education: mappedEducation,
+              certifications: mappedCertifications
+            });
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to fetch student resume:', err);
+        });
+    }
+  }, [user?.id, user?.name, user?.email]);
 
   const switchDemoRole = useCallback(async (role: UserRole) => {
     const data = await demoLoginApi(role);

@@ -1226,16 +1226,74 @@ class Database:
 
     def upsert_student_resume(self, student_id: str, data: Dict[str, Any]) -> Optional[str]:
         """
-        Create or update the student_resumes row, and persist all section sub-tables
-        if provided in data: skills, projects, experience, education, certifications, achievements.
+        Create or update the student_resumes row, and synchronize all section sub-tables
+        transactionally (rollback if any child collection fails):
+        skills, projects, experience, education, certifications, achievements.
+        Preserves existing resume_id so resume_reviews FK references stay valid.
         Returns the resume UUID on success, None on failure.
         """
         if not supabase_client:
             return None
         uid = str(student_id)
         now = datetime.utcnow().isoformat()
+
+        # Helper to parse dates into ISO YYYY-MM-DD or None for Postgres DATE columns
+        def _parse_sql_date(val: Any) -> Optional[str]:
+            if not val:
+                return None
+            s = str(val).strip()
+            # If already YYYY-MM-DD
+            if re.match(r"^\d{4}-\d{2}-\d{2}$", s):
+                return s
+            # If 4-digit year like "2024"
+            if re.match(r"^\d{4}$", s):
+                return f"{s}-01-01"
+            # Fallback regex for Month Year e.g. "May 2024" or "2024/05"
+            match = re.search(r"(\d{4})", s)
+            if match:
+                return f"{match.group(1)}-01-01"
+            return None
+
+        # Helper to safely parse smallint / int
+        def _parse_int_val(val: Any) -> Optional[int]:
+            if val is None or str(val).strip() == "":
+                return None
+            s = re.sub(r"[^\d]", "", str(val))
+            return int(s) if s else None
+
+        # Resolve template_type per Impulse_DB_Design.md: 'ats' or 'modern_executive'
+        raw_tmpl = str(data.get("template_type", "")).strip().lower()
+        if raw_tmpl in ("modern", "modern_executive"):
+            template_type = "modern_executive"
+        else:
+            template_type = "ats"
+
+        source_type = "uploaded" if str(data.get("source_type", "")).strip().lower() == "uploaded" else "builder"
+
+        # Snapshot existing state before mutations for rollback support
+        existing_res = supabase_client.table("student_resumes").select("id").eq("student_id", uid).execute()
+        is_new_resume = not bool(existing_res.data)
+        resume_id = existing_res.data[0]["id"] if existing_res.data else None
+
+        backup_skills = []
+        backup_projects = []
+        backup_experience = []
+        backup_education = []
+        backup_certs = []
+        backup_achievements = []
+
+        if resume_id:
+            try:
+                backup_skills = supabase_client.table("resume_skills").select("*").eq("resume_id", resume_id).execute().data or []
+                backup_projects = supabase_client.table("resume_projects").select("*").eq("resume_id", resume_id).execute().data or []
+                backup_experience = supabase_client.table("resume_experience").select("*").eq("resume_id", resume_id).execute().data or []
+                backup_education = supabase_client.table("resume_education").select("*").eq("resume_id", resume_id).execute().data or []
+                backup_certs = supabase_client.table("resume_certifications").select("*").eq("resume_id", resume_id).execute().data or []
+                backup_achievements = supabase_client.table("resume_achievements").select("*").eq("resume_id", resume_id).execute().data or []
+            except Exception as bkp_err:
+                print(f"[DB upsert_student_resume snapshot {uid}]:", bkp_err)
+
         try:
-            existing = supabase_client.table("student_resumes").select("id").eq("student_id", uid).execute()
             payload = {
                 "student_id": uid,
                 "summary": data.get("summary"),
@@ -1243,12 +1301,13 @@ class Database:
                 "location": data.get("location"),
                 "linkedin_url": data.get("linkedin_url") or data.get("linkedIn"),
                 "github_url": data.get("github_url") or data.get("github"),
-                "template_type": "modern" if str(data.get("template_type", "")).lower() == "modern" else "ats",
-                "source_type": "uploaded" if str(data.get("source_type", "")).lower() == "uploaded" else "builder",
+                "portfolio_url": data.get("portfolio_url") or data.get("portfolio"),
+                "template_type": template_type,
+                "source_type": source_type,
                 "updated_at": now,
             }
-            if existing.data:
-                resume_id = existing.data[0]["id"]
+
+            if resume_id:
                 supabase_client.table("student_resumes").update(payload).eq("id", resume_id).execute()
             else:
                 payload["created_at"] = now
@@ -1257,31 +1316,39 @@ class Database:
                     return None
                 resume_id = ins_res.data[0]["id"]
 
-            # Persist section sub-tables if provided
+            # 1. Synchronize Skills
             if "skills" in data and isinstance(data["skills"], list):
                 supabase_client.table("resume_skills").delete().eq("resume_id", resume_id).execute()
                 for i, item in enumerate(data["skills"]):
                     if isinstance(item, dict):
-                        supabase_client.table("resume_skills").insert({
-                            "resume_id": resume_id,
-                            "skill": str(item.get("skill") or item.get("items") or item.get("name") or "").strip(),
-                            "category": item.get("category"),
-                            "sort_order": int(item.get("sort_order", i)),
-                        }).execute()
+                        skill_name = str(item.get("skill") or item.get("items") or item.get("name") or "").strip()
+                        if skill_name:
+                            supabase_client.table("resume_skills").insert({
+                                "resume_id": resume_id,
+                                "skill": skill_name,
+                                "category": item.get("category"),
+                                "sort_order": int(item.get("sort_order", i)),
+                            }).execute()
 
+            # 2. Synchronize Projects
             if "projects" in data and isinstance(data["projects"], list):
                 supabase_client.table("resume_projects").delete().eq("resume_id", resume_id).execute()
                 for i, item in enumerate(data["projects"]):
                     if isinstance(item, dict):
+                        p_title = str(item.get("title") or "Project").strip()
+                        desc = item.get("description")
+                        if not desc and isinstance(item.get("bullets"), list):
+                            desc = "\n".join(b for b in item["bullets"] if b and str(b).strip())
                         supabase_client.table("resume_projects").insert({
                             "resume_id": resume_id,
-                            "title": str(item.get("title") or "Project").strip(),
-                            "description": item.get("description"),
+                            "title": p_title,
+                            "description": desc,
                             "technologies": item.get("technologies") or item.get("techStack"),
                             "project_url": item.get("project_url") or item.get("link"),
                             "sort_order": int(item.get("sort_order", i)),
                         }).execute()
 
+            # 3. Synchronize Experience & Leadership
             if "experience" in data and isinstance(data["experience"], list):
                 supabase_client.table("resume_experience").delete().eq("resume_id", resume_id).execute()
                 for i, item in enumerate(data["experience"]):
@@ -1289,18 +1356,22 @@ class Database:
                         ent_type = str(item.get("entry_type", "experience")).lower()
                         if ent_type not in ("experience", "leadership"):
                             ent_type = "experience"
+                        desc = item.get("description")
+                        if not desc and isinstance(item.get("bullets"), list):
+                            desc = "\n".join(b for b in item["bullets"] if b and str(b).strip())
                         supabase_client.table("resume_experience").insert({
                             "resume_id": resume_id,
                             "entry_type": ent_type,
                             "organization": str(item.get("organization") or item.get("company") or "Company").strip(),
                             "role": str(item.get("role") or item.get("position") or "Role").strip(),
-                            "description": item.get("description") or "\n".join(item.get("bullets", []) if isinstance(item.get("bullets"), list) else []),
-                            "start_date": item.get("start_date") or None,
-                            "end_date": item.get("end_date") or None,
-                            "is_current": bool(item.get("is_current", False)),
+                            "description": desc,
+                            "start_date": _parse_sql_date(item.get("start_date") or item.get("startDate")),
+                            "end_date": _parse_sql_date(item.get("end_date") or item.get("endDate")),
+                            "is_current": bool(item.get("is_current", item.get("isCurrent", False))),
                             "sort_order": int(item.get("sort_order", i)),
                         }).execute()
 
+            # 4. Synchronize Education
             if "education" in data and isinstance(data["education"], list):
                 supabase_client.table("resume_education").delete().eq("resume_id", resume_id).execute()
                 for i, item in enumerate(data["education"]):
@@ -1310,12 +1381,13 @@ class Database:
                             "institution": str(item.get("institution") or "University").strip(),
                             "degree": str(item.get("degree") or "Degree").strip(),
                             "field_of_study": item.get("field_of_study") or item.get("fieldOfStudy"),
-                            "start_year": int(item["start_year"]) if item.get("start_year") else None,
-                            "end_year": int(item["end_year"]) if item.get("end_year") else None,
+                            "start_year": _parse_int_val(item.get("start_year") or item.get("startDate")),
+                            "end_year": _parse_int_val(item.get("end_year") or item.get("endDate")),
                             "grade": item.get("grade") or item.get("gpa"),
                             "sort_order": int(item.get("sort_order", i)),
                         }).execute()
 
+            # 5. Synchronize Certifications
             if "certifications" in data and isinstance(data["certifications"], list):
                 supabase_client.table("resume_certifications").delete().eq("resume_id", resume_id).execute()
                 for i, item in enumerate(data["certifications"]):
@@ -1324,7 +1396,7 @@ class Database:
                             "resume_id": resume_id,
                             "name": str(item.get("name") or "Certification").strip(),
                             "issuer": item.get("issuer"),
-                            "issue_date": item.get("issue_date") or None,
+                            "issue_date": _parse_sql_date(item.get("issue_date")),
                             "credential_url": item.get("credential_url"),
                             "sort_order": int(item.get("sort_order", i)),
                         }).execute()
@@ -1336,6 +1408,7 @@ class Database:
                             "sort_order": i,
                         }).execute()
 
+            # 6. Synchronize Achievements
             if "achievements" in data and isinstance(data["achievements"], list):
                 supabase_client.table("resume_achievements").delete().eq("resume_id", resume_id).execute()
                 for i, item in enumerate(data["achievements"]):
@@ -1346,11 +1419,54 @@ class Database:
                             "description": item.get("description"),
                             "sort_order": int(item.get("sort_order", i)),
                         }).execute()
+                    elif isinstance(item, str) and item.strip():
+                        supabase_client.table("resume_achievements").insert({
+                            "resume_id": resume_id,
+                            "title": item.strip(),
+                            "description": None,
+                            "sort_order": i,
+                        }).execute()
 
             return resume_id
+
         except Exception as e:
-            print(f"[DB upsert_student_resume {uid}]:", e)
-        return None
+            print(f"[DB upsert_student_resume ERROR {uid} - ROLLBACK]:", e)
+            # Transactional rollback: restore previous state if it was an update, or delete if newly inserted
+            if is_new_resume and resume_id:
+                try:
+                    supabase_client.table("student_resumes").delete().eq("id", resume_id).execute()
+                except Exception as del_err:
+                    print(f"[Rollback delete new resume {resume_id}]:", del_err)
+            elif resume_id:
+                try:
+                    # Restore previous child data
+                    supabase_client.table("resume_skills").delete().eq("resume_id", resume_id).execute()
+                    if backup_skills:
+                        supabase_client.table("resume_skills").insert(backup_skills).execute()
+
+                    supabase_client.table("resume_projects").delete().eq("resume_id", resume_id).execute()
+                    if backup_projects:
+                        supabase_client.table("resume_projects").insert(backup_projects).execute()
+
+                    supabase_client.table("resume_experience").delete().eq("resume_id", resume_id).execute()
+                    if backup_experience:
+                        supabase_client.table("resume_experience").insert(backup_experience).execute()
+
+                    supabase_client.table("resume_education").delete().eq("resume_id", resume_id).execute()
+                    if backup_education:
+                        supabase_client.table("resume_education").insert(backup_education).execute()
+
+                    supabase_client.table("resume_certifications").delete().eq("resume_id", resume_id).execute()
+                    if backup_certs:
+                        supabase_client.table("resume_certifications").insert(backup_certs).execute()
+
+                    supabase_client.table("resume_achievements").delete().eq("resume_id", resume_id).execute()
+                    if backup_achievements:
+                        supabase_client.table("resume_achievements").insert(backup_achievements).execute()
+                except Exception as restore_err:
+                    print(f"[Rollback restore {resume_id}]:", restore_err)
+
+            return None
 
     # ── HR Practice Questions ──────────────────────────────────────────────────
 

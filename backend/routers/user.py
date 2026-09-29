@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from backend.database import db, supabase_client, get_user_readiness_metrics
 from backend.auth import get_current_user
-from backend.schemas import ProfileUpdateRequest, SelectDomainRequest
+from backend.schemas import ProfileUpdateRequest, SelectDomainRequest, SaveResumeRequest
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 
@@ -211,14 +211,32 @@ def get_resume(current_user: dict = Depends(get_current_user)):
 
 @router.put("/resume")
 @router.post("/resume")
-def save_resume(data: dict, current_user: dict = Depends(get_current_user)):
-    """Persist or update student's resume and sections in PostgreSQL."""
+def save_resume(req: SaveResumeRequest, current_user: dict = Depends(get_current_user)):
+    """
+    Persist or update student's resume and sections in PostgreSQL with transactional consistency.
+    Backend obtains identity strictly from authenticated token (current_user['id']).
+    """
     if current_user.get("role") != "student":
         raise HTTPException(status_code=403, detail="Only students can save resumes.")
-    resume_id = db.upsert_student_resume(current_user["id"], data)
+
+    uid = current_user["id"]
+
+    # If the user edited their full name in the builder header, persist it via users.name
+    data = req.dict(exclude_unset=False)
+    if data.get("fullName") or data.get("name"):
+        new_name = str(data.get("fullName") or data.get("name") or "").strip()
+        if new_name and new_name != current_user.get("name"):
+            try:
+                now_str = datetime.utcnow().isoformat()
+                supabase_client.table("users").update({"name": new_name, "updated_at": now_str}).eq("id", uid).execute()
+            except Exception as name_err:
+                print(f"[save_resume update name {uid}]:", name_err)
+
+    resume_id = db.upsert_student_resume(uid, data)
     if not resume_id:
-        raise HTTPException(status_code=500, detail="Failed to save resume.")
-    updated_resume = db.get_student_resume(current_user["id"])
+        raise HTTPException(status_code=500, detail="Unable to save resume. Please try again.")
+
+    updated_resume = db.get_student_resume(uid)
     return {"message": "Resume saved successfully.", "resume": updated_resume}
 
 
