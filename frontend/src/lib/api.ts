@@ -548,25 +548,36 @@ export async function parsePdfApi(file: File): Promise<string> {
 /**
  * Fetch authenticated user's test history from FastAPI / Supabase backend.
  */
-export async function getTestHistoryApi(): Promise<any[]> {
+export async function getTestHistoryApi(category?: string): Promise<any[]> {
   try {
-    const res = await authFetch(`${BASE_URL}/api/tests/history/my`, {
+    const url = category && category !== 'all'
+      ? `${BASE_URL}/api/tests/history/my?category=${encodeURIComponent(category)}`
+      : `${BASE_URL}/api/tests/history/my`;
+    const res = await authFetch(url, {
       headers: authHeaders(),
     });
     if (!res.ok) return [];
     const data = await res.json();
     if (!Array.isArray(data.scores)) return [];
     return data.scores.map((s: any) => ({
-      id: s.id || `res_${Date.now()}`,
-      testId: s.testId || 'test',
-      testTitle: s.testTitle || 'Mock Test',
-      category: s.category || 'Company Drive',
-      score: s.score || 0,
-      totalQuestions: s.totalQuestions || 0,
-      accuracy: s.percentage ?? (s.totalQuestions > 0 ? Math.round((s.score / s.totalQuestions) * 100) : 0),
-      passed: Boolean(s.passed),
+      id: String(s.id),
+      testId: String(s.test_id || s.testId || ''),
+      testTitle: s.test_title || s.testTitle || 'Mock Assessment Drive',
+      category: s.category || (s.test_type ? s.test_type.charAt(0).toUpperCase() + s.test_type.slice(1) : 'General'),
+      test_type: s.test_type || s.testType || 'general',
+      testType: s.test_type || s.testType || 'general',
+      target_department_id: s.target_department_id || null,
+      isDepartmental: Boolean(s.is_departmental || s.isDepartmental),
+      is_departmental: Boolean(s.is_departmental || s.isDepartmental),
+      score: Number(s.marks_obtained ?? s.score ?? 0),
+      totalQuestions: Number(s.total_marks ?? s.totalQuestions ?? 0),
+      accuracy: Number(s.score_percentage ?? s.percentage ?? s.accuracy ?? 0),
+      percentage: Number(s.score_percentage ?? s.percentage ?? 0),
+      status: s.status || 'submitted',
+      passed: Boolean(s.passed ?? (s.score_percentage ? s.score_percentage > 65 : false)),
       timeSpentMinutes: Math.max(1, Math.round((s.timeTakenSec || 0) / 60)),
-      date: s.submittedAt ? s.submittedAt.split('T')[0] : new Date().toISOString().split('T')[0],
+      date: s.submitted_at ? s.submitted_at.split('T')[0] : (s.submittedAt ? s.submittedAt.split('T')[0] : new Date().toISOString().split('T')[0]),
+      submitted_at: s.submitted_at || s.submittedAt,
       userAnswers: s.userAnswers || {},
     }));
   } catch (e) {

@@ -97,6 +97,14 @@ export interface TestResult {
   timeSpentMinutes: number;
   date: string;
   userAnswers: Record<string, number>;
+  test_type?: string;
+  testType?: string;
+  target_department_id?: string | null;
+  isDepartmental?: boolean;
+  is_departmental?: boolean;
+  status?: string;
+  submitted_at?: string;
+  submittedAt?: string;
 }
 
 export interface InterviewQuestion {

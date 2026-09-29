@@ -729,7 +729,7 @@ class Database:
         return None
 
     def get_student_test_history(self, student_id: str) -> List[Dict[str, Any]]:
-        """Return submitted attempts for a student, joined with test titles."""
+        """Return submitted attempts for a student, joined with test titles and targeting info."""
         if not supabase_client:
             return []
         uid = str(student_id)
@@ -740,31 +740,114 @@ class Database:
             if not res.data:
                 return []
 
-            # Bulk-fetch test titles
+            # Bulk-fetch test details including targeting
             test_ids = list({a["test_id"] for a in res.data if a.get("test_id")})
-            title_map: Dict[str, str] = {}
-            type_map: Dict[str, str] = {}
+            test_map: Dict[str, Dict[str, Any]] = {}
             if test_ids:
-                mt_res = supabase_client.table("mock_tests").select("id, title, test_type").in_("id", test_ids).execute()
+                mt_res = supabase_client.table("mock_tests").select(
+                    "id, title, test_type, target_department_id, target_year"
+                ).in_("id", test_ids).execute()
                 if mt_res.data:
-                    title_map = {r["id"]: r.get("title", "") for r in mt_res.data}
-                    type_map = {r["id"]: r.get("test_type", "") for r in mt_res.data}
+                    test_map = {r["id"]: r for r in mt_res.data}
+
+            # Fetch student's department for departmental targeting check
+            student_dept_id = None
+            try:
+                sp_res = supabase_client.table("student_profiles").select("department_id").eq("user_id", uid).execute()
+                if sp_res.data:
+                    student_dept_id = sp_res.data[0].get("department_id")
+            except Exception as e:
+                print(f"[DB get_student_test_history profile {uid}]:", e)
+
+            # Deterministic repair of historical attempts where total_marks is 0 or missing
+            needs_repair = [a for a in res.data if not a.get("total_marks") or a.get("total_marks") == 0]
+            if needs_repair:
+                for a in needs_repair:
+                    att_id = str(a["id"])
+                    t_id = str(a.get("test_id", ""))
+                    try:
+                        ans_res = supabase_client.table("mock_test_attempt_answers").select(
+                            "question_id, selected_option, is_correct"
+                        ).eq("attempt_id", att_id).execute()
+                        if ans_res.data:
+                            q_res = supabase_client.table("mock_test_questions").select(
+                                "id, correct_option"
+                            ).eq("test_id", t_id).execute()
+                            q_map = {str(q["id"]): str(q.get("correct_option") or "").strip().upper() for q in (q_res.data or [])}
+
+                            rec_total = len(q_map) if q_map else len(ans_res.data)
+                            rec_marks = 0
+                            for ans in ans_res.data:
+                                q_id = str(ans.get("question_id", ""))
+                                sel = str(ans.get("selected_option") or "").strip().upper()
+                                corr = q_map.get(q_id, "")
+                                is_corr = ans.get("is_correct")
+                                if is_corr is True or (sel and corr and sel == corr):
+                                    rec_marks += 1
+                            rec_pct = round((rec_marks / rec_total) * 100, 2) if rec_total > 0 else 0.0
+
+                            supabase_client.table("mock_test_attempts").update({
+                                "marks_obtained": rec_marks,
+                                "total_marks": rec_total,
+                                "score_percentage": rec_pct,
+                            }).eq("id", att_id).execute()
+
+                            a["marks_obtained"] = rec_marks
+                            a["total_marks"] = rec_total
+                            a["score_percentage"] = rec_pct
+                    except Exception as err:
+                        print(f"[DB repair_attempt {att_id}]:", err)
 
             out = []
             for a in res.data:
                 tid = a.get("test_id", "")
+                t_info = test_map.get(tid, {})
+                t_type = (t_info.get("test_type") or "general").lower()
+                target_dept = t_info.get("target_department_id")
+                is_departmental = bool(target_dept and (student_dept_id is None or str(target_dept) == str(student_dept_id)))
+
+                # Determine real category
+                if is_departmental:
+                    category = "Departmental"
+                elif t_type in ("aptitude", "technical", "general"):
+                    category = t_type.capitalize()
+                else:
+                    category = "General"
+
+                marks = int(a.get("marks_obtained", 0) or 0)
+                tot = int(a.get("total_marks", 0) or 0)
+                pct = float(a.get("score_percentage", 0) or 0.0)
+                passed = pct > 65
+                att_status = str(a.get("status", "submitted"))
+                sub_at = str(a.get("submitted_at", "") or "")
+
                 out.append({
                     "id": str(a["id"]),
                     "test_id": str(tid),
-                    "test_title": title_map.get(tid, "Mock Test"),
-                    "test_type": type_map.get(tid, "general"),
-                    "attempt_number": int(a.get("attempt_number", 1)),
-                    "marks_obtained": int(a.get("marks_obtained", 0)),
-                    "total_marks": int(a.get("total_marks", 0)),
-                    "score_percentage": float(a.get("score_percentage", 0)),
-                    "status": str(a.get("status", "")),
-                    "submitted_at": str(a.get("submitted_at", "")),
-                    "cleared": float(a.get("score_percentage", 0)) > 65,
+                    "testId": str(tid),
+                    "test_title": t_info.get("title", "Mock Test"),
+                    "testTitle": t_info.get("title", "Mock Test"),
+                    "test_type": t_type,
+                    "testType": t_type,
+                    "target_department_id": target_dept,
+                    "target_year": t_info.get("target_year"),
+                    "is_departmental": is_departmental,
+                    "isDepartmental": is_departmental,
+                    "category": category,
+                    "attempt_number": int(a.get("attempt_number", 1) or 1),
+                    "marks_obtained": marks,
+                    "score": marks,
+                    "total_marks": tot,
+                    "totalQuestions": tot,
+                    "total_questions": tot,
+                    "score_percentage": pct,
+                    "percentage": pct,
+                    "accuracy": pct,
+                    "status": att_status,
+                    "submitted_at": sub_at,
+                    "submittedAt": sub_at,
+                    "cleared": passed,
+                    "passed": passed,
                 })
             return out
         except Exception as e:

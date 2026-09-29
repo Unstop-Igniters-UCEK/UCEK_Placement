@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import BlurText from '../components/BlurText';
-import { getSpeechAnalyticsApi, SpeechAnalyticsResponse, getUserReadinessApi, UserReadinessMetrics } from '../lib/api';
+import { getSpeechAnalyticsApi, SpeechAnalyticsResponse, getUserReadinessApi, UserReadinessMetrics, getTestReview } from '../lib/api';
 import { TestResult } from '../types';
 import {
   Award,
@@ -29,7 +29,8 @@ import {
   BarChart3,
   Play,
   RotateCcw,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 
 export const Dashboard: React.FC = React.memo(() => {
@@ -45,8 +46,31 @@ export const Dashboard: React.FC = React.memo(() => {
     setSelectedInterviewQuestionId
   } = useApp();
 
-  const [driveFilter, setDriveFilter] = useState<'all' | 'Company Drive' | 'Aptitude' | 'Technical'>('all');
+  const [driveFilter, setDriveFilter] = useState<'all' | 'Departmental' | 'Aptitude' | 'Technical' | 'General'>('all');
   const [selectedReviewResult, setSelectedReviewResult] = useState<TestResult | null>(null);
+  const [reviewLoading, setReviewLoading] = useState<boolean>(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewData, setReviewData] = useState<any[] | null>(null);
+
+  const handleOpenReview = async (res: TestResult) => {
+    setSelectedReviewResult(res);
+    setReviewLoading(true);
+    setReviewError(null);
+    setReviewData(null);
+    try {
+      const data = await getTestReview(res.testId, res.id);
+      if (data && Array.isArray(data.review)) {
+        setReviewData(data.review);
+      } else {
+        setReviewData([]);
+      }
+    } catch (err: any) {
+      console.error('Failed to load review:', err);
+      setReviewError(err.message || 'Failed to load test review.');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
 
   // Pagination State (Limit of 3 items per page)
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -164,10 +188,14 @@ export const Dashboard: React.FC = React.memo(() => {
   const testsTaken = recentScores.length;
   const testsPassed = recentScores.filter(s => s && s.passed).length;
 
-  const filteredScores = [...(recentScores || [])].reverse().filter(s => {
+  const filteredScores = (recentScores || []).filter(s => {
     if (!s) return false;
     if (driveFilter === 'all') return true;
-    return s.category === driveFilter;
+    if (driveFilter === 'Departmental') {
+      return Boolean(s.isDepartmental || s.is_departmental || (s.target_department_id && s.target_department_id === (user as any)?.departmentId));
+    }
+    const tType = (s.test_type || s.testType || s.category || '').toLowerCase();
+    return tType === driveFilter.toLowerCase();
   });
 
   // Pagination calculation logic
@@ -420,7 +448,7 @@ export const Dashboard: React.FC = React.memo(() => {
                 {/* FILTER TABS & CTA INLINE ON THE RIGHT */}
                 <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap min-w-0 max-w-full">
                   <div className="flex items-center bg-[#2a2e2f] p-1 rounded-full border border-white/10 text-xs max-w-full overflow-x-auto no-scrollbar">
-                    {(['all', 'Company Drive', 'Aptitude', 'Technical'] as const).map(tab => (
+                    {(['all', 'Departmental', 'Aptitude', 'Technical', 'General'] as const).map(tab => (
                       <button
                         key={tab}
                         onClick={() => setDriveFilter(tab)}
@@ -429,7 +457,7 @@ export const Dashboard: React.FC = React.memo(() => {
                           : 'text-zinc-400 hover:text-zinc-200'
                           }`}
                       >
-                        {tab === 'all' ? 'All Drives' : tab.replace(' Drive', '')}
+                        {tab === 'all' ? 'All Drives' : tab}
                       </button>
                     ))}
                   </div>
@@ -485,7 +513,7 @@ export const Dashboard: React.FC = React.memo(() => {
                           if (!res) return null;
                           const resIdStr = String(res.id || idx);
                           const resTitleStr = String(res.testTitle || 'Mock Assessment Drive');
-                          const resCategoryStr = String(res.category || 'Company Drive');
+                          const resCategoryStr = String(res.category || 'General');
                           const resAccuracy = res.accuracy ?? 0;
 
                           return (
@@ -496,7 +524,7 @@ export const Dashboard: React.FC = React.memo(() => {
                                 </div>
                                 <div>
                                   <span className="block font-semibold group-hover:text-orange-400 transition-colors">{resTitleStr}</span>
-                                  <span className="text-[10px] text-zinc-500 font-mono">Attempt ID: #{resIdStr.slice(0, 6)}</span>
+                                  <span className="text-[10px] text-zinc-500 font-mono">Attempt ID: #{resIdStr.slice(0, 8)}</span>
                                 </div>
                               </td>
                               <td className="p-4">
@@ -519,7 +547,11 @@ export const Dashboard: React.FC = React.memo(() => {
                                 </div>
                               </td>
                               <td className="p-4">
-                                {resTitleStr.includes('DISQUALIFIED') ? (
+                                {res.status === 'expired' ? (
+                                  <span className="px-3 py-1 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 text-[11px] font-bold inline-flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> EXPIRED
+                                  </span>
+                                ) : res.status === 'abandoned' || resTitleStr.includes('DISQUALIFIED') ? (
                                   <span className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold inline-flex items-center gap-1">
                                     <AlertCircle className="w-3 h-3 text-rose-400" /> DISQUALIFIED
                                   </span>
@@ -539,7 +571,7 @@ export const Dashboard: React.FC = React.memo(() => {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     e.preventDefault();
-                                    setSelectedReviewResult(res);
+                                    handleOpenReview(res);
                                   }}
                                   className="px-3.5 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-[11px] font-medium text-zinc-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1 active:scale-[0.97]"
                                 >
@@ -733,7 +765,7 @@ export const Dashboard: React.FC = React.memo(() => {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="mono-badge text-[10px] uppercase font-bold text-orange-400 bg-orange-500/10 border-orange-500/20">
-                          {selectedReviewResult.category || 'Company Drive'}
+                          {selectedReviewResult.category || 'General'}
                         </span>
                         <span className="text-[10px] text-zinc-400 font-mono">Attempt #{String(selectedReviewResult.id || '').slice(0, 8)}</span>
                       </div>
@@ -744,7 +776,11 @@ export const Dashboard: React.FC = React.memo(() => {
                   </div>
 
                   <button
-                    onClick={() => setSelectedReviewResult(null)}
+                    onClick={() => {
+                      setSelectedReviewResult(null);
+                      setReviewData(null);
+                      setReviewError(null);
+                    }}
                     className="w-8 h-8 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:border-white/20 transition-colors cursor-pointer"
                     title="Close"
                   >
@@ -758,7 +794,11 @@ export const Dashboard: React.FC = React.memo(() => {
                   <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1">
                     <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider block">Status</span>
                     <div>
-                      {String(selectedReviewResult.testTitle || '').includes('DISQUALIFIED') ? (
+                      {selectedReviewResult.status === 'expired' ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 text-[11px] font-bold inline-flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Expired
+                        </span>
+                      ) : selectedReviewResult.status === 'abandoned' || String(selectedReviewResult.testTitle || '').includes('DISQUALIFIED') ? (
                         <span className="px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[11px] font-bold inline-flex items-center gap-1">
                           <AlertCircle className="w-3 h-3 text-rose-400" /> Disqualified
                         </span>
@@ -800,119 +840,130 @@ export const Dashboard: React.FC = React.memo(() => {
                 </div>
 
                 {/* DETAILED QUESTION BREAKDOWN & ANSWERS */}
-                {(() => {
-                  const selTitleLower = String(selectedReviewResult.testTitle || '').toLowerCase();
-                  const matchingTest = (mockTests || []).find(
-                    t => t && (t.id === selectedReviewResult.testId || (t.title && t.title.toLowerCase() === selTitleLower))
-                  ) || mockTests[0];
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <h3 className="text-sm font-bold text-white font-heading flex items-center gap-2">
+                      <CheckSquare className="w-4 h-4 text-orange-400" />
+                      Detailed Question Analysis & Explanations
+                    </h3>
+                    <span className="text-[10px] text-zinc-400 font-mono">
+                      {reviewData ? `${reviewData.length} Questions` : ''}
+                    </span>
+                  </div>
 
-                  const questionsList = matchingTest?.questions || [];
-
-                  return (
+                  {reviewLoading ? (
+                    <div className="p-8 rounded-xl bg-[#141414] border border-white/10 text-center space-y-2">
+                      <Loader2 className="w-6 h-6 text-orange-400 animate-spin mx-auto" />
+                      <p className="text-xs text-zinc-400">Loading attempt review...</p>
+                    </div>
+                  ) : reviewError ? (
+                    <div className="p-6 rounded-xl bg-[#141414] border border-rose-500/20 text-center space-y-2">
+                      <AlertCircle className="w-6 h-6 text-rose-400 mx-auto" />
+                      <p className="text-xs text-rose-300">{reviewError}</p>
+                    </div>
+                  ) : reviewData && reviewData.length > 0 ? (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                        <h3 className="text-sm font-bold text-white font-heading flex items-center gap-2">
-                          <CheckSquare className="w-4 h-4 text-orange-400" />
-                          Detailed Question Analysis & Explanations
-                        </h3>
-                        <span className="text-[10px] text-zinc-400 font-mono">{questionsList.length} Questions</span>
-                      </div>
+                      {reviewData.map((q: any, idx: number) => {
+                        const selectedOpt = q.selected_option || q.selectedOption;
+                        const correctOpt = q.correct_option || q.correctOption;
+                        const isNotAnswered = !selectedOpt;
+                        const isCorrect = Boolean(q.is_correct ?? q.isCorrect);
 
-                      {questionsList.length > 0 ? (
-                        <div className="space-y-4">
-                          {questionsList.map((q, idx) => {
-                            const userSelectedOpt = selectedReviewResult.userAnswers?.[q.id] ?? selectedReviewResult.userAnswers?.[`q${idx + 1}`];
-                            const isCorrect = userSelectedOpt === q.correctOption;
+                        const options = [
+                          { key: 'A', text: q.option_a },
+                          { key: 'B', text: q.option_b },
+                          { key: 'C', text: q.option_c },
+                          { key: 'D', text: q.option_d },
+                        ].filter(o => o.text !== undefined && o.text !== null);
 
-                            return (
-                              <div key={q.id || idx} className="p-4 rounded-xl bg-[#141414] border border-white/10 space-y-3">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs font-bold text-white font-mono">Q{idx + 1}.</span>
-                                      <span className="mono-badge text-[10px] py-0.5 px-2 bg-zinc-900 border-white/10 text-zinc-300">
-                                        {q.type}
-                                      </span>
-                                      <span className="text-[10px] text-zinc-400 capitalize font-mono">[{q.difficulty}]</span>
-                                    </div>
-                                    <p className="text-xs text-zinc-200 font-medium leading-relaxed">
-                                      {q.title}
-                                    </p>
-                                  </div>
-
-                                  <div className="shrink-0">
-                                    {userSelectedOpt !== undefined ? (
-                                      isCorrect ? (
-                                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
-                                          <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Correct
-                                        </span>
-                                      ) : (
-                                        <span className="px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-bold flex items-center gap-1">
-                                          <X className="w-3 h-3 text-rose-400" /> Incorrect
-                                        </span>
-                                      )
-                                    ) : (
-                                      <span className="px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 text-zinc-400 text-[10px] font-bold">
-                                        Completed
-                                      </span>
-                                    )}
-                                  </div>
+                        return (
+                          <div key={q.id || q.question_id || idx} className="p-4 rounded-xl bg-[#141414] border border-white/10 space-y-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-white font-mono">Q{idx + 1}.</span>
                                 </div>
+                                <p className="text-xs text-zinc-200 font-medium leading-relaxed">
+                                  {q.question_text || q.question}
+                                </p>
+                              </div>
 
-                                {/* OPTIONS LIST */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                                  {q.options.map((optionText: string, optIdx: number) => {
-                                    const isThisCorrect = optIdx === q.correctOption;
-                                    const isThisUserSelected = optIdx === userSelectedOpt;
-
-                                    let optStyle = "bg-[#0d0d0d] border-white/5 text-zinc-300";
-                                    if (isThisCorrect) {
-                                      optStyle = "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-semibold";
-                                    } else if (isThisUserSelected && !isThisCorrect) {
-                                      optStyle = "bg-rose-500/10 border-rose-500/40 text-rose-300 font-medium";
-                                    }
-
-                                    return (
-                                      <div
-                                        key={optIdx}
-                                        className={`p-2.5 rounded-lg border flex items-center justify-between gap-2 ${optStyle}`}
-                                      >
-                                        <span className="leading-snug">{optionText}</span>
-                                        {isThisCorrect && (
-                                          <span className="text-[10px] font-bold text-emerald-400 shrink-0 font-mono">✓ Correct</span>
-                                        )}
-                                        {isThisUserSelected && !isThisCorrect && (
-                                          <span className="text-[10px] font-bold text-rose-400 shrink-0 font-mono">✗ Your Choice</span>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-
-                                {/* EXPLANATION */}
-                                {q.explanation && (
-                                  <div className="p-3 rounded-lg bg-[#0d0d0d] border border-orange-500/20 text-xs text-zinc-300 space-y-1">
-                                    <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block font-mono">Explanation</span>
-                                    <p className="text-zinc-300 leading-relaxed">{q.explanation}</p>
-                                  </div>
+                              <div className="shrink-0">
+                                {isNotAnswered ? (
+                                  <span className="px-2.5 py-1 rounded-full bg-zinc-800 border border-white/10 text-zinc-400 text-[10px] font-bold">
+                                    Not answered
+                                  </span>
+                                ) : isCorrect ? (
+                                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Correct
+                                  </span>
+                                ) : (
+                                  <span className="px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-bold flex items-center gap-1">
+                                    <X className="w-3 h-3 text-rose-400" /> Incorrect
+                                  </span>
                                 )}
                               </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="p-6 rounded-xl bg-[#141414] border border-white/10 text-center space-y-2">
-                          <p className="text-xs text-zinc-300">Detailed question log preview for this assessment drive.</p>
-                        </div>
-                      )}
+                            </div>
+
+                            {/* OPTIONS LIST */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              {options.map((opt) => {
+                                const isThisCorrect = opt.key === correctOpt;
+                                const isThisUserSelected = opt.key === selectedOpt;
+
+                                let optStyle = "bg-[#0d0d0d] border-white/5 text-zinc-300";
+                                if (isThisCorrect) {
+                                  optStyle = "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-semibold";
+                                } else if (isThisUserSelected && !isThisCorrect) {
+                                  optStyle = "bg-rose-500/10 border-rose-500/40 text-rose-300 font-medium";
+                                }
+
+                                return (
+                                  <div
+                                    key={opt.key}
+                                    className={`p-2.5 rounded-lg border flex items-center justify-between gap-2 ${optStyle}`}
+                                  >
+                                    <span className="leading-snug">
+                                      <strong className="font-mono mr-1.5">{opt.key}.</strong>
+                                      {opt.text}
+                                    </span>
+                                    {isThisCorrect && (
+                                      <span className="text-[10px] font-bold text-emerald-400 shrink-0 font-mono">✓ Correct</span>
+                                    )}
+                                    {isThisUserSelected && !isThisCorrect && (
+                                      <span className="text-[10px] font-bold text-rose-400 shrink-0 font-mono">✗ Your Choice</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* EXPLANATION */}
+                            {q.explanation && (
+                              <div className="p-3 rounded-lg bg-[#0d0d0d] border border-orange-500/20 text-xs text-zinc-300 space-y-1">
+                                <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider block font-mono">Explanation</span>
+                                <p className="text-zinc-300 leading-relaxed">{q.explanation}</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })()}
+                  ) : (
+                    <div className="p-6 rounded-xl bg-[#141414] border border-white/10 text-center space-y-2">
+                      <p className="text-xs text-zinc-300">Detailed question log preview for this assessment drive.</p>
+                    </div>
+                  )}
+                </div>
 
                 {/* MODAL FOOTER */}
                 <div className="flex items-center justify-between border-t border-white/10 pt-4 gap-3">
                   <button
-                    onClick={() => setSelectedReviewResult(null)}
+                    onClick={() => {
+                      setSelectedReviewResult(null);
+                      setReviewData(null);
+                      setReviewError(null);
+                    }}
                     className="px-5 py-2.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white transition-all cursor-pointer"
                   >
                     Close Review
@@ -921,6 +972,8 @@ export const Dashboard: React.FC = React.memo(() => {
                   <button
                     onClick={() => {
                       setSelectedReviewResult(null);
+                      setReviewData(null);
+                      setReviewError(null);
                       setActiveTab('tests');
                     }}
                     className="btn-primary py-2.5 px-6 text-xs font-bold rounded-full cursor-pointer flex items-center gap-2 shadow-lg"

@@ -50,10 +50,32 @@ def get_tests(current_user: dict = Depends(get_current_user)):
 # ─── Test history ─────────────────────────────────────────────────────────────
 
 @router.get("/history/my")
-def get_test_history(current_user: dict = Depends(get_current_user)):
-    """Return the student's submitted mock test attempt history."""
+def get_test_history(category: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Return the student's submitted mock test attempt history with optional category filtering."""
     scores = db.get_student_test_history(current_user["id"])
+    if category and category.lower() != "all":
+        cat_lower = category.lower()
+        filtered = []
+        for s in scores:
+            if cat_lower == "departmental" and s.get("is_departmental"):
+                filtered.append(s)
+            elif s.get("test_type", "").lower() == cat_lower or s.get("category", "").lower() == cat_lower:
+                filtered.append(s)
+        return {"scores": filtered}
     return {"scores": scores}
+
+
+@router.delete("/history/my")
+def delete_test_history(current_user: dict = Depends(get_current_user)):
+    """Allow a student to clear their own test attempt history."""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+    try:
+        supabase_client.table("mock_test_attempts").delete().eq("student_id", current_user["id"]).execute()
+        return {"message": "Test history cleared."}
+    except Exception as e:
+        print("[delete_test_history]:", e)
+        raise HTTPException(status_code=500, detail="Failed to clear test history.")
 
 
 # ─── Get test detail + questions (correct_option hidden before submission) ─────
@@ -361,15 +383,18 @@ def get_test_review(test_id: str, attempt_id: Optional[str] = None, current_user
     Fetch question and answer review for the student's attempt.
     Matches answers to questions by question_id.
     """
-    if current_user.get("role") != "student":
-        raise HTTPException(status_code=403, detail="Only students can view test review.")
+    if current_user.get("role") not in ("student", "admin"):
+        raise HTTPException(status_code=403, detail="Only students and admins can view test review.")
 
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Database unavailable.")
 
     # Find the attempt
     if attempt_id:
-        att_res = supabase_client.table("mock_test_attempts").select("*").eq("id", attempt_id).eq("student_id", current_user["id"]).execute()
+        q = supabase_client.table("mock_test_attempts").select("*").eq("id", attempt_id)
+        if current_user.get("role") == "student":
+            q = q.eq("student_id", current_user["id"])
+        att_res = q.execute()
         if not att_res.data:
             raise HTTPException(status_code=404, detail="Attempt not found.")
         attempt = att_res.data[0]
@@ -413,6 +438,10 @@ def get_test_review(test_id: str, attempt_id: Optional[str] = None, current_user
         opt_d = q.get("option_d", "")
         q_text = q.get("question_text", "")
 
+        opt_map = {"A": opt_a, "B": opt_b, "C": opt_c, "D": opt_d}
+        selected_text = opt_map.get(selected) if selected else None
+        correct_text = opt_map.get(correct) if correct else None
+
         review_list.append({
             "id": q_id,
             "question_id": q_id,
@@ -425,8 +454,12 @@ def get_test_review(test_id: str, attempt_id: Optional[str] = None, current_user
             "options": [opt_a, opt_b, opt_c, opt_d],
             "correct_option": correct,
             "correctOption": correct,
+            "correct_text": correct_text,
+            "correctText": correct_text,
             "selected_option": selected,
             "selectedOption": selected,
+            "selected_text": selected_text,
+            "selectedText": selected_text,
             "is_correct": is_correct,
             "isCorrect": is_correct,
             "explanation": q.get("explanation", ""),
@@ -442,6 +475,29 @@ def get_test_review(test_id: str, attempt_id: Optional[str] = None, current_user
         "passed": float(attempt.get("score_percentage", 0)) > 65,
         "review": review_list,
     }
+
+
+@router.get("/attempts/{attempt_id}/review")
+def get_attempt_review(attempt_id: str, current_user: dict = Depends(get_current_user)):
+    """
+    Fetch question and answer review directly by attempt_id.
+    """
+    if current_user.get("role") not in ("student", "admin"):
+        raise HTTPException(status_code=403, detail="Only students and admins can view test review.")
+
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    q = supabase_client.table("mock_test_attempts").select("*").eq("id", attempt_id)
+    if current_user.get("role") == "student":
+        q = q.eq("student_id", current_user["id"])
+    att_res = q.execute()
+    if not att_res.data:
+        raise HTTPException(status_code=404, detail="Attempt not found.")
+    attempt = att_res.data[0]
+    test_id = str(attempt["test_id"])
+
+    return get_test_review(test_id=test_id, attempt_id=attempt_id, current_user=current_user)
 
 
 # ─── Admin: Upload CSV test ───────────────────────────────────────────────────
