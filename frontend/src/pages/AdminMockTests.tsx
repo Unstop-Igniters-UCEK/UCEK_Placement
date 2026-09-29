@@ -18,6 +18,8 @@ import {
   FileCheck2,
   Sparkles,
   Loader2,
+  Trash2,
+  X,
 } from 'lucide-react';
 
 /* ─── Motion ──────────────────────────────────────────────────── */
@@ -80,6 +82,27 @@ export const AdminMockTests: React.FC = () => {
 
   /* ── Filter state ── */
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
+
+  /* ── Delete state ── */
+  const [testToDelete, setTestToDelete] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleConfirmDelete = async () => {
+    if (!testToDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await api.deleteMockTest(testToDelete.id);
+      setTests(prev => prev.filter(t => t.id !== testToDelete.id));
+      setTestToDelete(null);
+    } catch (err: any) {
+      console.error('Failed to remove mock test:', err);
+      setDeleteError(err.message || 'Failed to remove mock test');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const fetchAdminTests = async () => {
     setLoadingTests(true);
@@ -450,7 +473,7 @@ export const AdminMockTests: React.FC = () => {
                       </div>
 
                       {/* Footer Info */}
-                      <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                      <div className="flex items-center justify-between pt-3 border-t border-white/5 gap-2">
                         <div className="flex items-center gap-3 text-xs text-zinc-400 font-mono">
                           <span className="flex items-center gap-1">
                             <FileText className="w-3.5 h-3.5 text-zinc-500" />
@@ -463,9 +486,23 @@ export const AdminMockTests: React.FC = () => {
                           </span>
                         </div>
 
-                        <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-mono font-semibold">
-                          Published
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-semibold">
+                            Published
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTestToDelete(test);
+                              setDeleteError(null);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/30 text-zinc-400 hover:text-rose-400 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-medium active:scale-95"
+                            title="Remove this mock test from active use"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -476,6 +513,117 @@ export const AdminMockTests: React.FC = () => {
         </div>
 
       </motion.div>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {testToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 font-sans"
+            onClick={() => {
+              if (!deleting) {
+                setTestToDelete(null);
+                setDeleteError(null);
+              }
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="mono-card p-6 max-w-md w-full relative space-y-5 shadow-2xl border border-white/10 bg-[#0d0d0d] rounded-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white font-heading">
+                      Remove Mock Test
+                    </h3>
+                    <p className="text-xs text-zinc-400">Confirm test removal from active use</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => {
+                    setTestToDelete(null);
+                    setDeleteError(null);
+                  }}
+                  className="w-8 h-8 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:border-white/20 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs leading-relaxed text-zinc-300">
+                <p>
+                  Are you sure you want to remove <strong className="text-white">"{testToDelete.title}"</strong>?
+                </p>
+
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-2 text-zinc-400 font-mono text-[11px]">
+                  <div className="flex items-start gap-2 text-rose-300">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                    <span>The test will no longer be available to students.</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-zinc-300">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-orange-400 mt-0.5" />
+                    <span>It will be removed from the active admin list.</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-emerald-300">
+                    <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+                    <span>Historical student attempts and answers will remain fully preserved.</span>
+                  </div>
+                </div>
+
+                {deleteError && (
+                  <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+                    {deleteError}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => {
+                    setTestToDelete(null);
+                    setDeleteError(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-xs font-semibold text-zinc-300 hover:text-white transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-lg active:scale-95 disabled:opacity-50"
+                >
+                  {deleting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Removing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove Test</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </motion.div>
   );

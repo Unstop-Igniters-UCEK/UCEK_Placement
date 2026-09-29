@@ -613,3 +613,32 @@ def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_
         "test_type": test_type,
         "total_questions": len(req.questions),
     }
+
+
+# ─── Admin: Delete/Remove mock test (soft-delete) ─────────────────────────────
+
+@router.delete("/{test_id}")
+def delete_mock_test(test_id: str, current_user: dict = Depends(get_current_user)):
+    """
+    Admin-only soft delete of a mock test.
+    Sets status = 'deleted' and deleted_at = current timestamp.
+    Preserves questions and historical attempts.
+    """
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privilege required to delete mock tests.")
+
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    test = db.get_test_by_id(test_id)
+    if not test:
+        raise HTTPException(status_code=404, detail="Mock test not found.")
+
+    if test.get("status") == "deleted":
+        return {"message": "Test is already deleted.", "test_id": test_id}
+
+    success = db.soft_delete_mock_test(test_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to delete mock test.")
+
+    return {"message": "Mock test successfully removed from active use.", "test_id": test_id}

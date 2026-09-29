@@ -681,6 +681,25 @@ class Database:
             print(f"[DB get_test_by_id {test_id}]:", e)
         return None
 
+    def soft_delete_mock_test(self, test_id: str) -> bool:
+        """
+        Soft-delete a mock test by setting status='deleted' and deleted_at=now().
+        Preserves questions, historical attempts, and answers.
+        """
+        if not supabase_client or not test_id:
+            return False
+        try:
+            now = datetime.utcnow().isoformat()
+            res = supabase_client.table("mock_tests").update({
+                "status": "deleted",
+                "deleted_at": now,
+                "updated_at": now,
+            }).eq("id", test_id).execute()
+            return bool(res.data)
+        except Exception as e:
+            print(f"[DB soft_delete_mock_test {test_id}]:", e)
+            return False
+
     def get_questions_for_test(self, test_id: str) -> List[Dict[str, Any]]:
         """Return all questions for a test, ordered by question_order."""
         if not supabase_client or not test_id:

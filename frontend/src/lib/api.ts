@@ -843,6 +843,18 @@ export async function batchCSVCreateUsers(
   return res.json();
 }
 
+export async function deleteMockTest(testId: string): Promise<any> {
+  const res = await authFetch(`${BASE_URL}/api/tests/${testId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to delete mock test' }));
+    throw new Error(err.detail || 'Failed to delete mock test');
+  }
+  return res.json();
+}
+
 export const api = {
   getTests,
   uploadCSVTest,
@@ -850,6 +862,7 @@ export const api = {
   getTestDetails,
   submitQuiz,
   getTestReview,
+  deleteMockTest,
 };
 
 
