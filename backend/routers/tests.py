@@ -78,6 +78,16 @@ def delete_test_history(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="Failed to clear test history.")
 
 
+# ─── Mock Drive Practice card summary ──────────────────────────────────────────
+
+@router.get("/practice-summary")
+def get_practice_summary(current_user: dict = Depends(get_current_user)):
+    """Return Mock Drive Practice card summary stats for the authenticated student."""
+    if current_user.get("role") != "student":
+        return {"total_available": 0, "cleared": 0}
+    return db.get_student_mock_drive_summary(current_user["id"])
+
+
 # ─── Get test detail + questions (correct_option hidden before submission) ─────
 
 @router.get("/{test_id}")

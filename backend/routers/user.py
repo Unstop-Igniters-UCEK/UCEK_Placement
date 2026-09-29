@@ -230,12 +230,14 @@ def get_dashboard(current_user: dict = Depends(get_current_user)):
     readiness = get_user_readiness_metrics(uid) if current_user.get("role") == "student" else None
     recent_scores = db.get_student_test_history(uid)[:5] if current_user.get("role") == "student" else []
     latest_hr = db.get_student_latest_hr_attempt(uid) if current_user.get("role") == "student" else None
+    mock_drive = db.get_student_mock_drive_summary(uid) if current_user.get("role") == "student" else {"total_available": 0, "cleared": 0}
 
     return {
         "user": _build_profile_payload(current_user, readiness),
         "readiness": readiness,
         "recent_test_scores": recent_scores,
         "latest_hr_attempt": latest_hr,
+        "mock_drive_summary": mock_drive,
     }
 
 

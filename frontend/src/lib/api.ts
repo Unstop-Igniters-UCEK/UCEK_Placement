@@ -691,6 +691,21 @@ export const getAllUsersAdminApi = async () => {
 
 // ─── Quiz Assignment & Exam Hub API Methods ───
 
+export interface MockDrivePracticeSummary {
+  total_available: number;
+  cleared: number;
+}
+
+export async function getMockDrivePracticeSummaryApi(): Promise<MockDrivePracticeSummary> {
+  const res = await authFetch(`${BASE_URL}/api/tests/practice-summary`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    return { total_available: 0, cleared: 0 };
+  }
+  return res.json();
+}
+
 export async function getTests(): Promise<{ tests: any[] }> {
   const res = await authFetch(`${BASE_URL}/api/tests`, {
     headers: authHeaders(),
@@ -902,6 +917,7 @@ export async function updateAdminRegistrationSettingApi(
 
 export const api = {
   getTests,
+  getMockDrivePracticeSummaryApi,
   uploadCSVTest,
   startTest,
   getTestDetails,

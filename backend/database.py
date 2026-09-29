@@ -971,6 +971,93 @@ class Database:
             print(f"[DB get_student_test_history {uid}]:", e)
         return []
 
+    def get_student_mock_drive_summary(self, student_id: str) -> Dict[str, int]:
+        """
+        Calculate Mock Drive Practice card stats per Impulse_DB_Design.md §16.4:
+        - total_available: count of currently published tests matching student's department & year.
+        - cleared: count of DISTINCT matching test IDs where student has at least one
+                   submitted attempt with score_percentage > 65 (strictly greater than 65%).
+        """
+        if not supabase_client:
+            return {"total_available": 0, "cleared": 0}
+
+        uid = str(student_id)
+        try:
+            # 1. Fetch authenticated student's real department_id and year from student_profiles
+            dept_id: Optional[str] = None
+            raw_year: Optional[Any] = None
+
+            sp_res = supabase_client.table("student_profiles").select("department_id, year").eq("user_id", uid).execute()
+            if sp_res.data:
+                dept_id = sp_res.data[0].get("department_id")
+                raw_year = sp_res.data[0].get("year")
+
+            parsed_year: Optional[int] = None
+            if raw_year is not None:
+                if isinstance(raw_year, int) and raw_year in (1, 2, 3, 4):
+                    parsed_year = raw_year
+                else:
+                    s = str(raw_year).strip().lower()
+                    for digit in ("1", "2", "3", "4"):
+                        if digit in s:
+                            parsed_year = int(digit)
+                            break
+
+            # 2. Query currently published mock tests only (status = 'published')
+            res = supabase_client.table("mock_tests").select(
+                "id, target_department_id, target_year"
+            ).eq("status", "published").execute()
+
+            if not res.data:
+                return {"total_available": 0, "cleared": 0}
+
+            matching_test_ids: List[str] = []
+            for t in res.data:
+                td = t.get("target_department_id")
+                ty = t.get("target_year")
+
+                # Department matching rule: NULL -> all depts, otherwise matches student's dept
+                dept_match = (td is None) or (dept_id is not None and str(td).lower() == str(dept_id).lower())
+
+                # Year matching rule: NULL -> all years, otherwise matches student's year
+                ty_int: Optional[int] = None
+                if ty is not None:
+                    try:
+                        ty_int = int(str(ty).strip().split()[0])
+                    except (ValueError, TypeError):
+                        pass
+                year_match = (ty is None) or (parsed_year is not None and ty_int == parsed_year)
+
+                if dept_match and year_match:
+                    matching_test_ids.append(str(t["id"]))
+
+            total_available = len(matching_test_ids)
+            if total_available == 0:
+                return {"total_available": 0, "cleared": 0}
+
+            # 3. Query submitted attempts only for currently matching tests
+            att_res = supabase_client.table("mock_test_attempts").select(
+                "test_id, score_percentage"
+            ).eq("student_id", uid).eq("status", "submitted").in_("test_id", matching_test_ids).execute()
+
+            cleared_test_ids = set()
+            if att_res.data:
+                for att in att_res.data:
+                    try:
+                        sp = float(att.get("score_percentage", 0) or 0)
+                        if sp > 65.0:
+                            cleared_test_ids.add(str(att["test_id"]))
+                    except (ValueError, TypeError):
+                        continue
+
+            return {
+                "total_available": total_available,
+                "cleared": len(cleared_test_ids),
+            }
+        except Exception as e:
+            print(f"[DB get_student_mock_drive_summary {uid}]:", e)
+            return {"total_available": 0, "cleared": 0}
+
     # ── Admin metrics ──────────────────────────────────────────────────────────
 
     def get_admin_student_list(self, page: int = 1, page_size: int = 50) -> Dict[str, Any]:

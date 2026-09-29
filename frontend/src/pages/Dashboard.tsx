@@ -3,7 +3,15 @@ import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import BlurText from '../components/BlurText';
-import { getSpeechAnalyticsApi, SpeechAnalyticsResponse, getUserReadinessApi, UserReadinessMetrics, getTestReview } from '../lib/api';
+import {
+  getSpeechAnalyticsApi,
+  SpeechAnalyticsResponse,
+  getUserReadinessApi,
+  UserReadinessMetrics,
+  getTestReview,
+  getMockDrivePracticeSummaryApi,
+  MockDrivePracticeSummary
+} from '../lib/api';
 import { TestResult } from '../types';
 import {
   Award,
@@ -185,8 +193,26 @@ export const Dashboard: React.FC = React.memo(() => {
   }
   const domainPct = totalTopics > 0 ? Math.round((doneTopics / totalTopics) * 100) : 0;
 
-  const testsTaken = recentScores.length;
-  const testsPassed = recentScores.filter(s => s && s.passed).length;
+  // Authentic Mock Drive Practice Stats (Current Availability & Cleared)
+  const [mockDriveSummary, setMockDriveSummary] = useState<MockDrivePracticeSummary>({
+    total_available: 0,
+    cleared: 0
+  });
+
+  useEffect(() => {
+    if (user?.id) {
+      getMockDrivePracticeSummaryApi()
+        .then(data => {
+          if (data && typeof data.total_available === 'number') {
+            setMockDriveSummary({
+              total_available: data.total_available,
+              cleared: data.cleared || 0
+            });
+          }
+        })
+        .catch(err => console.warn('Failed to load mock drive practice summary:', err));
+    }
+  }, [user?.id, recentScores.length, mockTests.length]);
 
   const filteredScores = (recentScores || []).filter(s => {
     if (!s) return false;
@@ -410,9 +436,15 @@ export const Dashboard: React.FC = React.memo(() => {
                   <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
                     <CheckSquare className="w-4 h-4 text-white" />
                   </div>
-                  <span className="mono-badge rounded-full text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
-                    {testsPassed}/{testsTaken} Cleared
-                  </span>
+                  {mockDriveSummary.total_available > 0 ? (
+                    <span className="mono-badge rounded-full text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
+                      {mockDriveSummary.cleared}/{mockDriveSummary.total_available} Cleared
+                    </span>
+                  ) : (
+                    <span className="mono-badge rounded-full text-zinc-400 bg-white/5 border-white/10 font-medium">
+                      No tests available
+                    </span>
+                  )}
                 </div>
 
                 <div>
@@ -426,7 +458,13 @@ export const Dashboard: React.FC = React.memo(() => {
                   <div className="w-full bg-zinc-900/90 rounded-full h-1.5 overflow-hidden p-0.5 border border-white/10">
                     <div
                       className="bg-gradient-to-r from-orange-500 to-amber-400 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(249,115,22,0.4)]"
-                      style={{ width: `${testsTaken > 0 ? (testsPassed / testsTaken) * 100 : 0}%` }}
+                      style={{
+                        width: `${
+                          mockDriveSummary.total_available > 0
+                            ? Math.min(100, Math.round((mockDriveSummary.cleared / mockDriveSummary.total_available) * 100))
+                            : 0
+                        }%`
+                      }}
                     />
                   </div>
                 </div>
