@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from backend.database import db, supabase_client
 from backend.auth import get_current_user
-from backend.schemas import SubmitTestRequest, UploadCSVTestRequest
+from backend.schemas import SubmitTestRequest, UploadCSVTestRequest, TerminateTestRequest
 
 router = APIRouter(prefix="/api/tests", tags=["tests"])
 
@@ -206,6 +206,53 @@ def start_test(test_id: str, current_user: dict = Depends(get_current_user)):
     }
 
 
+# ─── Terminate attempt (anti-cheat / timeout / violation) ──────────────────────
+
+@router.post("/{test_id}/terminate")
+def terminate_test(
+    test_id: str,
+    req: Optional[TerminateTestRequest] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Mark an active assessment attempt as abandoned or expired.
+    Preserves historical record, does not award score.
+    """
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Only students can terminate test attempts.")
+
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    uid = current_user["id"]
+    reason = req.reason if req and req.reason else "violation"
+    target_status = "expired" if reason == "timeout" else "abandoned"
+
+    # Find the active in_progress attempt for this student and test
+    attempt = db.get_student_attempt(uid, test_id, "in_progress")
+    if not attempt and req and req.attempt_id:
+        candidate = db.get_attempt_by_id(req.attempt_id)
+        if candidate and str(candidate.get("student_id")) == str(uid) and str(candidate.get("test_id")) == str(test_id):
+            attempt = candidate
+
+    if attempt and attempt.get("status") == "in_progress":
+        try:
+            supabase_client.table("mock_test_attempts").update({
+                "status": target_status,
+                "submitted_at": None,
+            }).eq("id", attempt["id"]).execute()
+            return {
+                "message": f"Attempt terminated with status '{target_status}'.",
+                "status": target_status,
+                "attempt_id": attempt["id"]
+            }
+        except Exception as e:
+            print(f"[terminate_test {test_id}]:", e)
+            raise HTTPException(status_code=500, detail="Failed to terminate attempt.")
+
+    return {"message": "No active in-progress attempt found to terminate.", "status": target_status}
+
+
 # ─── Submit attempt ───────────────────────────────────────────────────────────
 
 @router.post("/{test_id}/submit")
@@ -224,11 +271,45 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
     if not test:
         raise HTTPException(status_code=404, detail="Mock test not found.")
 
-    # Find the most recent in_progress attempt
+    # Find the active in_progress attempt
     attempt = db.get_student_attempt(current_user["id"], test_id, "in_progress")
     if not attempt:
-        # Fallback: allow submission without an explicit start (for compatibility)
-        attempt = None
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot submit: No active in-progress assessment attempt found. The assessment may have expired or been terminated."
+        )
+
+    # Validate ownership & test matching
+    if str(attempt.get("student_id")) != str(current_user["id"]) or str(attempt.get("test_id")) != str(test_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot submit: Attempt ownership mismatch."
+        )
+
+    # Validate expiration against expires_at
+    expires_at_raw = attempt.get("expires_at")
+    if expires_at_raw:
+        now_iso = datetime.utcnow().isoformat()
+        is_expired = False
+        try:
+            exp_str = str(expires_at_raw).replace("Z", "+00:00")
+            exp_dt = datetime.fromisoformat(exp_str)
+            now_dt = datetime.utcnow()
+            if exp_dt.tzinfo is not None:
+                from datetime import timezone
+                now_dt = datetime.now(timezone.utc)
+            is_expired = now_dt > exp_dt
+        except Exception:
+            is_expired = now_iso > str(expires_at_raw)
+
+        if is_expired:
+            supabase_client.table("mock_test_attempts").update({
+                "status": "expired"
+            }).eq("id", attempt["id"]).execute()
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot submit: Assessment time has expired."
+            )
 
     # Load questions with correct_option
     questions = db.get_questions_for_test(test_id)
@@ -302,39 +383,16 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
     score_pct = round((score / total) * 100, 2) if total > 0 else 0.0
     now = datetime.utcnow().isoformat()
 
-    # Create or update the attempt row
+    # Update the validated in_progress attempt to submitted
     try:
-        if attempt:
-            attempt_id = str(attempt["id"])
-            supabase_client.table("mock_test_attempts").update({
-                "marks_obtained": score,
-                "total_marks": total,
-                "score_percentage": score_pct,
-                "status": "submitted",
-                "submitted_at": now,
-            }).eq("id", attempt_id).execute()
-        else:
-            # If no in_progress attempt existed, count previous attempts
-            prev_res = supabase_client.table("mock_test_attempts").select("attempt_number").eq("student_id", current_user["id"]).eq("test_id", test_id).execute()
-            attempt_number = len(prev_res.data or []) + 1
-
-            ins_res = supabase_client.table("mock_test_attempts").insert({
-                "student_id": current_user["id"],
-                "test_id": test_id,
-                "attempt_number": attempt_number,
-                "marks_obtained": score,
-                "total_marks": total,
-                "score_percentage": score_pct,
-                "status": "submitted",
-                "started_at": now,
-                "expires_at": now,
-                "submitted_at": now,
-                "created_at": now,
-            }).execute()
-
-            if not ins_res.data:
-                raise HTTPException(status_code=500, detail="Failed to record attempt.")
-            attempt_id = str(ins_res.data[0]["id"])
+        attempt_id = str(attempt["id"])
+        supabase_client.table("mock_test_attempts").update({
+            "marks_obtained": score,
+            "total_marks": total,
+            "score_percentage": score_pct,
+            "status": "submitted",
+            "submitted_at": now,
+        }).eq("id", attempt_id).execute()
 
         # Store per-question answers (upsert per attempt/question)
         for ans in answers_payload:

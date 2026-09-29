@@ -771,6 +771,22 @@ export async function submitQuiz(
   return res.json();
 }
 
+export async function terminateTest(
+  testId: string,
+  data?: { attempt_id?: string; reason?: string }
+): Promise<any> {
+  const res = await authFetch(`${BASE_URL}/api/tests/${testId}/terminate`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data || {}),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to terminate test attempt' }));
+    throw new Error(err.detail || 'Failed to terminate test attempt');
+  }
+  return res.json();
+}
+
 export async function getTestReview(testId: string, attemptId?: string): Promise<any> {
   const url = attemptId
     ? `${BASE_URL}/api/tests/${testId}/review?attempt_id=${encodeURIComponent(attemptId)}`
@@ -922,6 +938,7 @@ export const api = {
   startTest,
   getTestDetails,
   submitQuiz,
+  terminateTest,
   getTestReview,
   deleteMockTest,
 };

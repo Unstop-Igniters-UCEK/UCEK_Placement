@@ -231,6 +231,11 @@ class StartTestRequest(BaseModel):
     pass  # no body needed — test_id in path, student from token
 
 
+class TerminateTestRequest(BaseModel):
+    attempt_id: Optional[str] = None
+    reason: Optional[str] = "violation"  # "violation" | "fullscreen_exit" | "timeout"
+
+
 class SubmitTestRequest(BaseModel):
     """
     Flexible answer format — accepts:

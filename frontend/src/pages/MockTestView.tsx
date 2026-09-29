@@ -256,6 +256,36 @@ export const MockTestView: React.FC = () => {
   const [examResult, setExamResult] = useState<any | null>(null);
   const [submitExamError, setSubmitExamError] = useState<string | null>(null);
 
+  // ── Anti-Cheat & Assessment Session Protection State ──
+  const [pendingTestToStart, setPendingTestToStart] = useState<any | null>(null);
+  const [fullscreenError, setFullscreenError] = useState<string | null>(null);
+  const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null);
+  const [violationCount, setViolationCount] = useState<number>(0);
+  const [activeWarningModal, setActiveWarningModal] = useState<1 | 2 | null>(null);
+  const [isMultiWindowBlocked, setIsMultiWindowBlocked] = useState<boolean>(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState<boolean>(false);
+  const [isTerminated, setIsTerminated] = useState<boolean>(false);
+  const [terminationReason, setTerminationReason] = useState<string | null>(null);
+  const [terminationMessage, setTerminationMessage] = useState<string | null>(null);
+
+  const activeTestRef = useRef<any>(null);
+  const examSubmittedRef = useRef<boolean>(false);
+  const isTerminatedRef = useRef<boolean>(false);
+  const hasLeftFocusRef = useRef<boolean>(false);
+  const instanceIdRef = useRef<string>(Math.random().toString(36).substring(2, 9));
+
+  useEffect(() => {
+    activeTestRef.current = activeTest;
+  }, [activeTest]);
+
+  useEffect(() => {
+    examSubmittedRef.current = examSubmitted;
+  }, [examSubmitted]);
+
+  useEffect(() => {
+    isTerminatedRef.current = isTerminated;
+  }, [isTerminated]);
+
   // Fetch quizzes accessible to student/admin
   const fetchTests = async () => {
     setLoadingTests(true);
@@ -363,7 +393,37 @@ export const MockTestView: React.FC = () => {
     }
   };
 
-  // Start Assessment
+  // Terminate Assessment on violations, fullscreen exit, or timeout
+  const handleTerminateAssessment = async (
+    reason: 'violation' | 'fullscreen_exit' | 'timeout' | 'abandoned',
+    message: string
+  ) => {
+    if (isTerminatedRef.current || examSubmittedRef.current) return;
+    setIsTerminated(true);
+    setTerminationReason(reason);
+    setTerminationMessage(message);
+    setActiveWarningModal(null);
+    setShowSubmitConfirm(false);
+    setUserAnswers({});
+    setReviewFlags({});
+
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch {}
+    }
+
+    if (activeTestRef.current?.id) {
+      api.terminateTest(activeTestRef.current.id, {
+        attempt_id: currentAttemptId || undefined,
+        reason
+      }).catch(err => {
+        console.warn("Could not record assessment termination on backend:", err);
+      });
+    }
+  };
+
+  // Start Assessment session
   const handleStartAssessment = async (test: any) => {
     const totalSec = (test.duration_minutes || test.durationMins || test.durationMinutes || 30) * 60;
     setLoadingTestDetails(true);
@@ -375,11 +435,29 @@ export const MockTestView: React.FC = () => {
     setReviewFlags({});
     setCurrentQIdx(0);
     setTimeLeftSec(totalSec);
+    setViolationCount(0);
+    setActiveWarningModal(null);
+    setIsTerminated(false);
+    setTerminationReason(null);
+    setTerminationMessage(null);
+    setIsMultiWindowBlocked(false);
 
-    // Record started attempt in DB
-    api.startTest(test.id).catch(err => {
+    // Record started attempt in DB and synchronize timer with server expires_at
+    try {
+      const startRes = await api.startTest(test.id);
+      if (startRes && startRes.attempt_id) {
+        setCurrentAttemptId(startRes.attempt_id);
+        if (startRes.expires_at) {
+          const expMs = new Date(startRes.expires_at).getTime();
+          const remainingSec = Math.max(0, Math.floor((expMs - Date.now()) / 1000));
+          if (remainingSec > 0) {
+            setTimeLeftSec(remainingSec);
+          }
+        }
+      }
+    } catch (err: any) {
       console.warn("Could not record attempt start in database:", err);
-    });
+    }
 
     try {
       const details = await api.getTestDetails(test.id);
@@ -395,26 +473,192 @@ export const MockTestView: React.FC = () => {
     }
   };
 
-  // Timer effect
+  // Pre-test warning modal confirmation with Real Fullscreen API
+  const handleConfirmStartWithFullscreen = async () => {
+    if (!pendingTestToStart) return;
+    setFullscreenError(null);
+
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (err: any) {
+      console.warn("Browser rejected fullscreen request:", err);
+      setFullscreenError("Fullscreen mode is required to begin the assessment. Please allow fullscreen permissions in your browser and try again.");
+      return;
+    }
+
+    const testToStart = pendingTestToStart;
+    setPendingTestToStart(null);
+    await handleStartAssessment(testToStart);
+  };
+
+  // Fullscreen exit monitoring during assessment
   useEffect(() => {
-    if (!activeTest || examSubmitted || loadingTestDetails) return;
+    if (!activeTest || examSubmitted || isTerminated) return;
+
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement && activeTestRef.current && !examSubmittedRef.current && !isTerminatedRef.current) {
+        handleTerminateAssessment(
+          'fullscreen_exit',
+          'Fullscreen mode was exited during the test. Your assessment has been terminated and your progress was lost.'
+        );
+      }
+    };
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+    };
+  }, [activeTest, examSubmitted, isTerminated]);
+
+  // Tab switch & visibility change detection
+  useEffect(() => {
+    if (!activeTest || examSubmitted || isTerminated) return;
+
+    const recordViolation = () => {
+      if (examSubmittedRef.current || isTerminatedRef.current) return;
+      if (hasLeftFocusRef.current) return;
+      hasLeftFocusRef.current = true;
+
+      setViolationCount(prev => {
+        const next = prev + 1;
+        if (next === 1) {
+          setActiveWarningModal(1);
+        } else if (next === 2) {
+          setActiveWarningModal(2);
+        } else if (next >= 3) {
+          setActiveWarningModal(null);
+          handleTerminateAssessment(
+            'violation',
+            'Assessment terminated due to repeated tab or window switching. Your progress has been lost.'
+          );
+        }
+        return next;
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        recordViolation();
+      } else if (document.visibilityState === 'visible') {
+        setTimeout(() => {
+          hasLeftFocusRef.current = false;
+        }, 300);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      recordViolation();
+    };
+
+    const handleWindowFocus = () => {
+      setTimeout(() => {
+        hasLeftFocusRef.current = false;
+      }, 300);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [activeTest, examSubmitted, isTerminated]);
+
+  // Multiple Windows / Tabs detection via BroadcastChannel
+  useEffect(() => {
+    if (!activeTest || examSubmitted || isTerminated || !user?.id) return;
+
+    const channelName = `impulse_test_coord_${activeTest.id}_${user.id}`;
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel(channelName);
+    } catch (e) {
+      console.warn("BroadcastChannel not supported in this environment:", e);
+      return;
+    }
+
+    channel.postMessage({
+      type: 'INSTANCE_ANNOUNCE',
+      instanceId: instanceIdRef.current
+    });
+
+    const handleChannelMsg = (event: MessageEvent) => {
+      const data = event.data;
+      if (!data || data.instanceId === instanceIdRef.current) return;
+
+      if (data.type === 'INSTANCE_ANNOUNCE') {
+        setIsMultiWindowBlocked(true);
+        channel?.postMessage({
+          type: 'INSTANCE_RESPONSE',
+          instanceId: instanceIdRef.current
+        });
+      } else if (data.type === 'INSTANCE_RESPONSE') {
+        setIsMultiWindowBlocked(true);
+      } else if (data.type === 'INSTANCE_CLOSED') {
+        setIsMultiWindowBlocked(false);
+      }
+    };
+
+    channel.onmessage = handleChannelMsg;
+
+    const handleBeforeUnload = () => {
+      try {
+        channel?.postMessage({
+          type: 'INSTANCE_CLOSED',
+          instanceId: instanceIdRef.current
+        });
+      } catch {}
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      try {
+        channel?.postMessage({
+          type: 'INSTANCE_CLOSED',
+          instanceId: instanceIdRef.current
+        });
+        channel?.close();
+      } catch {}
+    };
+  }, [activeTest, examSubmitted, isTerminated, user?.id]);
+
+  // Authoritative timer effect (timeout handling)
+  useEffect(() => {
+    if (!activeTest || examSubmitted || loadingTestDetails || isTerminated) return;
     if (timeLeftSec <= 0) {
-      handleFinalSubmitExam();
+      handleTerminateAssessment(
+        'timeout',
+        'Your assessment time has expired. This attempt has ended and your current progress was not submitted.'
+      );
       return;
     }
     const timer = setInterval(() => {
       setTimeLeftSec(prev => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [activeTest, examSubmitted, loadingTestDetails, timeLeftSec]);
+  }, [activeTest, examSubmitted, loadingTestDetails, timeLeftSec, isTerminated]);
 
   // Submit Quiz
   const handleFinalSubmitExam = async () => {
-    if (!activeTest || submittingExam || examSubmitted || loadingTestDetails) return;
+    if (!activeTest || submittingExam || examSubmitted || loadingTestDetails || isTerminated) return;
     setSubmittingExam(true);
 
     const durationTotalSec = (activeTest.durationMins || activeTest.durationMinutes || 30) * 60;
     const timeTakenSec = Math.max(1, durationTotalSec - timeLeftSec);
+
+    // Exit fullscreen cleanly on valid submission
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch {}
+    }
 
     try {
       const res = await api.submitQuiz(activeTest.id, {
@@ -459,8 +703,15 @@ export const MockTestView: React.FC = () => {
         <div className="bg-[#121217] border border-white/10 rounded-2xl p-4 md:p-6 flex items-center justify-between shadow-xl">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setActiveTest(null)}
+              onClick={() => {
+                if (!examSubmitted && !isTerminated) {
+                  handleTerminateAssessment('abandoned', 'Assessment abandoned by exiting test view. Progress lost.');
+                } else {
+                  setActiveTest(null);
+                }
+              }}
               className="p-2 rounded-xl bg-[#09090b] border border-white/10 text-zinc-400 hover:text-white cursor-pointer"
+              title="Exit test"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -480,11 +731,11 @@ export const MockTestView: React.FC = () => {
               <span>{formatTime(timeLeftSec)}</span>
             </div>
 
-            {!examSubmitted && (
+            {!examSubmitted && !isTerminated && (
               <button
-                onClick={handleFinalSubmitExam}
-                disabled={submittingExam}
-                className="btn-primary px-4 py-2 rounded-xl text-black text-xs font-bold transition-all cursor-pointer"
+                onClick={() => setShowSubmitConfirm(true)}
+                disabled={submittingExam || isMultiWindowBlocked}
+                className="btn-primary px-4 py-2 rounded-xl text-black text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
               >
                 {submittingExam ? 'Submitting...' : 'Submit Assessment'}
               </button>
@@ -642,7 +893,7 @@ export const MockTestView: React.FC = () => {
                   return (
                     <div
                       key={optIdx}
-                      onClick={() => setUserAnswers(prev => ({ ...prev, [qId]: letter }))}
+                      onClick={() => !isMultiWindowBlocked && !isTerminated && setUserAnswers(prev => ({ ...prev, [qId]: letter }))}
                       className={`p-4 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between ${
                         isSelected
                           ? 'bg-orange-500/10 border-orange-500/50 text-white font-semibold'
@@ -665,14 +916,14 @@ export const MockTestView: React.FC = () => {
 
               <div className="flex items-center justify-between pt-4 border-t border-white/10">
                 <button
-                  disabled={currentQIdx === 0}
+                  disabled={currentQIdx === 0 || isMultiWindowBlocked || isTerminated}
                   onClick={() => setCurrentQIdx(prev => prev - 1)}
                   className="px-4 py-2 rounded-xl bg-[#09090b] border border-white/10 text-xs font-bold text-white disabled:opacity-40 cursor-pointer"
                 >
                   Previous
                 </button>
                 <button
-                  disabled={currentQIdx === testQuestions.length - 1}
+                  disabled={currentQIdx === testQuestions.length - 1 || isMultiWindowBlocked || isTerminated}
                   onClick={() => setCurrentQIdx(prev => prev + 1)}
                   className="btn-primary px-4 py-2 rounded-xl text-black text-xs font-bold disabled:opacity-40 cursor-pointer"
                 >
@@ -694,6 +945,7 @@ export const MockTestView: React.FC = () => {
                   return (
                     <button
                       key={q.id}
+                      disabled={isMultiWindowBlocked || isTerminated}
                       onClick={() => setCurrentQIdx(idx)}
                       className={`h-9 rounded-lg font-mono text-xs font-bold transition-all relative cursor-pointer ${
                         isCurrent
@@ -726,6 +978,247 @@ export const MockTestView: React.FC = () => {
             </button>
           </div>
         )}
+
+        {/* ── Multiple-Window Blocked Overlay ── */}
+        <AnimatePresence>
+          {isMultiWindowBlocked && !isTerminated && !examSubmitted && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-lg">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative w-full max-w-md backdrop-blur-2xl bg-[#141416] border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4 text-center font-sans pointer-events-auto overflow-hidden"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold tracking-wider uppercase text-amber-400 font-mono">
+                    Multiple Instances Detected
+                  </span>
+                  <h3 className="text-xl font-bold text-white tracking-tight font-heading">
+                    Assessment Paused
+                  </h3>
+                </div>
+
+                <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                  Multiple assessment windows detected. Close the other window to continue.
+                </p>
+
+                <p className="text-[11px] text-zinc-500 font-mono">
+                  Interactions are temporarily disabled until all duplicate windows are closed.
+                </p>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Tab Switch / Visibility Warning Modal ── */}
+        <AnimatePresence>
+          {activeWarningModal && !isTerminated && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="relative w-full max-w-md backdrop-blur-2xl bg-[#141210] border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4 text-left font-sans pointer-events-auto overflow-hidden"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold tracking-wider uppercase text-amber-400 font-mono">
+                    {activeWarningModal === 1 ? 'Security Warning (1 of 2)' : 'Final Warning (2 of 2)'}
+                  </span>
+                  <h3 className="text-xl font-bold text-white tracking-tight font-heading">
+                    Tab / Window Switch Detected
+                  </h3>
+                </div>
+
+                <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                  {activeWarningModal === 1 ? (
+                    <>
+                      You navigated away from the assessment screen. Please remain in fullscreen on this tab.
+                      <strong className="text-white block mt-1.5">
+                        After 2 warnings (on the 3rd violation), your assessment will be immediately terminated and all progress will be lost.
+                      </strong>
+                    </>
+                  ) : (
+                    <>
+                      This is your <span className="text-rose-400 font-bold">final warning</span>.
+                      <strong className="text-white block mt-1.5">
+                        Any further tab switch or window blur will immediately terminate the assessment, mark your attempt as abandoned, and discard all progress.
+                      </strong>
+                    </>
+                  )}
+                </p>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setActiveWarningModal(null)}
+                    className="btn-primary px-6 py-2.5 rounded-xl text-xs font-bold text-black cursor-pointer shadow-md"
+                  >
+                    I Understand, Resume Test
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Assessment Terminated Modal ── */}
+        <AnimatePresence>
+          {isTerminated && terminationReason !== 'timeout' && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="relative w-full max-w-md backdrop-blur-2xl bg-[#181111] border border-rose-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4 text-left font-sans pointer-events-auto overflow-hidden"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                  <ShieldAlert className="w-6 h-6" />
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold tracking-wider uppercase text-rose-400 font-mono">
+                    Assessment Terminated
+                  </span>
+                  <h3 className="text-xl font-bold text-white tracking-tight font-heading">
+                    Attempt Abandoned
+                  </h3>
+                </div>
+
+                <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                  {terminationMessage || 'Your assessment has been terminated due to a security violation. All progress has been lost and this attempt cannot be resumed.'}
+                </p>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTest(null);
+                      setIsTerminated(false);
+                      setTerminationReason(null);
+                      setTerminationMessage(null);
+                      setViolationCount(0);
+                      fetchTests();
+                    }}
+                    className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all cursor-pointer"
+                  >
+                    Exit Assessment
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Timeout Modal ── */}
+        <AnimatePresence>
+          {isTerminated && terminationReason === 'timeout' && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="relative w-full max-w-md backdrop-blur-2xl bg-black/90 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4 text-left font-sans pointer-events-auto overflow-hidden"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400">
+                  <Clock className="w-6 h-6" />
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold tracking-wider uppercase text-orange-400 font-mono">
+                    Assessment Session Ended
+                  </span>
+                  <h3 className="text-xl font-bold text-white tracking-tight font-heading">
+                    Time's Up
+                  </h3>
+                </div>
+
+                <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                  Your assessment time has expired. This attempt has ended and your current progress was not submitted.
+                </p>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTest(null);
+                      setIsTerminated(false);
+                      setTerminationReason(null);
+                      setTerminationMessage(null);
+                      setViolationCount(0);
+                      fetchTests();
+                    }}
+                    className="btn-primary px-6 py-2.5 rounded-xl text-xs font-bold text-black transition-all cursor-pointer"
+                  >
+                    Exit Assessment
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Submit Confirmation Modal ── */}
+        <AnimatePresence>
+          {showSubmitConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="relative w-full max-w-md backdrop-blur-2xl bg-black/95 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4 text-left font-sans pointer-events-auto overflow-hidden"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0 shadow-[0_0_6px_rgba(249,115,22,0.8)]" />
+                    <span className="text-[11px] font-semibold tracking-wider uppercase text-orange-400 font-mono">
+                      Final Submission
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white tracking-tight font-heading">
+                    Submit assessment?
+                  </h3>
+                </div>
+
+                <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                  You are about to submit your assessment. You will not be able to change your answers after submission.
+                </p>
+
+                <div className="p-3.5 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-between text-xs font-mono">
+                  <span className="text-zinc-400">Questions Answered:</span>
+                  <span className="text-white font-bold">
+                    {Object.keys(userAnswers).filter(k => userAnswers[k] !== undefined && userAnswers[k] !== null && userAnswers[k] !== '').length} / {testQuestions.length}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSubmitConfirm(false)}
+                    className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold text-zinc-300 hover:text-white transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSubmitConfirm(false);
+                      handleFinalSubmitExam();
+                    }}
+                    className="btn-primary px-6 py-2.5 rounded-xl text-xs font-bold text-black transition-all cursor-pointer shadow-lg"
+                  >
+                    Submit Assessment
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -1079,7 +1572,10 @@ export const MockTestView: React.FC = () => {
                     </div>
 
                     <button
-                      onClick={() => handleStartAssessment(test)}
+                      onClick={() => {
+                        setPendingTestToStart(test);
+                        setFullscreenError(null);
+                      }}
                       className="btn-primary !px-4 !py-1.5 !text-xs !font-bold flex items-center gap-1.5 shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
                     >
                       <Play className="w-3 h-3 fill-black text-black shrink-0" />
@@ -1092,6 +1588,80 @@ export const MockTestView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Pre-Test Warning Modal */}
+      <AnimatePresence>
+        {pendingTestToStart && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.2 }}
+              className="bg-[#121217] border border-orange-500/30 rounded-2xl max-w-lg w-full p-6 sm:p-7 shadow-2xl relative overflow-hidden"
+            >
+              {/* Subtle top ambient glow */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
+
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-11 h-11 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
+                  <ShieldAlert className="w-6 h-6 text-orange-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white tracking-tight font-heading">
+                    Before you begin
+                  </h3>
+                  <p className="text-xs text-zinc-400 font-mono mt-0.5">
+                    Assessment: {pendingTestToStart.title}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3.5 text-sm text-zinc-300 bg-white/[0.02] border border-white/5 rounded-xl p-4 mb-5">
+                <p className="font-medium text-white/90 text-[13px] leading-relaxed">
+                  Once the assessment starts, you must remain in this test window and stay in fullscreen mode.
+                </p>
+                <ul className="space-y-2 text-xs text-zinc-400 font-sans leading-relaxed list-disc pl-4 marker:text-orange-500">
+                  <li>Do not switch tabs or windows.</li>
+                  <li>Leaving fullscreen or switching away from the assessment may be treated as a violation.</li>
+                  <li>After more than 2 tab/window switches, the assessment will be terminated and your progress will be lost.</li>
+                  <li>You may only have one active assessment window.</li>
+                  <li>If the timer expires, the assessment will be terminated and your progress will be lost.</li>
+                  <li>Submission is final.</li>
+                </ul>
+              </div>
+
+              {fullscreenError && (
+                <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+                  <span>{fullscreenError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingTestToStart(null);
+                    setFullscreenError(null);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleConfirmStartWithFullscreen(pendingTestToStart)}
+                  className="btn-primary !px-5 !py-2 !text-xs !font-bold flex items-center gap-2 shadow-lg shadow-orange-500/20 cursor-pointer"
+                >
+                  <Play className="w-3.5 h-3.5 fill-black text-black shrink-0" />
+                  <span>Start Test</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
