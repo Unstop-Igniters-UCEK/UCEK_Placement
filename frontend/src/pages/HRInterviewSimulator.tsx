@@ -158,9 +158,11 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
       }
 
       const result = await analyzeInterview({
+        question_id: selectedQuestion.id,
         questionText: selectedQuestion.questionText,
         audioBase64: base64Audio,
         mimeType: mimeType,
+        durationSeconds: recordingTime,
       });
 
       const mapped: InterviewFeedback = {
@@ -174,17 +176,28 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
         overallRating: parseFloat(((result.overallScore ?? 0) / 10).toFixed(1)),
         clarityScore: result.technicalAccuracy ?? 0,
         relevanceScore: result.overallScore ?? 0,
-        sampleIdealResponse: result.aiFeedback?.idealAnswerSnippet || '',
-        transcript: result.transcript || (result.overallScore > 0 ? 'Audio transcribed by Gemini AI.' : 'No speech detected in audio recording.'),
+        sampleIdealResponse: result.aiFeedback?.idealAnswerSnippet || result.betterAnswer?.example || '',
+        transcript: result.transcript || '',
       };
 
       setFeedback(mapped);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
-      if (msg.toLowerCase().includes('expired') || msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
-        setApiError('Token has expired, please sign in again.');
+      const lower = msg.toLowerCase();
+
+      if (lower.includes('expired') || msg.includes('401') || lower.includes('unauthorized')) {
+        setApiError('Your session has expired. Please sign in again to continue.');
+      } else if (lower.includes('429') || lower.includes('rate limit') || lower.includes('too_many_requests') || lower.includes('daily limit') || lower.includes('quota')) {
+        setApiError('The AI interview evaluation service has reached its daily request limit. Please try again later or tomorrow.');
+      } else if (lower.includes('503') || lower.includes('high demand') || lower.includes('high traffic') || lower.includes('temporarily unavailable') || lower.includes('unavailable')) {
+        setApiError('The AI evaluation service is currently experiencing high demand. Please wait a moment and try again.');
+      } else if (lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('connection refused') || lower.includes('offline')) {
+        setApiError('Unable to connect to the server. Please check your internet connection.');
+      } else if (lower.includes('microphone') || lower.includes('audible') || lower.includes('no speech') || lower.includes('empty')) {
+        setApiError('No audible speech was detected in your recording. Please check your microphone and try again.');
       } else {
-        setApiError(`AI analysis failed: ${msg}. Check that the backend is running on ${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}.`);
+        const isClean = msg.length < 150 && !msg.includes('{') && !msg.includes('http') && !msg.includes('Error code');
+        setApiError(isClean ? msg : 'The AI evaluation service could not process your answer at this moment. Please try again in a few moments.');
       }
     } finally {
       setAnalyzing(false);
@@ -385,14 +398,18 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-3 bg-[#000000] border border-white/10 p-4 rounded-2xl font-mono text-center shadow-inner">
+              <div className="grid grid-cols-3 gap-2 bg-[#000000] border border-white/10 p-3.5 rounded-2xl font-mono text-center shadow-inner">
                 <div>
-                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block">Fluency Rating</span>
-                  <span className="text-2xl font-extrabold text-white">{feedback.overallRating} <span className="text-xs text-zinc-500 font-normal">/ 10</span></span>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block truncate">Answer Score</span>
+                  <span className="text-xl sm:text-2xl font-extrabold text-white">{Math.round(feedback.overallRating * 10)} <span className="text-[10px] text-zinc-500 font-normal">/ 100</span></span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block">Pace (WPM)</span>
-                  <span className="text-2xl font-extrabold text-cyan-400">{feedback.wpm}</span>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block truncate">Pace (WPM)</span>
+                  <span className="text-xl sm:text-2xl font-extrabold text-orange-400">{feedback.wpm}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block truncate">Confidence</span>
+                  <span className="text-xl sm:text-2xl font-extrabold text-emerald-400">{Math.round(feedback.confidenceScore)}%</span>
                 </div>
               </div>
 

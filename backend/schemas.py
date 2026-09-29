@@ -300,6 +300,7 @@ class AnalyzeInterviewRequest(BaseModel):
     transcript: Optional[str] = None
     audioBase64: Optional[str] = None
     mimeType: Optional[str] = "audio/webm"
+    durationSeconds: Optional[float] = None
 
 
 # ─── Admin ────────────────────────────────────────────────────────────────────

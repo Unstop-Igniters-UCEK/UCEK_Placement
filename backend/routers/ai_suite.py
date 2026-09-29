@@ -8,6 +8,7 @@ HR interview attempt quantitative results are stored in hr_interview_attempts.
 """
 
 import uuid
+import base64
 from datetime import datetime
 from typing import Optional
 
@@ -20,9 +21,10 @@ from backend.schemas import (
 )
 from backend.ai import (
     analyze_resume_with_gemini, match_jd_with_gemini,
-    enhance_bullet_with_gemini, analyze_interview_with_gemini,
+    enhance_bullet_with_gemini,
     extract_text_from_pdf_bytes
 )
+from backend.services.hr_interview_service import hr_interview_service
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -196,41 +198,58 @@ def get_hr_practice_questions(
 @router.post("/analyze-interview")
 def analyze_interview(req: AnalyzeInterviewRequest, current_user: dict = Depends(get_current_user)):
     """
-    AI evaluation of a recorded HR interview answer.
-    Persists score, pace_wpm, confidence_score in hr_interview_attempts.
+    AI evaluation of a recorded HR interview answer using HRInterviewService.
+    - Transcription: gemini-3.5-transcribe
+    - Backend speech metric calculation (authoritative WPM = words / minutes)
+    - Evaluation: gemini-3.8-flash (structured Pydantic schema)
+    - Persists score, pace_wpm, confidence_score in hr_interview_attempts.
     """
-    result = analyze_interview_with_gemini(
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Only students can submit HR interview practice attempts.")
+
+    if not req.audioBase64:
+        raise HTTPException(status_code=400, detail="Audio recording is required.")
+
+    # Decode base64 audio
+    try:
+        raw_b64 = req.audioBase64.split(",")[-1] if "," in req.audioBase64 else req.audioBase64
+        audio_bytes = base64.b64decode(raw_b64)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid audio base64 payload.")
+
+    analysis = hr_interview_service.process_interview_attempt(
+        student_id=current_user["id"],
+        question_id=req.question_id or "",
         question_text=req.questionText,
-        transcript_text=req.transcriptText or req.transcript or "",
-        audio_b64=req.audioBase64,
-        mime_type=req.mimeType or "audio/webm"
+        audio_bytes=audio_bytes,
+        mime_type=req.mimeType or "audio/webm",
+        client_duration=req.durationSeconds
     )
 
-    # Extract numeric metrics
-    score = float(result.get("overallScore", 0))
-    confidence_score = float(result.get("confidenceScore", 0))
-    wpm = float(result.get("wpm", 0))
-
-    # Persist in hr_interview_attempts
-    question_id = req.question_id
-    if not question_id:
-        # Try to resolve question_id from question text
-        questions = db.get_hr_questions()
-        for q in questions:
-            if q.get("question", "").strip() == req.questionText.strip():
-                question_id = str(q["id"])
-                break
-
-    if question_id and current_user.get("role") == "student":
-        db.save_hr_interview_attempt(
-            student_id=current_user["id"],
-            question_id=question_id,
-            score=score,
-            pace_wpm=wpm,
-            confidence_score=confidence_score,
-        )
-
-    return {"evaluation": result}
+    return {
+        "evaluation": {
+            "overallScore": analysis.score,
+            "confidenceScore": analysis.confidence_score,
+            "wpm": analysis.pace_wpm,
+            "durationSeconds": analysis.duration_seconds,
+            "wordCount": analysis.word_count,
+            "fillerWords": analysis.filler_words,
+            "fillerCount": analysis.filler_count,
+            "transcript": analysis.transcript,
+            "technicalAccuracy": analysis.score,
+            "tone": "Confident & Articulate" if analysis.confidence_score >= 80 else ("Developing Confidence" if analysis.confidence_score >= 60 else "Hesitant"),
+            "aiFeedback": {
+                "strengths": analysis.strengths,
+                "areasForImprovement": analysis.improvements,
+                "idealAnswerSnippet": analysis.better_answer.example,
+                "structure": analysis.better_answer.structure,
+            },
+            "betterAnswer": {
+                "structure": analysis.better_answer.structure,
+                "example": analysis.better_answer.example,
+            }
+        }
+    }
 
 
 # ─── Speech / HR Analytics ────────────────────────────────────────────────────
@@ -256,12 +275,14 @@ def get_speech_analytics(current_user: dict = Depends(get_current_user)):
             "hasEvaluations": False,
             "wpm": None,
             "confidenceScore": None,
+            "score": None,
             "totalEvaluations": 0,
         }
 
+    latest = db.get_student_latest_hr_attempt(current_user["id"])
     attempts = db.get_student_hr_attempts(current_user["id"])
 
-    if not attempts:
+    if not latest or not attempts:
         return {
             **base_response,
             "hasEvaluations": False,
@@ -271,17 +292,12 @@ def get_speech_analytics(current_user: dict = Depends(get_current_user)):
             "totalEvaluations": 0,
         }
 
-    avg_wpm = round(sum(a.get("pace_wpm", 0) for a in attempts) / len(attempts), 1)
-    avg_confidence = round(sum(a.get("confidence_score", 0) for a in attempts) / len(attempts), 1)
-    avg_score = round(sum(a.get("score", 0) for a in attempts) / len(attempts), 1)
-    latest = attempts[0]
-
     return {
         **base_response,
         "hasEvaluations": True,
-        "wpm": avg_wpm,
-        "confidenceScore": avg_confidence,
-        "score": avg_score,
+        "wpm": float(latest.get("pace_wpm", 0)),
+        "confidenceScore": float(latest.get("confidence_score", 0)),
+        "score": float(latest.get("score", 0)),
         "totalEvaluations": len(attempts),
         "latest": {
             "score": float(latest.get("score", 0)),

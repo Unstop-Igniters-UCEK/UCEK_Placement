@@ -350,10 +350,12 @@ export async function getMentorsApi(): Promise<any[]> {
 // ─── AI Suite: HR Interview Analysis ───────────────────────────────────────
 
 export interface InterviewAnalysisRequest {
+  question_id?: string;
   questionText: string;
   transcriptText?: string;
   audioBase64?: string;
   mimeType?: string;
+  durationSeconds?: number;
 }
 
 export interface InterviewEvaluation {
@@ -361,6 +363,8 @@ export interface InterviewEvaluation {
   confidenceScore: number;    // 0-100
   technicalAccuracy: number;  // 0-100
   wpm?: number;
+  durationSeconds?: number;
+  wordCount?: number;
   fillerCount?: number;
   fillerWords?: string[];
   tone?: string;
@@ -369,6 +373,11 @@ export interface InterviewEvaluation {
     strengths: string[];
     areasForImprovement: string[];
     idealAnswerSnippet: string;
+    structure?: string[];
+  };
+  betterAnswer?: {
+    structure: string[];
+    example: string;
   };
 }
 
