@@ -93,3 +93,25 @@ CREATE TABLE IF NOT EXISTS public.hr_practice_questions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 4. Platform Settings Table (Controls student self-registration)
+CREATE TABLE IF NOT EXISTS public.platform_settings (
+    id TEXT PRIMARY KEY DEFAULT 'default',
+    student_self_registration_enabled BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+INSERT INTO public.platform_settings (id, student_self_registration_enabled, created_at, updated_at)
+VALUES ('default', false, NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.platform_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read access to platform_settings"
+    ON public.platform_settings FOR SELECT
+    USING (true);
+
+CREATE POLICY "Allow service role full access to platform_settings"
+    ON public.platform_settings FOR ALL
+    USING (true)
+    WITH CHECK (true);

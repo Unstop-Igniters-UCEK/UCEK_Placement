@@ -211,6 +211,23 @@ export async function demoLoginApi(role: string): Promise<AuthResponse> {
   return res.json();
 }
 
+export interface RegistrationStatusResponse {
+  student_self_registration_enabled: boolean;
+}
+
+/** Check if public student self-registration is enabled. Fails closed (false) on error. */
+export async function getRegistrationStatusApi(): Promise<RegistrationStatusResponse> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/auth/registration-status`);
+    if (!res.ok) {
+      return { student_self_registration_enabled: false };
+    }
+    return await res.json();
+  } catch {
+    return { student_self_registration_enabled: false };
+  }
+}
+
 export async function sendOtpApi(email: string): Promise<{ message: string; otpSent: boolean }> {
   const res = await fetch(`${BASE_URL}/api/auth/send-otp`, {
     method: 'POST',
@@ -851,6 +868,34 @@ export async function deleteMockTest(testId: string): Promise<any> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Failed to delete mock test' }));
     throw new Error(err.detail || 'Failed to delete mock test');
+  }
+  return res.json();
+}
+
+/** Admin: Read current student self-registration setting from PostgreSQL. */
+export async function getAdminRegistrationSettingApi(): Promise<RegistrationStatusResponse> {
+  const res = await authFetch(`${BASE_URL}/api/admin/settings/registration`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to load registration setting (${res.status})`));
+  }
+  return res.json();
+}
+
+/** Admin: Update student self-registration setting in PostgreSQL. */
+export async function updateAdminRegistrationSettingApi(
+  enabled: boolean
+): Promise<{ message: string; student_self_registration_enabled: boolean }> {
+  const res = await authFetch(`${BASE_URL}/api/admin/settings/registration`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to update registration setting (${res.status})`));
   }
   return res.json();
 }

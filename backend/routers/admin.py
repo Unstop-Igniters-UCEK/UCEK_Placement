@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.database import db, supabase_client, hash_password
 from backend.auth import get_current_user
-from backend.schemas import CreateStudentRequest, BatchCSVCreateRequest
+from backend.schemas import CreateStudentRequest, BatchCSVCreateRequest, UpdateRegistrationSettingRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -229,3 +229,42 @@ def batch_csv_create(req: BatchCSVCreateRequest, current_user: dict = Depends(ge
 def get_all_tests(current_user: dict = Depends(get_current_user)):
     _require_admin(current_user)
     return {"tests": db.get_all_published_tests()}
+
+
+# ─── Platform Settings (Student Self-Registration) ───────────────────────────
+
+@router.get("/settings/registration")
+def get_registration_setting(current_user: dict = Depends(get_current_user)):
+    _require_admin(current_user)
+    try:
+        settings = db.get_platform_settings()
+        return {
+            "student_self_registration_enabled": bool(settings.get("student_self_registration_enabled", False))
+        }
+    except Exception as e:
+        print(f"[Admin get_registration_setting error]: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve platform settings: {str(e)}"
+        )
+
+
+@router.patch("/settings/registration")
+@router.put("/settings/registration")
+def update_registration_setting(
+    req: UpdateRegistrationSettingRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    _require_admin(current_user)
+    try:
+        db.set_student_self_registration_enabled(req.enabled)
+        return {
+            "message": f"Student self-registration is now {'enabled' if req.enabled else 'disabled'}.",
+            "student_self_registration_enabled": bool(req.enabled)
+        }
+    except Exception as e:
+        print(f"[Admin update_registration_setting error]: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update platform settings: {str(e)}"
+        )

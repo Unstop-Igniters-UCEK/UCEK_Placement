@@ -140,6 +140,104 @@ class Database:
         except Exception as e:
             print("[Supabase admin seed notice]:", e)
 
+    # ── Platform Settings ──────────────────────────────────────────────────────
+
+    def get_platform_settings(self) -> Dict[str, Any]:
+        """
+        Fetch platform settings from public.platform_settings in Supabase/PostgreSQL.
+        Matches the singleton row where id = true.
+        """
+        if not supabase_client:
+            raise RuntimeError("Supabase client is not initialized.")
+
+        try:
+            res = supabase_client.table("platform_settings").select(
+                "id, student_self_registration_enabled, created_at, updated_at"
+            ).eq("id", True).execute()
+
+            if res.data and len(res.data) > 0:
+                row = res.data[0]
+                return {
+                    "id": bool(row.get("id", True)),
+                    "student_self_registration_enabled": bool(row.get("student_self_registration_enabled", False)),
+                    "created_at": row.get("created_at"),
+                    "updated_at": row.get("updated_at"),
+                }
+            else:
+                # Table exists but no row seeded yet — insert default row (disabled)
+                now = datetime.utcnow().isoformat()
+                ins = supabase_client.table("platform_settings").insert({
+                    "id": True,
+                    "student_self_registration_enabled": False,
+                    "created_at": now,
+                    "updated_at": now,
+                }).execute()
+                if ins.data:
+                    return {
+                        "id": True,
+                        "student_self_registration_enabled": False,
+                        "created_at": now,
+                        "updated_at": now,
+                    }
+                raise RuntimeError("Platform settings record not found and could not be initialized.")
+        except Exception as e:
+            print(f"[DB get_platform_settings error]: {e}")
+            raise
+
+    def is_student_self_registration_enabled(self) -> bool:
+        """
+        Authoritative check if public student self-registration is enabled.
+        Fails closed (returns False) on any error.
+        """
+        try:
+            settings = self.get_platform_settings()
+            return bool(settings.get("student_self_registration_enabled", False))
+        except Exception as e:
+            print(f"[DB is_student_self_registration_enabled fail-closed]: {e}")
+            return False
+
+    def set_student_self_registration_enabled(self, enabled: bool) -> bool:
+        """
+        Update student self-registration setting in PostgreSQL on the singleton row (id = True).
+        Verifies the updated value before returning success.
+        """
+        if not supabase_client:
+            raise RuntimeError("Supabase client is not initialized.")
+
+        now = datetime.utcnow().isoformat()
+        try:
+            # Update the singleton row where id = True
+            upd = supabase_client.table("platform_settings").update({
+                "student_self_registration_enabled": bool(enabled),
+                "updated_at": now,
+            }).eq("id", True).execute()
+
+            if not upd.data:
+                # If no row with id=True existed, try upsert
+                ins = supabase_client.table("platform_settings").upsert({
+                    "id": True,
+                    "student_self_registration_enabled": bool(enabled),
+                    "updated_at": now,
+                }).execute()
+                if not ins.data:
+                    raise RuntimeError("Failed to update or upsert platform_settings row.")
+
+            # Verification step: read back the updated value to verify persistence
+            verify = supabase_client.table("platform_settings").select(
+                "student_self_registration_enabled"
+            ).eq("id", True).execute()
+
+            if not verify.data or verify.data[0].get("student_self_registration_enabled") != bool(enabled):
+                actual_val = verify.data[0].get("student_self_registration_enabled") if verify.data else "empty"
+                raise RuntimeError(
+                    f"Verification failed: expected student_self_registration_enabled={enabled}, got {actual_val}"
+                )
+
+            return True
+        except Exception as e:
+            print(f"[DB set_student_self_registration_enabled error]: {e}")
+            raise
+
     # ── Users ──────────────────────────────────────────────────────────────────
 
     def get_user_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:

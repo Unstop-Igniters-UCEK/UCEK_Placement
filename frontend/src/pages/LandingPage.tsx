@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
 import Grainient from '../components/Grainient';
 import { CustomSelect } from '../components/CustomSelect';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogIn, UserPlus, X, AlertCircle, Eye, EyeOff, KeyRound, CheckCircle2 } from 'lucide-react';
-import { sendOtpApi, verifyOtpResetApi } from '../lib/api';
+import { LogIn, UserPlus, X, AlertCircle, Eye, EyeOff, KeyRound, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { sendOtpApi, verifyOtpResetApi, getRegistrationStatusApi } from '../lib/api';
 
 export const LandingPage: React.FC = React.memo(() => {
   const { loginUser, signupUser } = useApp();
 
   // Auth panel open mode ('login' | 'signup' | 'forgot' | null)
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot' | null>(null);
+
+  // Student self-registration authoritative state and restriction modal
+  const [studentSelfRegistrationEnabled, setStudentSelfRegistrationEnabled] = useState<boolean>(false);
+  const [showRestrictionModal, setShowRestrictionModal] = useState<boolean>(false);
 
   // Password visibility states
   const [showAdminPasscode, setShowAdminPasscode] = useState(false);
@@ -37,16 +41,93 @@ export const LandingPage: React.FC = React.memo(() => {
   const [isResetSuccess, setIsResetSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fetch authoritative registration setting from backend
+  const checkRegistrationStatus = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await getRegistrationStatusApi();
+      const enabled = Boolean(res?.student_self_registration_enabled);
+      setStudentSelfRegistrationEnabled(enabled);
+      return enabled;
+    } catch {
+      setStudentSelfRegistrationEnabled(false);
+      return false;
+    }
+  }, []);
+
+  // Check on mount
+  useEffect(() => {
+    checkRegistrationStatus();
+  }, [checkRegistrationStatus]);
+
+  // Check direct URL route entry points (e.g. /register, /signup, ?mode=signup, #signup)
+  useEffect(() => {
+    const path = window.location.pathname.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+
+    const isDirectSignup =
+      path.includes('/register') ||
+      path.includes('/signup') ||
+      search.includes('signup') ||
+      search.includes('register') ||
+      hash.includes('signup') ||
+      hash.includes('register');
+
+    if (isDirectSignup) {
+      checkRegistrationStatus().then(enabled => {
+        if (!enabled) {
+          setSelectedRole('mentee');
+          setShowRestrictionModal(true);
+        } else {
+          setSelectedRole('mentee');
+          setAuthMode('signup');
+        }
+      });
+    }
+  }, [checkRegistrationStatus]);
+
   const handleOpenLogin = () => {
     setErrorMsg(null);
     setSuccessMsg(null);
     setAuthMode('login');
   };
 
-  const handleOpenSignup = () => {
+  const handleOpenSignup = async (targetRole: UserRole = 'mentee') => {
     setErrorMsg(null);
     setSuccessMsg(null);
+
+    const enabled = await checkRegistrationStatus();
+
+    if (targetRole !== 'admin' && !enabled) {
+      setSelectedRole('mentee');
+      setShowRestrictionModal(true);
+      return;
+    }
+
+    setSelectedRole(targetRole);
     setAuthMode('signup');
+  };
+
+  const handleSwitchToSignup = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const enabled = await checkRegistrationStatus();
+
+    if (selectedRole !== 'admin' && !enabled) {
+      setSelectedRole('mentee');
+      setShowRestrictionModal(true);
+      return;
+    }
+
+    setAuthMode('signup');
+  };
+
+  const handleCloseRestrictionModal = () => {
+    setShowRestrictionModal(false);
+    setSelectedRole('mentee');
+    setAuthMode('login');
+    setErrorMsg(null);
   };
 
   const handleOpenForgot = () => {
@@ -62,16 +143,28 @@ export const LandingPage: React.FC = React.memo(() => {
 
   const handleCloseAuth = () => {
     setAuthMode(null);
+    setShowRestrictionModal(false);
     setErrorMsg(null);
     setSuccessMsg(null);
     setIsResetSuccess(false);
     setOtpStep('email');
   };
 
-  const handleRoleSelect = (role: UserRole) => {
-    setSelectedRole(role);
-    setYear('');
+  const handleRoleSelect = async (role: UserRole) => {
     setErrorMsg(null);
+    setYear('');
+
+    // If in signup mode and switching to Student role, check setting
+    if (authMode === 'signup' && role !== 'admin') {
+      const enabled = await checkRegistrationStatus();
+      if (!enabled) {
+        setSelectedRole('mentee');
+        setShowRestrictionModal(true);
+        return;
+      }
+    }
+
+    setSelectedRole(role);
   };
 
   const handleSendOtp = async (e: React.FormEvent) => {
@@ -137,6 +230,13 @@ export const LandingPage: React.FC = React.memo(() => {
         setErrorMsg(err.message || 'Login failed. Check your credentials.');
       }
     } else if (authMode === 'signup') {
+      if (selectedRole !== 'admin') {
+        const enabled = await checkRegistrationStatus();
+        if (!enabled) {
+          setShowRestrictionModal(true);
+          return;
+        }
+      }
       if (!fullName.trim()) {
         setErrorMsg('Please enter your Full Name.');
         return;
@@ -169,7 +269,16 @@ export const LandingPage: React.FC = React.memo(() => {
           adminSecurityCode: selectedRole === 'admin' ? adminPasscode : undefined
         });
       } catch (err: any) {
-        setErrorMsg(err.message || 'Registration failed.');
+        const msg = String(err.message || '');
+        if (
+          msg.includes('exclusive to students') ||
+          msg.includes('temporarily unavailable') ||
+          msg.includes('self-registration is currently disabled')
+        ) {
+          setShowRestrictionModal(true);
+        } else {
+          setErrorMsg(err.message || 'Registration failed.');
+        }
       }
     }
   };
@@ -517,6 +626,40 @@ export const LandingPage: React.FC = React.memo(() => {
                         </form>
                       )}
                     </motion.div>
+                  ) : authMode === 'signup' && selectedRole !== 'admin' && !studentSelfRegistrationEnabled ? (
+                    <motion.div
+                      key="student-signup-restricted"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                      className="space-y-4 pt-1 font-sans"
+                    >
+                      <div className="p-4 rounded-2xl bg-orange-500/10 border border-orange-500/25 space-y-3">
+                        <div className="flex items-center gap-2 text-orange-400 font-semibold text-xs">
+                          <ShieldAlert className="w-4 h-4 shrink-0" />
+                          <span>Self-Registration Restricted</span>
+                        </div>
+                        <p className="text-xs text-zinc-300 leading-relaxed">
+                          Impulse is currently exclusive to students of the{' '}
+                          <strong className="text-white font-semibold">
+                            University College of Engineering Kariavattom (UCEK)
+                          </strong>.
+                        </p>
+                        <p className="text-xs text-zinc-400 leading-relaxed">
+                          Student self-registration is temporarily unavailable. If you are a UCEK student, please contact an admin or faculty member to have your account onboarded.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleCloseRestrictionModal}
+                        className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.98] transition-transform duration-150"
+                      >
+                        <LogIn className="w-4 h-4 text-black" />
+                        <span>Proceed to Student Sign In</span>
+                      </button>
+                    </motion.div>
                   ) : (
                     <motion.form
                       key={authMode}
@@ -668,7 +811,7 @@ export const LandingPage: React.FC = React.memo(() => {
                           Don't have an account?{' '}
                           <button
                             type="button"
-                            onClick={() => setAuthMode('signup')}
+                            onClick={handleSwitchToSignup}
                             className="text-white font-bold hover:underline cursor-pointer ml-1"
                           >
                             Create one now
@@ -696,6 +839,76 @@ export const LandingPage: React.FC = React.memo(() => {
 
         </div>
       </div>
+
+      {/* ── DEDICATED RESTRICTION POPUP MODAL ── */}
+      <AnimatePresence>
+        {showRestrictionModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="relative w-full max-w-md bg-[#18181b] border border-orange-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 text-left font-sans overflow-hidden"
+            >
+              {/* Top Accent Gradient Bar */}
+              <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-orange-500 via-amber-400 to-orange-600" />
+
+              {/* Close Button (X) at Top-Right */}
+              <button
+                type="button"
+                onClick={handleCloseRestrictionModal}
+                className="absolute top-5 right-5 p-2 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer focus:outline-none"
+                title="Close and return to Student Login"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Icon & Title */}
+              <div className="space-y-3 pt-1">
+                <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/25 flex items-center justify-center text-orange-400 shadow-inner">
+                  <ShieldAlert className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight font-sans">
+                    Student Registration Unavailable
+                  </h3>
+                  <p className="text-xs text-orange-400/90 font-medium mt-0.5">
+                    UCEK Institutional Access Only
+                  </p>
+                </div>
+              </div>
+
+              {/* Explanatory Content */}
+              <div className="space-y-3 text-xs text-zinc-300 leading-relaxed font-sans bg-white/[0.02] border border-white/5 rounded-2xl p-4">
+                <p>
+                  Impulse is currently exclusive to students of the{' '}
+                  <strong className="text-white font-semibold">
+                    University College of Engineering Kariavattom (UCEK)
+                  </strong>.
+                </p>
+                <p className="text-zinc-400">
+                  Student self-registration is temporarily unavailable. If you are a UCEK student, please contact an admin or faculty member to have your account onboarded.
+                </p>
+              </div>
+
+              {/* Action Button: Proceed to Student Login */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleCloseRestrictionModal}
+                  className="btn-primary w-full py-3 px-5 text-xs font-bold rounded-full shadow-md hover:scale-[1.01] active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+                  style={{ fontFamily: 'Poppins, sans-serif' }}
+                >
+                  <LogIn className="w-4 h-4 text-black" />
+                  <span>Proceed to Student Sign In</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });

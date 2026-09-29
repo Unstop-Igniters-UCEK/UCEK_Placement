@@ -85,6 +85,20 @@ def _set_refresh_cookie(response: Response, refresh_token: str):
     )
 
 
+# ─── Registration Availability ────────────────────────────────────────────────
+
+@router.get("/registration-status")
+def get_registration_status():
+    """
+    Public endpoint: Returns whether student self-registration is currently allowed.
+    Fails closed (returns False) if database query fails.
+    """
+    enabled = db.is_student_self_registration_enabled()
+    return {
+        "student_self_registration_enabled": bool(enabled)
+    }
+
+
 # ─── Register ─────────────────────────────────────────────────────────────────
 
 @router.post("/register")
@@ -101,9 +115,19 @@ def register(request: Request, req: RegisterRequest, response: Response):
                 detail=f"Registration restricted to official college email (@{ALLOWED_EMAIL_DOMAIN})"
             )
 
-    # Admin role check
+    # Resolve role
     raw_role = (req.role or "student").lower()
     role = "student" if raw_role in ("student", "mentee", "user") else raw_role
+
+    # Student self-registration restriction check (authoritative database check)
+    if role == "student":
+        if not db.is_student_self_registration_enabled():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Impulse is currently exclusive to students of the University College of Engineering Kariavattom (UCEK). Student self-registration is temporarily unavailable. If you are a UCEK student, please contact an admin or faculty member to have your account onboarded."
+            )
+
+    # Admin role check
     if role == "admin":
         expected_code = os.getenv("ADMIN_SECRET_KEY", "UCEK_ADMIN_FACULTY_2026").strip()
         provided_code = (req.adminSecurityCode or "").strip()
@@ -212,19 +236,23 @@ def login(request: Request, req: LoginRequest, response: Response):
     if not verify_password(req.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
-    # Role tab isolation
+    # Role portal isolation check
     if req.role:
-        expected = req.role.strip().lower()
-        actual = user.get("role", "student").strip().lower()
-        if expected in ("student",) and actual == "admin":
+        raw_portal = req.role.strip().lower()
+        requested_portal = "admin" if raw_portal == "admin" else "student"
+
+        raw_user_role = str(user.get("role") or "student").strip().lower()
+        actual_user_role = "admin" if raw_user_role == "admin" else "student"
+
+        if requested_portal == "student" and actual_user_role == "admin":
             raise HTTPException(
-                status_code=403,
-                detail="This is an Admin account. Please switch to the Admin tab to sign in."
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This is an administrator account. Please use the Admin sign-in."
             )
-        elif expected == "admin" and actual != "admin":
+        elif requested_portal == "admin" and actual_user_role != "admin":
             raise HTTPException(
-                status_code=403,
-                detail="This is a Student account. Please switch to the Student tab to sign in."
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This is a student account. Please use the Student sign-in."
             )
 
     access_token = create_access_token({"id": user["id"], "email": user["email"], "role": user["role"], "name": user["name"]})

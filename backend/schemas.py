@@ -408,3 +408,9 @@ class SaveResumeRequest(BaseModel):
     education: Optional[List[ResumeEducationItem]] = None
     certifications: Optional[List[ResumeCertificationItem]] = None
     achievements: Optional[List[ResumeAchievementItem]] = None
+
+
+# ─── Platform Settings ────────────────────────────────────────────────────────
+
+class UpdateRegistrationSettingRequest(BaseModel):
+    enabled: bool

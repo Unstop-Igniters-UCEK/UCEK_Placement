@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   UserPlus,
@@ -14,7 +14,7 @@ import {
   KeyRound
 } from 'lucide-react';
 import { CustomSelect } from '../components/CustomSelect';
-import { batchCreateUsers, batchCSVCreateUsers } from '../lib/api';
+import { batchCreateUsers, batchCSVCreateUsers, getAdminRegistrationSettingApi, updateAdminRegistrationSettingApi } from '../lib/api';
 
 interface CSVRowParsed {
   Name?: string;
@@ -25,6 +25,46 @@ interface CSVRowParsed {
 }
 
 export const StudentOnboardingView: React.FC = React.memo(() => {
+  // Student Self-Registration Toggle States
+  const [selfRegEnabled, setSelfRegEnabled] = useState<boolean>(false);
+  const [isLoadingSetting, setIsLoadingSetting] = useState<boolean>(true);
+  const [isSavingSetting, setIsSavingSetting] = useState<boolean>(false);
+  const [settingError, setSettingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    getAdminRegistrationSettingApi()
+      .then(res => {
+        if (isMounted) {
+          setSelfRegEnabled(Boolean(res?.student_self_registration_enabled));
+          setIsLoadingSetting(false);
+        }
+      })
+      .catch(err => {
+        if (isMounted) {
+          console.error('Failed to load student self-registration setting:', err);
+          setIsLoadingSetting(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleToggleSelfRegistration = async () => {
+    if (isSavingSetting) return;
+    const nextVal = !selfRegEnabled;
+    setIsSavingSetting(true);
+    setSettingError(null);
+    try {
+      const res = await updateAdminRegistrationSettingApi(nextVal);
+      setSelfRegEnabled(Boolean(res?.student_self_registration_enabled));
+    } catch (err: any) {
+      setSettingError(err.message || 'Failed to update setting');
+    } finally {
+      setIsSavingSetting(false);
+    }
+  };
   // CARD 1: Direct Email Batch States
   const [emailYear, setEmailYear] = useState('4th Year');
   const [emailBranch, setEmailBranch] = useState('Computer Science (CSE)');
@@ -287,12 +327,67 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
               Batch provision new student accounts via direct email list input or CSV spreadsheets for placement drives.
             </p>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
+            {/* Student Self-Registration Authoritative Toggle Control */}
+            <div className="flex items-center gap-3.5 bg-[#111115] border border-[#27272a] hover:border-white/20 transition-colors rounded-2xl px-4 py-2.5 shadow-md">
+              <div className="text-left">
+                <div className="text-xs font-semibold text-white tracking-tight flex items-center gap-1.5">
+                  <span>Student Self-Registration</span>
+                  {isSavingSetting && <Loader2 className="w-3 h-3 animate-spin text-orange-400" />}
+                </div>
+                <div className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                  {isLoadingSetting ? (
+                    'Checking...'
+                  ) : selfRegEnabled ? (
+                    <span className="text-emerald-400 font-semibold">PUBLIC SIGNUP: ON</span>
+                  ) : (
+                    <span className="text-zinc-400 font-semibold">PUBLIC SIGNUP: OFF</span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleSelfRegistration}
+                disabled={isSavingSetting || isLoadingSetting}
+                className={`relative inline-flex items-center h-7 w-16 rounded-full transition-colors duration-200 ease-in-out cursor-pointer focus:outline-none select-none ${
+                  selfRegEnabled ? 'bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.4)]' : 'bg-zinc-800 border border-zinc-700'
+                }`}
+                title={`Click to turn ${selfRegEnabled ? 'OFF' : 'ON'} Student Self-Registration`}
+                aria-pressed={selfRegEnabled}
+              >
+                <span className="sr-only">Toggle Student Self-Registration</span>
+                <span
+                  className={`inline-block w-5 h-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out flex items-center justify-center text-[9px] font-black tracking-tight ${
+                    selfRegEnabled ? 'translate-x-9 text-orange-600' : 'translate-x-1 text-zinc-700'
+                  }`}
+                >
+                  {selfRegEnabled ? 'ON' : 'OFF'}
+                </span>
+              </button>
+            </div>
+
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
               <UserPlus className="w-6 h-6" />
             </div>
           </div>
         </div>
+
+        {settingError && (
+          <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{settingError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSettingError(null)}
+              className="text-zinc-400 hover:text-white text-xs cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
       </motion.div>
 
       {/* ── TWO SIDE-BY-SIDE RESPONSIVE CARDS ── */}
