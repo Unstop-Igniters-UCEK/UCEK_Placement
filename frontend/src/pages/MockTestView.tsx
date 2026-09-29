@@ -202,6 +202,7 @@ export const MockTestView: React.FC = () => {
   const [submittingExam, setSubmittingExam] = useState(false);
   const [examSubmitted, setExamSubmitted] = useState(false);
   const [examResult, setExamResult] = useState<any | null>(null);
+  const [submitExamError, setSubmitExamError] = useState<string | null>(null);
 
   // Fetch quizzes accessible to student/admin
   const fetchTests = async () => {
@@ -211,10 +212,10 @@ export const MockTestView: React.FC = () => {
       if (res && res.tests && Array.isArray(res.tests)) {
         setTests(res.tests);
       } else {
-        setTests(contextTests || []);
+        setTests([]);
       }
     } catch (e) {
-      setTests(contextTests || []);
+      setTests([]);
     } finally {
       setLoadingTests(false);
     }
@@ -304,6 +305,7 @@ export const MockTestView: React.FC = () => {
     setActiveTest(test);
     setExamSubmitted(false);
     setExamResult(null);
+    setSubmitExamError(null);
     setUserAnswers({});
     setReviewFlags({});
     setCurrentQIdx(0);
@@ -311,13 +313,13 @@ export const MockTestView: React.FC = () => {
 
     try {
       const details = await api.getTestDetails(test.id);
-      if (details && details.questions) {
+      if (details && details.questions && Array.isArray(details.questions)) {
         setTestQuestions(details.questions);
       } else {
-        setTestQuestions(test.questions || []);
+        setTestQuestions(Array.isArray(test.questions) ? test.questions : []);
       }
     } catch (e) {
-      setTestQuestions(test.questions || []);
+      setTestQuestions(Array.isArray(test.questions) ? test.questions : []);
     } finally {
       setLoadingTestDetails(false);
     }
@@ -350,28 +352,11 @@ export const MockTestView: React.FC = () => {
         timeTakenSec
       });
       setExamResult(res);
-    } catch (err) {
-      let correctCount = 0;
-      testQuestions.forEach((q: any) => {
-        if (userAnswers[q.id] === q.correctOptionIndex) {
-          correctCount++;
-        }
-      });
-      const totalQuestions = testQuestions.length || 1;
-      const percentage = Math.round((correctCount / totalQuestions) * 100);
-      setExamResult({
-        score: correctCount,
-        totalQuestions,
-        percentage,
-        passed: percentage >= (activeTest.passPercentage || 60),
-        review: testQuestions.map((q: any) => ({
-          ...q,
-          userAnswer: userAnswers[q.id]
-        }))
-      });
+      setExamSubmitted(true);
+    } catch (err: any) {
+      setSubmitExamError(err?.message || "Failed to submit assessment to server. Please try again.");
     } finally {
       setSubmittingExam(false);
-      setExamSubmitted(true);
     }
   };
 
@@ -597,6 +582,19 @@ export const MockTestView: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              {/* Submission error alert */}
+              {submitExamError && (
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                    <span>{submitExamError}</span>
+                  </div>
+                  <button onClick={() => setSubmitExamError(null)} className="text-zinc-400 hover:text-white text-xs cursor-pointer">
+                    Dismiss
+                  </button>
+                </div>
+              )}
 
               {/* Loading Test Questions */}
               {loadingTestDetails ? (

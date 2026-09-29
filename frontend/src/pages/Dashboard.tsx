@@ -15,7 +15,6 @@ import {
   Activity,
   CheckCircle2,
   GraduationCap,
-  Sparkles,
   Target,
   ChevronLeft,
   ChevronRight,
@@ -41,9 +40,6 @@ export const Dashboard: React.FC = React.memo(() => {
     recentScores,
     clearTestHistory,
     mentorshipPair,
-    setAuthModalOpen,
-    setAuthModalMode,
-    selectedTargetDrive,
     resumeData,
     mockTests,
     setSelectedInterviewQuestionId
@@ -67,10 +63,7 @@ export const Dashboard: React.FC = React.memo(() => {
     starFramework: null,
     fillerCount: null,
     totalEvaluations: 0,
-    featuredPrompts: [
-      "Tell me about a technical project challenge at UCEK and how you solved it.",
-      "Why do you want to join our core engineering team?"
-    ]
+    featuredPrompts: []
   });
 
   const handleFeaturedQuestionClick = (promptText: string, idx: number) => {
@@ -86,9 +79,9 @@ export const Dashboard: React.FC = React.memo(() => {
           setSpeechAnalytics(prev => ({
             ...prev,
             ...data,
-            featuredPrompts: Array.isArray(data.featuredPrompts) && data.featuredPrompts.length > 0
+            featuredPrompts: Array.isArray(data.featuredPrompts)
               ? data.featuredPrompts
-              : (prev.featuredPrompts || []),
+              : [],
           }));
         }
       }).catch(err => console.warn('Failed to load speech analytics:', err));
@@ -112,8 +105,7 @@ export const Dashboard: React.FC = React.memo(() => {
         <div className="flex justify-center pt-2 relative z-10">
           <button
             onClick={() => {
-              setAuthModalMode('login');
-              setAuthModalOpen(true);
+              setActiveTab('dashboard');
             }}
             className="btn-primary px-8 py-3 text-xs font-bold rounded-full cursor-pointer shadow-lg hover:scale-105 transition-transform"
           >
@@ -238,18 +230,12 @@ export const Dashboard: React.FC = React.memo(() => {
                     </div>
                   </div>
 
-                  {/* Target Drive, Domain Badge & Quick Action Links */}
+                  {/* Domain Badge & Quick Action Links */}
                   <div className="pt-1 flex flex-wrap items-center gap-2 sm:gap-2.5">
                     <div className="flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300 max-w-full">
                       <Layers className="w-4 h-4 text-orange-400 shrink-0" />
                       <span className="shrink-0">Domain:</span>
                       <strong className="text-white font-semibold truncate">{user.domain ? user.domain : "Not selected"}</strong>
-                    </div>
-
-                    <div className="flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300 max-w-full">
-                      <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
-                      <span className="shrink-0">Target Drive:</span>
-                      <strong className="text-white font-semibold truncate">{selectedTargetDrive ? selectedTargetDrive : "Not selected"}</strong>
                     </div>
                   </div>
                 </div>
@@ -675,20 +661,26 @@ export const Dashboard: React.FC = React.memo(() => {
                     <span className="text-orange-400 font-mono font-semibold">RECOMMENDED</span>
                   </div>
                   <div className="space-y-2 text-xs">
-                    {(speechAnalytics?.featuredPrompts || []).map((promptText, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => handleFeaturedQuestionClick(promptText, idx)}
-                        className="p-3.5 rounded-lg bg-[#2a2e2f] border border-white/10 text-zinc-200 hover:border-orange-500/40 transition-all cursor-pointer group flex items-start gap-2.5 active:scale-[0.98]"
-                      >
-                        <div className="w-5 h-5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
-                          <Play className="w-2.5 h-2.5 fill-orange-400" />
+                    {(speechAnalytics?.featuredPrompts || []).length === 0 ? (
+                      <p className="text-xs text-zinc-500 italic py-2">
+                        No featured interview questions available.
+                      </p>
+                    ) : (
+                      speechAnalytics.featuredPrompts.map((promptText, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => handleFeaturedQuestionClick(promptText, idx)}
+                          className="p-3.5 rounded-lg bg-[#2a2e2f] border border-white/10 text-zinc-200 hover:border-orange-500/40 transition-all cursor-pointer group flex items-start gap-2.5 active:scale-[0.98]"
+                        >
+                          <div className="w-5 h-5 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
+                            <Play className="w-2.5 h-2.5 fill-orange-400" />
+                          </div>
+                          <p className="text-xs leading-relaxed text-zinc-300 group-hover:text-white transition-colors">
+                            "{promptText}"
+                          </p>
                         </div>
-                        <p className="text-xs leading-relaxed text-zinc-300 group-hover:text-white transition-colors">
-                          "{promptText}"
-                        </p>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
 

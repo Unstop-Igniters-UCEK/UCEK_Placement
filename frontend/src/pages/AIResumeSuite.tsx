@@ -126,14 +126,14 @@ export const AIResumeSuite: React.FC = React.memo(() => {
       });
       // Normalize object to prevent undefined map crashes
       const normalized: ResumeReviewResult = {
-        overallScore: data?.overallScore ?? 84,
-        atsScore: data?.atsScore ?? 88,
-        impactScore: data?.impactScore ?? 79,
-        formattingScore: data?.formattingScore ?? 90,
-        summary: data?.summary || "Resume evaluation complete against technical placement criteria.",
-        strengths: data?.strengths || [],
-        missingKeywords: data?.missingKeywords || (data as any)?.missing_keywords || [],
-        bulletImprovements: data?.bulletImprovements || (data as any)?.improvements || []
+        overallScore: typeof data?.overallScore === 'number' ? data.overallScore : 0,
+        atsScore: typeof data?.atsScore === 'number' ? data.atsScore : 0,
+        impactScore: typeof data?.impactScore === 'number' ? data.impactScore : 0,
+        formattingScore: typeof data?.formattingScore === 'number' ? data.formattingScore : 0,
+        summary: data?.summary || "",
+        strengths: Array.isArray(data?.strengths) ? data.strengths : [],
+        missingKeywords: Array.isArray(data?.missingKeywords) ? data.missingKeywords : ((data as any)?.missing_keywords || []),
+        bulletImprovements: Array.isArray(data?.bulletImprovements) ? data.bulletImprovements : ((data as any)?.improvements || [])
       };
       setReviewResult(normalized);
     } catch (err: any) {

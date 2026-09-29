@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { motion, Variants, AnimatePresence } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { InterviewQuestion, InterviewFeedback } from '../types';
 import { analyzeInterview } from '../lib/api';
 import {
@@ -11,43 +11,24 @@ import {
   MessageSquare,
   Loader2,
   Sparkles,
-  Building2,
-  ChevronDown,
-  Check,
 } from 'lucide-react';
-
-const TARGET_DRIVES = [
-  { id: 'all', label: 'All Target Drives' },
-  { id: 'tcs', label: 'TCS Ninja & Digital Drive' },
-  { id: 'infosys', label: 'Infosys Specialist Programmer' },
-  { id: 'wipro', label: 'Wipro Elite NLTH Drive' },
-  { id: 'accenture', label: 'Accenture Innovation Drive' },
-  { id: 'general', label: 'General HR & Behavioral' },
-];
 
 export const HRInterviewSimulator: React.FC = React.memo(() => {
   const {
     interviewQuestions,
     logoutUser,
     setActiveTab,
-    setAuthModalOpen,
-    setAuthModalMode,
-    setSelectedTargetDrive,
     selectedInterviewQuestionId,
     setSelectedInterviewQuestionId
   } = useApp();
-
-  const [selectedDrive, setSelectedDrive] = useState('all');
-  const [driveDropdownOpen, setDriveDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [selectedQuestion, setSelectedQuestion] = useState<InterviewQuestion | null>(() => {
     if (selectedInterviewQuestionId) {
       const target = selectedInterviewQuestionId.trim().toLowerCase();
       const matched = interviewQuestions.find(
         q => q.id.toLowerCase() === target ||
-             q.questionText.toLowerCase() === target ||
-             q.questionText.toLowerCase().includes(target)
+          q.questionText.toLowerCase() === target ||
+          q.questionText.toLowerCase().includes(target)
       );
       if (matched) return matched;
     }
@@ -65,11 +46,10 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
       const target = selectedInterviewQuestionId.trim().toLowerCase();
       const matched = interviewQuestions.find(
         q => q.id.toLowerCase() === target ||
-             q.questionText.toLowerCase() === target ||
-             q.questionText.toLowerCase().includes(target)
+          q.questionText.toLowerCase() === target ||
+          q.questionText.toLowerCase().includes(target)
       );
       if (matched) {
-        setSelectedDrive('all');
         setSelectedQuestion(matched);
         setFeedback(null);
         setApiError(null);
@@ -89,41 +69,6 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Close custom dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDriveDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const filteredQuestions = interviewQuestions.filter(q => {
-    if (selectedDrive === 'all') return true;
-    const tag = (q.companyTag || '').toLowerCase();
-    const cat = (q.category || '').toLowerCase();
-    if (selectedDrive === 'tcs') return tag.includes('tcs') || cat.includes('tcs');
-    if (selectedDrive === 'infosys') return tag.includes('infosys') || cat.includes('infosys');
-    if (selectedDrive === 'wipro') return tag.includes('wipro') || cat.includes('wipro');
-    if (selectedDrive === 'accenture') return tag.includes('accenture') || cat.includes('accenture');
-    if (selectedDrive === 'general') return tag.includes('general') || cat.includes('general') || (!tag.includes('tcs') && !tag.includes('infosys') && !tag.includes('wipro') && !tag.includes('accenture'));
-    return true;
-  });
-
-  // Automatically update selected question when selectedDrive changes
-  useEffect(() => {
-    if (filteredQuestions.length > 0) {
-      const exists = selectedQuestion ? filteredQuestions.some(q => q.id === selectedQuestion.id) : false;
-      if (!exists) {
-        setSelectedQuestion(filteredQuestions[0]);
-        setFeedback(null);
-        setApiError(null);
-      }
-    }
-  }, [selectedDrive, filteredQuestions]);
 
   useEffect(() => {
     if (isRecording) {
@@ -269,7 +214,7 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
       initial="hidden"
       animate="visible"
     >
-      {/* UNWRAPPED HEADER (With Custom OLED Placement Drive Dropdown & High Z-Index Stacking) */}
+      {/* UNWRAPPED HEADER */}
       <motion.div variants={itemVariants} className="px-1 space-y-4 pb-1 relative z-30">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div className="space-y-2">
@@ -279,79 +224,11 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
               </div>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-heading">
-              HR Interview Speech Simulator
+              Interview Practice
             </h1>
             <p className="text-sm text-zinc-400 leading-relaxed max-w-2xl">
-              Practice HR behavioral questions with real-time speech fluency, pace (WPM), and confidence analysis.
+              Practice HR behavioral questions with real-time Speech fluency, Pace, and Confidence analysis.
             </p>
-          </div>
-
-          {/* TARGET DRIVE SELECTOR CUSTOM DROPDOWN */}
-          <div className="space-y-1.5 shrink-0 relative z-30" ref={dropdownRef}>
-            <label className="text-[11px] font-mono font-bold text-zinc-400 uppercase tracking-wider block flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-orange-400" />
-              <span>Target Placement Drive</span>
-            </label>
-
-            <button
-              type="button"
-              onClick={() => setDriveDropdownOpen(prev => !prev)}
-              className="bg-[#141414] hover:bg-[#1a1a1a] border border-white/20 focus:border-orange-500 text-white font-bold text-xs rounded-full pl-4 pr-3.5 py-2.5 shadow-xl transition-all cursor-pointer flex items-center justify-between gap-3 min-w-[220px] active:scale-[0.98]"
-            >
-              <span className="truncate">{TARGET_DRIVES.find(d => d.id === selectedDrive)?.label}</span>
-              <ChevronDown className={`w-4 h-4 text-orange-400 transition-transform duration-200 shrink-0 ${driveDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            <AnimatePresence>
-              {driveDropdownOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 6, scale: 0.96 }}
-                  transition={{ duration: 0.15, ease: 'easeOut' }}
-                  className="absolute right-0 top-full mt-2 w-68 bg-[#0d0d0d] border border-white/20 rounded-2xl p-2.5 shadow-2xl z-[100] space-y-1 backdrop-blur-2xl"
-                >
-                  {TARGET_DRIVES.map(drive => {
-                    const isSelected = selectedDrive === drive.id;
-                    return (
-                      <div
-                        key={drive.id}
-                        onClick={() => {
-                          setSelectedDrive(drive.id);
-                          setSelectedTargetDrive(drive.label);
-                          setDriveDropdownOpen(false);
-                          setFeedback(null);
-                          setApiError(null);
-
-                          const matching = interviewQuestions.filter(q => {
-                            if (drive.id === 'all') return true;
-                            const tag = (q.companyTag || '').toLowerCase();
-                            if (drive.id === 'tcs') return tag.includes('tcs');
-                            if (drive.id === 'infosys') return tag.includes('infosys');
-                            if (drive.id === 'wipro') return tag.includes('wipro');
-                            if (drive.id === 'accenture') return tag.includes('accenture');
-                            if (drive.id === 'general') return !tag || tag.includes('hr') || tag.includes('behavioral');
-                            return true;
-                          });
-
-                          if (matching.length > 0) {
-                            setSelectedQuestion(matching[0]);
-                          }
-                        }}
-                        className={`px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center justify-between ${
-                          isSelected
-                            ? 'bg-orange-500/15 text-orange-400 font-bold border border-orange-500/30'
-                            : 'text-zinc-300 hover:text-white hover:bg-white/5'
-                        }`}
-                      >
-                        <span>{drive.label}</span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-orange-400 shrink-0" />}
-                      </div>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         </div>
       </motion.div>
@@ -372,8 +249,6 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
               onClick={() => {
                 logoutUser();
                 setActiveTab('dashboard');
-                setAuthModalMode('login');
-                setAuthModalOpen(true);
               }}
               className="px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shrink-0 cursor-pointer transition-all shadow-md active:scale-95"
             >
@@ -389,8 +264,7 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
         <motion.div variants={itemVariants} className="lg:col-span-7 bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 sm:p-7 space-y-6 shadow-2xl relative overflow-hidden">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-[11px] font-bold text-orange-400 uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Current Interview Prompt ({selectedDrive === 'all' ? 'All Drives' : selectedQuestion?.companyTag || 'HR Round'})</span>
+              <span>Current Interview Question{selectedQuestion?.companyTag ? ` (${selectedQuestion.companyTag})` : ''}</span>
             </div>
             <h2 className="text-lg sm:text-xl font-bold text-white leading-snug font-heading pt-1">
               "{selectedQuestion ? selectedQuestion.questionText : 'Select an interview question to start practice'}"
@@ -462,16 +336,16 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
           {/* QUESTION SELECTOR (Scrollable section with forced visible custom scrollbar) */}
           <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">Select Question Prompt</h4>
-              <span className="text-[10px] font-mono text-zinc-500">{filteredQuestions.length} Prompts Available</span>
+              <h4 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">Select Question</h4>
+              <span className="text-[10px] font-mono text-zinc-500">{interviewQuestions.length} Questions Available</span>
             </div>
             <div className="space-y-2.5 max-h-[240px] overflow-y-scroll custom-scrollbar pr-3 pb-3">
-              {filteredQuestions.length === 0 ? (
+              {interviewQuestions.length === 0 ? (
                 <div className="p-6 text-center text-xs text-zinc-500 border border-dashed border-white/10 rounded-2xl">
-                  No practice prompts found for this drive. Select "All Target Drives" above.
+                  No Questions Available
                 </div>
               ) : (
-                filteredQuestions.map(q => (
+                interviewQuestions.map(q => (
                   <div
                     key={q.id}
                     onClick={() => {
@@ -506,7 +380,7 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
               </div>
               <div className="space-y-1 max-w-xs mx-auto">
                 <p className="text-sm font-bold text-white">AI Evaluation Workspace</p>
-                <p className="text-xs text-zinc-400 font-sans leading-relaxed">Record an answer on the left to generate an instant speech analysis & feedback report.</p>
+                <p className="text-xs text-zinc-400 font-sans leading-relaxed">Record an answer on the left to generate the Speech analysis & Feedback report.</p>
               </div>
             </div>
           ) : (

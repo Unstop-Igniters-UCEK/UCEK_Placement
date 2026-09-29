@@ -7,17 +7,51 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BASE_URL || 'http://localhost:8000';
 
-/** Retrieve JWT token stored in localStorage by the auth flow. */
+/** Retrieve JWT token stored in sessionStorage by the auth flow. */
+export function getStoredToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return sessionStorage.getItem('ucek_access_token');
+}
+
+export function setStoredToken(token: string): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem('ucek_access_token', token);
+  // Clear any legacy persistent token from localStorage
+  localStorage.removeItem('ucek_access_token');
+}
+
+export function clearStoredToken(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem('ucek_access_token');
+  localStorage.removeItem('ucek_access_token');
+}
+
+/** Retrieve JWT token for internal requests. */
 function getToken(): string | null {
-  return localStorage.getItem('ucek_access_token');
+  return getStoredToken();
 }
 
 /** Build Authorization header if a token is available. */
 function authHeaders(): HeadersInit {
-  const token = getToken();
+  const token = getStoredToken();
   return token
     ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
     : { 'Content-Type': 'application/json' };
+}
+
+/** Centralized fetch handler that captures 401 Unauthorized and notifies the app. */
+export async function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const res = await fetch(input, init);
+  if (res.status === 401) {
+    const urlStr = typeof input === 'string' ? input : input.toString();
+    if (!urlStr.includes('/api/auth/login') && !urlStr.includes('/api/auth/register')) {
+      clearStoredToken();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ucek:unauthorized'));
+      }
+    }
+  }
+  return res;
 }
 
 // ─── Health Check ──────────────────────────────────────────────────────────
@@ -85,7 +119,7 @@ export async function updateProfileApi(payload: {
   githubUrl?: string;
   targetDrive?: string;
 }): Promise<AuthResponse['user']> {
-  const res = await fetch(`${BASE_URL}/api/user/profile`, {
+  const res = await authFetch(`${BASE_URL}/api/user/profile`, {
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -212,7 +246,7 @@ export async function verifyOtpResetApi(email: string, otpCode: string, newPassw
 }
 
 export async function getMeApi(): Promise<{ user: AuthResponse['user'] }> {
-  const res = await fetch(`${BASE_URL}/api/auth/me`, {
+  const res = await authFetch(`${BASE_URL}/api/auth/me`, {
     method: 'GET',
     headers: authHeaders(),
   });
@@ -225,7 +259,7 @@ export async function getMeApi(): Promise<{ user: AuthResponse['user'] }> {
 }
 
 export async function getUserReadinessApi(): Promise<UserReadinessMetrics> {
-  const res = await fetch(`${BASE_URL}/api/user/readiness`, {
+  const res = await authFetch(`${BASE_URL}/api/user/readiness`, {
     method: 'GET',
     headers: authHeaders(),
   });
@@ -240,14 +274,14 @@ export async function getUserReadinessApi(): Promise<UserReadinessMetrics> {
 
 export async function logoutApi(): Promise<void> {
   try {
-    await fetch(`${BASE_URL}/api/auth/logout`, {
+    await authFetch(`${BASE_URL}/api/auth/logout`, {
       method: 'POST',
       headers: authHeaders(),
     });
   } catch (e) {
     console.warn('Logout API error:', e);
   } finally {
-    localStorage.removeItem('ucek_access_token');
+    clearStoredToken();
   }
 }
 
@@ -260,7 +294,7 @@ export async function toggleMilestoneApi(
   milestoneId: string,
   completed: boolean
 ): Promise<void> {
-  const res = await fetch(`${BASE_URL}/api/roadmap/toggle`, {
+  const res = await authFetch(`${BASE_URL}/api/roadmap/toggle`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ moduleId, milestoneId, completed }),
@@ -275,7 +309,7 @@ export async function toggleMilestoneApi(
  * Fetch the authenticated student's personalized roadmap from Supabase via backend.
  */
 export async function getRoadmapApi(): Promise<any> {
-  const res = await fetch(`${BASE_URL}/api/roadmap`, {
+  const res = await authFetch(`${BASE_URL}/api/roadmap`, {
     headers: authHeaders(),
   });
   if (!res.ok) {
@@ -289,7 +323,7 @@ export async function getRoadmapApi(): Promise<any> {
  * Fetch authentic HR interview questions directly from Supabase hr_practice_questions table.
  */
 export async function getHrQuestionsApi(companyTag: string = 'all'): Promise<any[]> {
-  const res = await fetch(`${BASE_URL}/api/ai/hr-questions?companyTag=${encodeURIComponent(companyTag)}`, {
+  const res = await authFetch(`${BASE_URL}/api/ai/hr-questions?companyTag=${encodeURIComponent(companyTag)}`, {
     headers: authHeaders(),
   });
   if (!res.ok) {
@@ -303,7 +337,7 @@ export async function getHrQuestionsApi(companyTag: string = 'all'): Promise<any
  * Fetch active mentors directly from Supabase users table (where role == 'mentor').
  */
 export async function getMentorsApi(): Promise<any[]> {
-  const res = await fetch(`${BASE_URL}/api/mentors`, {
+  const res = await authFetch(`${BASE_URL}/api/mentors`, {
     headers: authHeaders(),
   });
   if (!res.ok) {
@@ -345,7 +379,7 @@ export interface InterviewEvaluation {
 export async function analyzeInterview(
   req: InterviewAnalysisRequest
 ): Promise<InterviewEvaluation> {
-  const res = await fetch(`${BASE_URL}/api/ai/analyze-interview`, {
+  const res = await authFetch(`${BASE_URL}/api/ai/analyze-interview`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(req),
@@ -377,7 +411,7 @@ export interface SpeechAnalyticsResponse {
  * Throws on network errors so the caller can display an appropriate state.
  */
 export async function getSpeechAnalyticsApi(): Promise<SpeechAnalyticsResponse> {
-  const res = await fetch(`${BASE_URL}/api/ai/speech-analytics`, {
+  const res = await authFetch(`${BASE_URL}/api/ai/speech-analytics`, {
     headers: authHeaders(),
   });
 
@@ -399,7 +433,7 @@ export async function getHRQuestionsApi(companyTag: string = 'all'): Promise<Arr
   isFeatured?: boolean;
 }>> {
   try {
-    const res = await fetch(`${BASE_URL}/api/ai/hr-questions?companyTag=${encodeURIComponent(companyTag)}`, {
+    const res = await authFetch(`${BASE_URL}/api/ai/hr-questions?companyTag=${encodeURIComponent(companyTag)}`, {
       headers: authHeaders(),
     });
     if (!res.ok) return [];
@@ -418,7 +452,7 @@ export async function reviewResumeApi(payload: {
   resumeText: string;
   jobRole?: string;
 }) {
-  const res = await fetch(`${BASE_URL}/api/ai/review-resume`, {
+  const res = await authFetch(`${BASE_URL}/api/ai/review-resume`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -442,7 +476,7 @@ export async function matchJDApi(payload: {
   jdText: string;
   resumeText: string;
 }) {
-  const res = await fetch(`${BASE_URL}/api/ai/match-jd`, {
+  const res = await authFetch(`${BASE_URL}/api/ai/match-jd`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -464,7 +498,7 @@ export async function enhanceBulletApi(payload: {
   bulletText: string;
   targetRole?: string;
 }) {
-  const res = await fetch(`${BASE_URL}/api/ai/enhance-bullet`, {
+  const res = await authFetch(`${BASE_URL}/api/ai/enhance-bullet`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -485,10 +519,10 @@ export async function parsePdfApi(file: File): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);
 
-  const token = localStorage.getItem('ucek_access_token');
+  const token = getStoredToken();
   const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
-  const res = await fetch(`${BASE_URL}/api/ai/parse-pdf`, {
+  const res = await authFetch(`${BASE_URL}/api/ai/parse-pdf`, {
     method: 'POST',
     headers,
     body: formData,
@@ -507,7 +541,7 @@ export async function parsePdfApi(file: File): Promise<string> {
  */
 export async function getTestHistoryApi(): Promise<any[]> {
   try {
-    const res = await fetch(`${BASE_URL}/api/tests/history/my`, {
+    const res = await authFetch(`${BASE_URL}/api/tests/history/my`, {
       headers: authHeaders(),
     });
     if (!res.ok) return [];
@@ -534,7 +568,7 @@ export async function getTestHistoryApi(): Promise<any[]> {
 
 export async function deleteTestHistoryApi(): Promise<void> {
   try {
-    const res = await fetch(`${BASE_URL}/api/tests/history/my`, {
+    const res = await authFetch(`${BASE_URL}/api/tests/history/my`, {
       method: 'DELETE',
       headers: authHeaders(),
     });
@@ -563,7 +597,7 @@ export async function submitTestApi(
   }
 ) {
   try {
-    const res = await fetch(`${BASE_URL}/api/tests/${testId}/submit`, {
+    const res = await authFetch(`${BASE_URL}/api/tests/${testId}/submit`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
@@ -598,7 +632,7 @@ export const getAdminDashboardStatsApi = async (year?: string, branch?: string) 
     if (branch && branch !== 'All Departments') params.append('branch', branch);
     if (params.toString()) url += '?' + params.toString();
     
-    const res = await fetch(url, { headers: authHeaders() });
+    const res = await authFetch(url, { headers: authHeaders() });
     if (!res.ok) throw new Error('Failed to fetch admin stats');
     return await res.json();
   } catch (error) {
@@ -609,7 +643,7 @@ export const getAdminDashboardStatsApi = async (year?: string, branch?: string) 
 
 export const getAllUsersAdminApi = async () => {
   try {
-    const res = await fetch(`${BASE_URL}/api/admin/users`, { headers: authHeaders() });
+    const res = await authFetch(`${BASE_URL}/api/admin/users`, { headers: authHeaders() });
     if (!res.ok) throw new Error('Failed to fetch all users');
     return await res.json();
   } catch (error) {
@@ -621,7 +655,7 @@ export const getAllUsersAdminApi = async () => {
 // ─── Quiz Assignment & Exam Hub API Methods ───
 
 export async function getTests(): Promise<{ tests: any[] }> {
-  const res = await fetch(`${BASE_URL}/api/tests`, {
+  const res = await authFetch(`${BASE_URL}/api/tests`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch tests');
@@ -635,7 +669,7 @@ export async function uploadCSVTest(data: {
   target_year: string;
   questions: any[];
 }): Promise<any> {
-  const res = await fetch(`${BASE_URL}/api/tests/upload-csv-test`, {
+  const res = await authFetch(`${BASE_URL}/api/tests/upload-csv-test`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -648,7 +682,7 @@ export async function uploadCSVTest(data: {
 }
 
 export async function getTestDetails(testId: string): Promise<{ test: any; questions: any[] }> {
-  const res = await fetch(`${BASE_URL}/api/tests/${testId}`, {
+  const res = await authFetch(`${BASE_URL}/api/tests/${testId}`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch test details');
@@ -659,7 +693,7 @@ export async function submitQuiz(
   testId: string,
   data: { answers: Record<string, number>; timeTakenSec: number }
 ): Promise<any> {
-  const res = await fetch(`${BASE_URL}/api/tests/${testId}/submit`, {
+  const res = await authFetch(`${BASE_URL}/api/tests/${testId}/submit`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(data),
@@ -700,7 +734,7 @@ export interface BatchCreateUsersResponse {
 export async function batchCreateUsers(
   payload: BatchCreateUsersPayload
 ): Promise<BatchCreateUsersResponse> {
-  const res = await fetch(`${BASE_URL}/api/admin/users/batch-create`, {
+  const res = await authFetch(`${BASE_URL}/api/admin/users/batch-create`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -744,7 +778,7 @@ export interface BatchCSVCreateResponse {
 export async function batchCSVCreateUsers(
   users: BatchCSVUser[]
 ): Promise<BatchCSVCreateResponse> {
-  const res = await fetch(`${BASE_URL}/api/admin/users/batch-csv-create`, {
+  const res = await authFetch(`${BASE_URL}/api/admin/users/batch-csv-create`, {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ users }),

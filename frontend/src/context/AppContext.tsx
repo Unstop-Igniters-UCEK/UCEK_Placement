@@ -25,7 +25,11 @@ import {
   toggleMilestoneApi,
   getRoadmapApi,
   getHrQuestionsApi,
-  getMentorsApi
+  getMentorsApi,
+  getTests,
+  getStoredToken,
+  setStoredToken,
+  clearStoredToken
 } from '../lib/api';
 
 export type Theme = 'dark' | 'light';
@@ -37,10 +41,6 @@ interface AppContextType {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
-  authModalOpen: boolean;
-  setAuthModalOpen: (open: boolean) => void;
-  authModalMode: 'login' | 'signup' | 'forgot';
-  setAuthModalMode: (mode: 'login' | 'signup' | 'forgot') => void;
   
   // Theme System
   theme: Theme;
@@ -87,15 +87,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const toggleSidebar = useCallback(() => setSidebarOpen(prev => !prev), []);
-  const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
-  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup' | 'forgot'>('login');
 
   const [selectedTargetDrive, setSelectedTargetDriveState] = useState<string>('');
   const [selectedInterviewQuestionId, setSelectedInterviewQuestionId] = useState<string | null>(null);
 
   const setSelectedTargetDrive = useCallback((driveLabel: string) => {
     setSelectedTargetDriveState(driveLabel);
-    const token = localStorage.getItem('ucek_access_token');
+    const token = getStoredToken();
     if (token) {
       updateProfileApi({ targetDrive: driveLabel }).catch(() => {});
     }
@@ -111,9 +109,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     document.documentElement.classList.remove('light');
   }, []);
 
-  // Restore user session from backend on mount if access token exists
+  // Handle centralized 401 unauthorized notifications
   useEffect(() => {
-    const token = localStorage.getItem('ucek_access_token');
+    const handleUnauthorized = () => {
+      clearStoredToken();
+      setUser(null);
+      setSelectedTargetDriveState('');
+      setRecentScores([]);
+      setMentorshipPair(null);
+      setResumeData(EMPTY_RESUME_DATA);
+      setActiveTab('dashboard');
+    };
+
+    window.addEventListener('ucek:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('ucek:unauthorized', handleUnauthorized);
+  }, []);
+
+  // Restore user session from backend on mount if valid session access token exists
+  useEffect(() => {
+    // Clear any legacy persistent access token from localStorage
+    localStorage.removeItem('ucek_access_token');
+
+    const token = getStoredToken();
     if (token && !user) {
       getMeApi()
         .then(data => {
@@ -142,14 +159,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })
         .catch(err => {
           console.warn('Failed to restore backend session:', err);
-          localStorage.removeItem('ucek_access_token');
+          clearStoredToken();
+          setUser(null);
         });
     }
   }, []);
 
   // Sync user central test history from backend when authenticated
   useEffect(() => {
-    const token = localStorage.getItem('ucek_access_token');
+    const token = getStoredToken();
     if (token && user) {
       getTestHistoryApi()
         .then((remoteScores) => {
@@ -212,9 +230,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .catch(err => console.warn('Failed to load mentors:', err));
   }, []);
 
+  // Sync authentic tests/quizzes from Supabase via backend
+  useEffect(() => {
+    getTests()
+      .then(res => {
+        if (res && Array.isArray(res.tests)) {
+          setMockTests(res.tests);
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to load tests:', err);
+        setMockTests([]);
+      });
+  }, []);
+
   // Sync personalized roadmap from Supabase when user is authenticated
   useEffect(() => {
-    const token = localStorage.getItem('ucek_access_token');
+    const token = getStoredToken();
     if (token && user?.hasSelectedDomain && user?.domain) {
       getRoadmapApi()
         .then(remoteRoadmap => {
@@ -236,7 +268,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const switchDemoRole = useCallback(async (role: UserRole) => {
     const data = await demoLoginApi(role);
     if (data.accessToken) {
-      localStorage.setItem('ucek_access_token', data.accessToken);
+      setStoredToken(data.accessToken);
     }
     const mappedUser: User = {
       id: data.user.id,
@@ -254,14 +286,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       bio: data.user.bio,
     };
     setUser(mappedUser);
-    setAuthModalOpen(false);
     setActiveTab(mappedUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
   }, []);
 
   const loginUser = useCallback(async (email: string, password?: string, role?: string): Promise<boolean> => {
     const data = await loginApi({ email, password: password || '', role });
     if (data.accessToken) {
-      localStorage.setItem('ucek_access_token', data.accessToken);
+      setStoredToken(data.accessToken);
     }
     const mappedUser: User = {
       id: data.user.id,
@@ -280,7 +311,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setUser(mappedUser);
     setSelectedTargetDriveState(data.user.targetDrive || '');
-    setAuthModalOpen(false);
     setActiveTab(mappedUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
     return true;
   }, []);
@@ -308,9 +338,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         hasSelectedDomain: true
       } : null);
       return true;
-    } catch {
-      setUser(prev => prev ? { ...prev, domain: domainName, hasSelectedDomain: true } : null);
-      return true;
+    } catch (err) {
+      console.warn('Failed to update domain on backend:', err);
+      return false;
     }
   }, []);
 
@@ -336,7 +366,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
   const logoutUser = useCallback(() => {
     logoutApi().catch(() => {});
-    localStorage.removeItem('ucek_access_token');
+    clearStoredToken();
     localStorage.removeItem('ucek_selected_target_drive');
     setUser(null);
     setSelectedTargetDriveState('');
@@ -368,7 +398,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
     // Fire-and-forget backend sync (optimistic update already applied above)
-    const token = localStorage.getItem('ucek_access_token');
+    const token = getStoredToken();
     if (token) {
       toggleMilestoneApi(moduleId, milestoneId, newCompleted)
         .catch(err => console.warn('Failed to persist milestone toggle:', err));
@@ -385,7 +415,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Optimistic UI update
     setRecentScores(prev => [newResult, ...prev]);
 
-    const token = localStorage.getItem('ucek_access_token');
+    const token = getStoredToken();
     if (token) {
       submitTestApi(resultData.testId, {
         score: resultData.score,
@@ -409,7 +439,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const clearTestHistory = useCallback(() => {
     setRecentScores([]);
-    const token = localStorage.getItem('ucek_access_token');
+    const token = getStoredToken();
     if (token) {
       deleteTestHistoryApi().catch(err => console.warn('Failed to clear test history on backend:', err));
     }
@@ -497,10 +527,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sidebarOpen,
     setSidebarOpen,
     toggleSidebar,
-    authModalOpen,
-    setAuthModalOpen,
-    authModalMode,
-    setAuthModalMode,
     theme,
     toggleTheme,
     setTheme,
@@ -536,8 +562,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     activeTab,
     sidebarOpen,
     toggleSidebar,
-    authModalOpen,
-    authModalMode,
     theme,
     toggleTheme,
     setTheme,

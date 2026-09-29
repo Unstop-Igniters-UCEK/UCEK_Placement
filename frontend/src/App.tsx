@@ -4,7 +4,6 @@ import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { StudentNavHeader } from './components/StudentNavHeader';
 import { LandingPage } from './pages/LandingPage';
-import { AuthModal } from './components/AuthModal';
 import OrangeBlackGradient from './components/OrangeBlackGradient';
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
 import Lenis from 'lenis';
@@ -93,7 +92,6 @@ function AppContent() {
         style={{ scaleX }}
       />
 
-      <AuthModal />
       <div className="min-h-screen bg-[var(--bg-body)] text-[var(--text-primary)] flex flex-col font-sans overflow-x-hidden relative">
         {/* Header shown only on Landing Page / Unauthenticated */}
         {!user && <Header />}

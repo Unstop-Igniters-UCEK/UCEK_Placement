@@ -8,12 +8,14 @@ import random
 import uuid
 from datetime import datetime, timedelta
 
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Response, Depends, Request, status
+from fastapi.security import HTTPAuthorizationCredentials
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from backend.database import db, hash_password, verify_password, supabase_client
-from backend.auth import create_access_token, create_refresh_token, decode_token, get_current_user, ALLOWED_EMAIL_DOMAIN
+from backend.auth import create_access_token, create_refresh_token, decode_token, get_current_user, ALLOWED_EMAIL_DOMAIN, security
 from backend.schemas import (
     RegisterRequest, LoginRequest, DemoLoginRequest,
     SendOTPRequest, VerifyOTPResetRequest
@@ -73,13 +75,13 @@ def _set_refresh_cookie(response: Response, refresh_token: str):
         os.getenv("ENVIRONMENT", "").lower() == "production"
         or os.getenv("NODE_ENV", "").lower() == "production"
     )
+    # Session cookie: No max_age or expires so it is discarded when browser closes
     response.set_cookie(
         key="ucek_refresh_token",
         value=refresh_token,
         httponly=True,
         secure=is_secure,
         samesite="lax",
-        max_age=7 * 24 * 3600,
     )
 
 
@@ -267,7 +269,11 @@ def refresh_token_endpoint(request: Request, response: Response):
 # ─── Logout ───────────────────────────────────────────────────────────────────
 
 @router.post("/logout")
-def logout(response: Response):
+def logout(response: Response, credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+    if credentials and credentials.credentials:
+        token = credentials.credentials
+        if token not in db.revokedTokens:
+            db.revokedTokens.append(token)
     response.delete_cookie(key="ucek_refresh_token")
     return {"message": "Logged out successfully."}
 
