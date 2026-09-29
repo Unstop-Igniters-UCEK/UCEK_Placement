@@ -19,7 +19,9 @@ import {
   X,
   HelpCircle,
   Loader2,
-  ShieldAlert
+  ShieldAlert,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { api } from '../lib/api';
 
@@ -178,6 +180,8 @@ export const MockTestView: React.FC = () => {
   const [tests, setTests] = useState<any[]>([]);
   const [loadingTests, setLoadingTests] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [isCategoryOpen, setIsCategoryOpen] = useState<boolean>(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Admin Upload state
   const [testTitle, setTestTitle] = useState('');
@@ -224,6 +228,21 @@ export const MockTestView: React.FC = () => {
   useEffect(() => {
     fetchTests();
   }, [user]);
+
+  // Click-outside listener for category dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setIsCategoryOpen(false);
+      }
+    };
+    if (isCategoryOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isCategoryOpen]);
 
   // Handle CSV Selection & Parsing
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -378,7 +397,7 @@ export const MockTestView: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white p-4 md:p-8 font-sans space-y-8">
+    <div className="space-y-6 font-sans max-w-7xl mx-auto transform-gpu">
       {/* ── Admin Quiz Creation Card (Admin Only) ── */}
       {user?.role === 'admin' && (
         <motion.div
@@ -802,91 +821,184 @@ export const MockTestView: React.FC = () => {
       </AnimatePresence>
 
       {/* ── Student Assessment Catalog Dashboard ── */}
-      <div className="bg-[#121217]/90 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
-          <div>
-            <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider font-mono">
-              STUDENT ASSESSMENT DASHBOARD
-            </span>
-            <h2 className="text-xl font-bold text-white tracking-tight font-heading">
-              Assessment & Quiz Catalog
-            </h2>
-            <p className="text-xs text-zinc-400">
+      <div className="bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-8 relative overflow-hidden">
+        {/* Header with Title and Category Dropdown */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-white/[0.08]">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-[10px] font-bold text-orange-400 uppercase tracking-wider font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+              <span>Student Assessment Dashboard</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-heading">
+              Assessment &amp; Quiz Catalog
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-xl">
               Assigned departmental tests for your cohort ({user?.branch || 'All Departments'} • {user?.year || 'All Years'})
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {['All', 'Departmental', 'Aptitude', 'Technical'].map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                  selectedCategory === cat
-                    ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40 font-bold shadow-sm'
-                    : 'bg-white/5 text-zinc-400 border border-white/10 hover:text-white hover:bg-white/10'
+          {/* Polished Category Dropdown Control */}
+          <div className="relative shrink-0" ref={categoryDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsCategoryOpen(prev => !prev)}
+              className="inline-flex items-center justify-between gap-3 px-4 py-2.5 rounded-full bg-[#141414] hover:bg-[#1a1a1a] border border-white/10 hover:border-white/20 text-xs font-medium transition-all shadow-sm cursor-pointer min-w-[175px]"
+              aria-haspopup="listbox"
+              aria-expanded={isCategoryOpen}
+            >
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${selectedCategory !== 'All' ? 'bg-orange-500' : 'bg-zinc-500'}`} />
+                <span className="text-zinc-400 font-mono text-[11px]">Category:</span>
+                <span className={`font-semibold ${selectedCategory !== 'All' ? 'text-orange-400' : 'text-white'}`}>
+                  {selectedCategory}
+                </span>
+              </div>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${
+                  isCategoryOpen ? 'rotate-180 text-orange-400' : ''
                 }`}
-              >
-                {cat}
-              </button>
-            ))}
+              />
+            </button>
+
+            <AnimatePresence>
+              {isCategoryOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                  transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                  className="absolute right-0 mt-2 w-48 rounded-2xl bg-[#141414] border border-white/10 shadow-2xl p-1.5 z-40 backdrop-blur-xl"
+                  role="listbox"
+                >
+                  {['All', 'Departmental', 'Aptitude', 'Technical'].map(cat => {
+                    const isSelected = selectedCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCategory(cat);
+                          setIsCategoryOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-orange-500/10 text-orange-400 font-bold border border-orange-500/20'
+                            : 'text-zinc-300 hover:text-white hover:bg-white/5'
+                        }`}
+                        role="option"
+                        aria-selected={isSelected}
+                      >
+                        <span>{cat}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-orange-400" />}
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* Catalog Grid */}
+        {/* Catalog Grid or Empty / Loading State */}
         {loadingTests ? (
-          <div className="py-12 text-center text-zinc-400 text-xs font-mono flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin text-orange-400" /> Loading Quizzes...
+          <div className="py-20 text-center text-zinc-400 text-xs font-mono flex items-center justify-center gap-2.5">
+            <Loader2 className="w-4 h-4 animate-spin text-orange-400" />
+            <span>Loading quizzes catalog...</span>
           </div>
         ) : filteredCatalog.length === 0 ? (
-          <div className="py-12 text-center text-zinc-400 text-xs bg-white/[0.02] rounded-xl border border-white/10 p-8 max-w-lg mx-auto space-y-2">
-            <HelpCircle className="w-8 h-8 text-zinc-500 mx-auto" />
-            <p className="font-semibold text-white">No Quizzes Found</p>
-            <p className="text-zinc-500 leading-relaxed">
-              There are currently no departmental quizzes assigned to your branch and year. Check back soon or select 'All' for general placement drives.
-            </p>
+          <div className="py-16 text-center bg-[#121217] rounded-3xl border border-white/10 p-8 sm:p-12 max-w-lg mx-auto space-y-5 shadow-2xl relative overflow-hidden">
+            <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
+              <HelpCircle className="w-6 h-6 text-orange-400" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white font-heading tracking-tight">
+                No Quizzes Found
+              </h3>
+              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-sm mx-auto">
+                There are currently no departmental quizzes assigned to your branch and year. Check back soon or select 'All' for general placement drives.
+              </p>
+            </div>
+            {selectedCategory !== 'All' && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('All')}
+                  className="px-5 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-semibold text-white transition-all cursor-pointer shadow-sm active:scale-95"
+                >
+                  View All Quizzes
+                </button>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCatalog.map(test => (
-              <div
-                key={test.id}
-                className="bg-white/[0.02] border border-white/10 hover:border-orange-500/40 rounded-xl p-5 space-y-4 flex flex-col justify-between transition-all group"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="px-2.5 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-[10px] font-bold text-orange-400 font-mono">
-                      {test.targetDept || test.companyTag || 'Department Core'}
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-medium text-zinc-400 font-mono">
-                      {test.targetYear || 'All Years'}
-                    </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredCatalog.map(test => {
+              const qCount = test.totalQuestions || test.questionCount || test.questions?.length || (test.questionIds ? test.questionIds.length : 0);
+              const durationMins = test.durationMins || test.durationMinutes || 30;
+              const passPercentage = test.passPercentage || 60;
+              const deptTag = test.targetDept || test.companyTag || 'Department Core';
+              const yearTag = test.targetYear || 'All Years';
+
+              return (
+                <div
+                  key={test.id}
+                  className="bg-[#121217] border border-white/10 hover:border-white/20 hover:border-orange-500/30 rounded-2xl p-6 flex flex-col justify-between transition-all duration-200 group shadow-lg hover:shadow-xl hover:shadow-black/50 hover:-translate-y-0.5 relative overflow-hidden"
+                >
+                  <div className="space-y-4">
+                    {/* Top Targeting Badges */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-[11px] font-semibold text-orange-400 font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                        {deptTag}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[11px] font-medium text-zinc-400 font-mono">
+                        {yearTag}
+                      </span>
+                    </div>
+
+                    {/* Test Title & Category */}
+                    <div>
+                      <h3 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug group-hover:text-orange-400 transition-colors font-heading line-clamp-2">
+                        {test.title}
+                      </h3>
+                      {test.category && test.category !== 'Departmental' && (
+                        <p className="text-[11px] text-zinc-400 font-mono mt-1.5">
+                          Category: <span className="text-zinc-300 font-semibold">{test.category}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
 
-                  <h3 className="font-bold text-white text-base group-hover:text-orange-400 transition-colors font-heading">
-                    {test.title}
-                  </h3>
-                </div>
+                  {/* Card Footer: Metadata & [ ▶ Start Test ] Button */}
+                  <div className="pt-5 mt-4 border-t border-white/[0.08] flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 text-[11px] text-zinc-400 font-mono">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>{durationMins}m</span>
+                      </span>
+                      <span>•</span>
+                      <span className="inline-flex items-center gap-1">
+                        <FileText className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>{qCount} Qs</span>
+                      </span>
+                      <span>•</span>
+                      <span className="inline-flex items-center gap-1">
+                        <Award className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>{passPercentage}%</span>
+                      </span>
+                    </div>
 
-                <div className="pt-3 border-t border-white/5 flex items-center justify-between">
-                  <div className="text-[11px] text-zinc-400 font-mono space-x-2">
-                    <span>{test.durationMins || test.durationMinutes || 30} mins</span>
-                    <span>•</span>
-                    <span>{test.totalQuestions || test.questionCount || test.questions?.length || 0} Qs</span>
-                    <span>•</span>
-                    <span>Pass: {test.passPercentage || 60}%</span>
+                    <button
+                      onClick={() => handleStartAssessment(test)}
+                      className="btn-primary !px-4 !py-1.5 !text-xs !font-bold flex items-center gap-1.5 shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
+                    >
+                      <Play className="w-3 h-3 fill-black text-black shrink-0" />
+                      <span>Start Test</span>
+                    </button>
                   </div>
-
-                  <button
-                    onClick={() => handleStartAssessment(test)}
-                    className="px-3.5 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-black border border-orange-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
-                  >
-                    <Play className="w-3 h-3 fill-current" />
-                    <span>Start</span>
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
