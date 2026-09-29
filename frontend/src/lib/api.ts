@@ -674,8 +674,10 @@ export async function getTests(): Promise<{ tests: any[] }> {
 export async function uploadCSVTest(data: {
   title: string;
   duration: number;
-  target_dept: string;
-  target_year: string;
+  test_type?: string;
+  target_dept?: string;
+  target_department_code?: string;
+  target_year?: any;
   questions: any[];
 }): Promise<any> {
   const res = await authFetch(`${BASE_URL}/api/tests/upload-csv-test`, {
@@ -690,6 +692,18 @@ export async function uploadCSVTest(data: {
   return res.json();
 }
 
+export async function startTest(testId: string): Promise<any> {
+  const res = await authFetch(`${BASE_URL}/api/tests/${testId}/start`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to start test' }));
+    throw new Error(err.detail || 'Failed to start test');
+  }
+  return res.json();
+}
+
 export async function getTestDetails(testId: string): Promise<{ test: any; questions: any[] }> {
   const res = await authFetch(`${BASE_URL}/api/tests/${testId}`, {
     headers: authHeaders(),
@@ -700,7 +714,7 @@ export async function getTestDetails(testId: string): Promise<{ test: any; quest
 
 export async function submitQuiz(
   testId: string,
-  data: { answers: Record<string, number>; timeTakenSec: number }
+  data: { answers: Record<string, any>; timeTakenSec: number }
 ): Promise<any> {
   const res = await authFetch(`${BASE_URL}/api/tests/${testId}/submit`, {
     method: 'POST',
@@ -710,6 +724,18 @@ export async function submitQuiz(
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Failed to submit quiz' }));
     throw new Error(err.detail || 'Failed to submit quiz');
+  }
+  return res.json();
+}
+
+export async function getTestReview(testId: string, attemptId?: string): Promise<any> {
+  const url = attemptId
+    ? `${BASE_URL}/api/tests/${testId}/review?attempt_id=${encodeURIComponent(attemptId)}`
+    : `${BASE_URL}/api/tests/${testId}/review`;
+  const res = await authFetch(url, { headers: authHeaders() });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to fetch test review' }));
+    throw new Error(err.detail || 'Failed to fetch test review');
   }
   return res.json();
 }
@@ -809,8 +835,10 @@ export async function batchCSVCreateUsers(
 export const api = {
   getTests,
   uploadCSVTest,
+  startTest,
   getTestDetails,
   submitQuiz,
+  getTestReview,
 };
 
 

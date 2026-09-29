@@ -246,21 +246,21 @@ export const Dashboard: React.FC = React.memo(() => {
                     {/* Left: 3 Stacked Metrics */}
                     <div className="flex flex-col justify-center space-y-2.5 pl-0.5 sm:pl-1 shrink-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-base sm:text-lg font-bold text-white tabular-nums tracking-tight min-w-[32px]">
+                        <span className="text-xs font-bold text-white tabular-nums tracking-tight min-w-[28px]">
                           {readinessMetrics.aptitude !== null ? `${readinessMetrics.aptitude}%` : '—'}
                         </span>
                         <span className="text-xs text-zinc-400 font-medium">Apt</span>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-base sm:text-lg font-bold text-white tabular-nums tracking-tight min-w-[32px]">
+                        <span className="text-xs font-bold text-white tabular-nums tracking-tight min-w-[28px]">
                           {readinessMetrics.technical !== null ? `${readinessMetrics.technical}%` : '—'}
                         </span>
                         <span className="text-xs text-zinc-400 font-medium">Tech</span>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className={`text-base sm:text-lg font-bold tabular-nums tracking-tight min-w-[32px] ${readinessMetrics.ats !== null ? 'text-orange-400' : 'text-zinc-400'}`}>
+                        <span className={`text-xs font-bold tabular-nums tracking-tight min-w-[28px] ${readinessMetrics.ats !== null ? 'text-orange-400' : 'text-zinc-400'}`}>
                           {readinessMetrics.ats !== null ? `${readinessMetrics.ats}%` : '—'}
                         </span>
                         <span className="text-xs text-zinc-400 font-medium">ATS</span>
@@ -268,7 +268,7 @@ export const Dashboard: React.FC = React.memo(() => {
                     </div>
 
                     {/* Right: Circular Readiness Graph */}
-                    <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center shrink-0 my-auto pr-0.5">
+                    <div className="relative w-[108px] h-[108px] sm:w-[116px] sm:h-[116px] flex items-center justify-center shrink-0 my-auto pr-0.5">
                       <svg className="w-full h-full transform -rotate-90 filter drop-shadow-[0_0_10px_rgba(249,115,22,0.4)]" viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.06)" strokeWidth="8" fill="transparent" />
                         <circle
@@ -289,10 +289,10 @@ export const Dashboard: React.FC = React.memo(() => {
                         />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                        <span className="text-2xl sm:text-3xl font-black text-white font-heading tracking-tight">
+                        <span className="text-lg sm:text-xl font-extrabold text-white font-heading tracking-tight">
                           {readinessMetrics.score !== null ? `${readinessMetrics.score}%` : '—'}
                         </span>
-                        <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-orange-400 mt-0.5">READINESS</span>
+                        <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-orange-400 mt-0.5">READINESS</span>
                       </div>
                     </div>
 

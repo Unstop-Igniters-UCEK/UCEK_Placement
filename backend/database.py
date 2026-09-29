@@ -517,19 +517,38 @@ class Database:
 
     # ── Mock Tests ─────────────────────────────────────────────────────────────
 
-    def get_published_tests_for_student(self, department_id: Optional[str], year: Optional[int]) -> List[Dict[str, Any]]:
+    def get_published_tests_for_student(self, department_id: Optional[str], year: Optional[Any]) -> List[Dict[str, Any]]:
         """
         Return published mock tests that match the student's department and year.
-        Targeting rules:
-          target_department_id IS NULL → all departments
-          target_year IS NULL          → all years
+        Targeting rules (Impulse_DB_Design.md §16.4):
+          (target_department_id IS NULL OR target_department_id = student's department_id)
+          AND
+          (target_year IS NULL OR target_year = student's year)
+          AND
+          status = 'published'
         """
         if not supabase_client:
             return []
         try:
+            # Pre-load department codes
+            departments = self.get_all_departments()
+            dept_map = {str(d["id"]): d.get("code", "") for d in departments}
+
+            # Parse student year safely (handles 4, "4", "4th Year", etc.)
+            parsed_year: Optional[int] = None
+            if year is not None:
+                if isinstance(year, int) and year in (1, 2, 3, 4):
+                    parsed_year = year
+                else:
+                    s = str(year).strip().lower()
+                    for digit in ("1", "2", "3", "4"):
+                        if digit in s:
+                            parsed_year = int(digit)
+                            break
+
             res = supabase_client.table("mock_tests").select(
                 "id, title, duration_minutes, target_department_id, target_year, test_type, status, published_at"
-            ).eq("status", "published").execute()
+            ).eq("status", "published").order("created_at", desc=True).execute()
             if not res.data:
                 return []
 
@@ -537,21 +556,38 @@ class Database:
             for t in res.data:
                 td = t.get("target_department_id")
                 ty = t.get("target_year")
-                dept_match = (td is None) or (department_id is not None and str(td) == str(department_id))
-                year_match = (ty is None) or (year is not None and int(ty) == int(year))
+
+                # Department rule: NULL -> all departments, otherwise matches student's department
+                dept_match = (td is None) or (department_id is not None and str(td).lower() == str(department_id).lower())
+
+                # Year rule: NULL -> all years, otherwise matches student's year
+                year_match = (ty is None) or (parsed_year is not None and int(ty) == parsed_year)
+
                 if dept_match and year_match:
-                    # Count questions
                     q_res = supabase_client.table("mock_test_questions").select("id", count="exact").eq("test_id", t["id"]).execute()
                     q_count = q_res.count if hasattr(q_res, 'count') and q_res.count is not None else len(q_res.data or [])
+
+                    target_dept_code = dept_map.get(str(td)) if td else None
+                    duration = int(t.get("duration_minutes", 30))
+                    test_type_str = str(t.get("test_type", "general")).lower()
+
                     matching.append({
                         "id": str(t["id"]),
                         "title": str(t.get("title", "")),
-                        "duration_minutes": int(t.get("duration_minutes", 30)),
-                        "test_type": str(t.get("test_type", "general")),
+                        "duration_minutes": duration,
+                        "durationMinutes": duration,
+                        "durationMins": duration,
+                        "test_type": test_type_str,
+                        "category": test_type_str.capitalize(),
                         "status": str(t.get("status", "published")),
                         "total_questions": q_count,
+                        "totalQuestions": q_count,
+                        "questionCount": q_count,
                         "target_department_id": str(td) if td else None,
+                        "target_department_code": target_dept_code,
+                        "targetDept": target_dept_code or "All Departments",
                         "target_year": int(ty) if ty else None,
+                        "targetYear": f"{ty}th Year" if ty else "All Years",
                         "published_at": str(t.get("published_at", "")),
                     })
             return matching
@@ -564,22 +600,39 @@ class Database:
         if not supabase_client:
             return []
         try:
+            departments = self.get_all_departments()
+            dept_map = {str(d["id"]): d.get("code", "") for d in departments}
+
             res = supabase_client.table("mock_tests").select(
                 "id, title, duration_minutes, target_department_id, target_year, test_type, status, published_at"
-            ).eq("status", "published").execute()
+            ).eq("status", "published").order("created_at", desc=True).execute()
             out = []
             for t in (res.data or []):
                 q_res = supabase_client.table("mock_test_questions").select("id", count="exact").eq("test_id", t["id"]).execute()
                 q_count = q_res.count if hasattr(q_res, 'count') and q_res.count is not None else len(q_res.data or [])
+                td = t.get("target_department_id")
+                ty = t.get("target_year")
+                target_dept_code = dept_map.get(str(td)) if td else None
+                duration = int(t.get("duration_minutes", 30))
+                test_type_str = str(t.get("test_type", "general")).lower()
+
                 out.append({
                     "id": str(t["id"]),
                     "title": str(t.get("title", "")),
-                    "duration_minutes": int(t.get("duration_minutes", 30)),
-                    "test_type": str(t.get("test_type", "general")),
+                    "duration_minutes": duration,
+                    "durationMinutes": duration,
+                    "durationMins": duration,
+                    "test_type": test_type_str,
+                    "category": test_type_str.capitalize(),
                     "status": str(t.get("status", "published")),
                     "total_questions": q_count,
-                    "target_department_id": str(t["target_department_id"]) if t.get("target_department_id") else None,
-                    "target_year": int(t["target_year"]) if t.get("target_year") else None,
+                    "totalQuestions": q_count,
+                    "questionCount": q_count,
+                    "target_department_id": str(td) if td else None,
+                    "target_department_code": target_dept_code,
+                    "targetDept": target_dept_code or "All Departments",
+                    "target_year": int(ty) if ty else None,
+                    "targetYear": f"{ty}th Year" if ty else "All Years",
                     "published_at": str(t.get("published_at", "")),
                 })
             return out
@@ -596,14 +649,31 @@ class Database:
             if not res.data:
                 return None
             t = res.data[0]
+            td = t.get("target_department_id")
+            ty = t.get("target_year")
+            duration = int(t.get("duration_minutes", 30))
+            test_type_str = str(t.get("test_type", "general")).lower()
+
+            target_dept_code = None
+            if td:
+                dept_res = supabase_client.table("departments").select("code").eq("id", td).execute()
+                if dept_res.data:
+                    target_dept_code = dept_res.data[0].get("code")
+
             return {
                 "id": str(t["id"]),
                 "title": str(t.get("title", "")),
-                "duration_minutes": int(t.get("duration_minutes", 30)),
-                "test_type": str(t.get("test_type", "general")),
+                "duration_minutes": duration,
+                "durationMinutes": duration,
+                "durationMins": duration,
+                "test_type": test_type_str,
+                "category": test_type_str.capitalize(),
                 "status": str(t.get("status", "")),
-                "target_department_id": str(t["target_department_id"]) if t.get("target_department_id") else None,
-                "target_year": int(t["target_year"]) if t.get("target_year") else None,
+                "target_department_id": str(td) if td else None,
+                "target_department_code": target_dept_code,
+                "targetDept": target_dept_code or "All Departments",
+                "target_year": int(ty) if ty else None,
+                "targetYear": f"{ty}th Year" if ty else "All Years",
                 "published_at": str(t.get("published_at", "")),
                 "created_by": str(t.get("created_by", "")),
             }

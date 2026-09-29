@@ -12,7 +12,7 @@ Test flow:
 
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict
+from typing import Dict, List, Optional, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -34,6 +34,13 @@ def get_tests(current_user: dict = Depends(get_current_user)):
         return {"tests": db.get_all_published_tests()}
 
     dept_id = current_user.get("department_id")
+    if not dept_id:
+        dept_code = current_user.get("department_code") or current_user.get("branch")
+        if dept_code:
+            dept = db.get_department_by_code(dept_code)
+            if dept:
+                dept_id = dept["id"]
+
     year = current_user.get("year")
 
     tests = db.get_published_tests_for_student(department_id=dept_id, year=year)
@@ -202,10 +209,14 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
     submitted_answers = req.resolved_answers()
     normalised_answers: dict = {}
     for q_id_key, val in submitted_answers.items():
-        if isinstance(val, int) or (isinstance(val, str) and str(val).isdigit()):
-            normalised_answers[str(q_id_key)] = _idx_to_letter.get(int(val), "")
+        k = str(q_id_key).strip()
+        if val is None or val == "":
+            normalised_answers[k] = None
+        elif isinstance(val, int) or (isinstance(val, str) and str(val).isdigit()):
+            normalised_answers[k] = _idx_to_letter.get(int(val), None)
         else:
-            normalised_answers[str(q_id_key)] = str(val).strip().upper()
+            letter = str(val).strip().upper()
+            normalised_answers[k] = letter if letter in ("A", "B", "C", "D") else None
 
     # Score
     score = 0
@@ -213,16 +224,21 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
     review_list = []
 
     for q in questions:
-        q_id = str(q["id"])
-        correct = str(q.get("correct_option", "")).upper()
-        selected = normalised_answers.get(q_id, "").upper()
-        is_correct = selected == correct and bool(correct)
+        q_id = str(q["id"]).strip()
+        correct = str(q.get("correct_option") or "").strip().upper()
+        selected_raw = normalised_answers.get(q_id)
+        if selected_raw and selected_raw in ("A", "B", "C", "D"):
+            selected = selected_raw
+        else:
+            selected = None
+
+        is_correct = bool(selected and correct and selected == correct)
         if is_correct:
             score += 1
 
         answers_payload.append({
             "question_id": q_id,
-            "selected_option": selected if selected in ("A", "B", "C", "D") else None,
+            "selected_option": selected,
             "is_correct": is_correct,
         })
 
@@ -233,6 +249,7 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
         q_text = q.get("question_text", "")
         review_list.append({
             "id": q_id,
+            "question_id": q_id,
             "question": q_text,
             "question_text": q_text,
             "option_a": opt_a,
@@ -241,8 +258,11 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
             "option_d": opt_d,
             "options": [opt_a, opt_b, opt_c, opt_d],
             "correct_option": correct,
-            "selected_option": selected if selected in ("A", "B", "C", "D") else None,
+            "correctOption": correct,
+            "selected_option": selected,
+            "selectedOption": selected,
             "is_correct": is_correct,
+            "isCorrect": is_correct,
             "explanation": q.get("explanation", ""),
         })
 
@@ -284,18 +304,27 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
                 raise HTTPException(status_code=500, detail="Failed to record attempt.")
             attempt_id = str(ins_res.data[0]["id"])
 
-        # Store per-question answers
+        # Store per-question answers (upsert per attempt/question)
         for ans in answers_payload:
             try:
-                supabase_client.table("mock_test_attempt_answers").insert({
+                supabase_client.table("mock_test_attempt_answers").upsert({
                     "attempt_id": attempt_id,
                     "question_id": ans["question_id"],
                     "selected_option": ans["selected_option"],
                     "is_correct": ans["is_correct"],
                     "created_at": now,
-                }).execute()
+                }, on_conflict="attempt_id,question_id").execute()
             except Exception as e:
-                print(f"[submit_test answer insert {attempt_id}]:", e)
+                try:
+                    supabase_client.table("mock_test_attempt_answers").insert({
+                        "attempt_id": attempt_id,
+                        "question_id": ans["question_id"],
+                        "selected_option": ans["selected_option"],
+                        "is_correct": ans["is_correct"],
+                        "created_at": now,
+                    }).execute()
+                except Exception as ie:
+                    print(f"[submit_test answer insert {attempt_id}]:", ie)
 
     except HTTPException:
         raise
@@ -320,6 +349,97 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
         "percentage": score_pct,
         "cleared": cleared,
         "passed": cleared,
+        "review": review_list,
+    }
+
+
+# ─── Review attempt ───────────────────────────────────────────────────────────
+
+@router.get("/{test_id}/review")
+def get_test_review(test_id: str, attempt_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """
+    Fetch question and answer review for the student's attempt.
+    Matches answers to questions by question_id.
+    """
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Only students can view test review.")
+
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    # Find the attempt
+    if attempt_id:
+        att_res = supabase_client.table("mock_test_attempts").select("*").eq("id", attempt_id).eq("student_id", current_user["id"]).execute()
+        if not att_res.data:
+            raise HTTPException(status_code=404, detail="Attempt not found.")
+        attempt = att_res.data[0]
+    else:
+        # Latest submitted attempt for this test
+        att_res = supabase_client.table("mock_test_attempts").select("*").eq("test_id", test_id).eq("student_id", current_user["id"]).eq("status", "submitted").order("created_at", desc=True).limit(1).execute()
+        if not att_res.data:
+            raise HTTPException(status_code=404, detail="No submitted attempt found for this test.")
+        attempt = att_res.data[0]
+
+    actual_attempt_id = str(attempt["id"])
+
+    # Load questions for test (ordered by question_order)
+    questions = db.get_questions_for_test(test_id)
+    if not questions:
+        raise HTTPException(status_code=404, detail="No questions found for this test.")
+
+    # Load student attempt answers from mock_test_attempt_answers
+    ans_res = supabase_client.table("mock_test_attempt_answers").select(
+        "question_id, selected_option, is_correct"
+    ).eq("attempt_id", actual_attempt_id).execute()
+
+    answers_map = {str(a["question_id"]): a for a in (ans_res.data or [])}
+
+    review_list = []
+    for q in questions:
+        q_id = str(q["id"])
+        ans_record = answers_map.get(q_id, {})
+        selected = ans_record.get("selected_option")
+        if selected and str(selected).upper() in ("A", "B", "C", "D"):
+            selected = str(selected).upper()
+        else:
+            selected = None
+
+        correct = str(q.get("correct_option") or "").strip().upper()
+        is_correct = bool(ans_record.get("is_correct", False))
+
+        opt_a = q.get("option_a", "")
+        opt_b = q.get("option_b", "")
+        opt_c = q.get("option_c", "")
+        opt_d = q.get("option_d", "")
+        q_text = q.get("question_text", "")
+
+        review_list.append({
+            "id": q_id,
+            "question_id": q_id,
+            "question": q_text,
+            "question_text": q_text,
+            "option_a": opt_a,
+            "option_b": opt_b,
+            "option_c": opt_c,
+            "option_d": opt_d,
+            "options": [opt_a, opt_b, opt_c, opt_d],
+            "correct_option": correct,
+            "correctOption": correct,
+            "selected_option": selected,
+            "selectedOption": selected,
+            "is_correct": is_correct,
+            "isCorrect": is_correct,
+            "explanation": q.get("explanation", ""),
+        })
+
+    return {
+        "attempt_id": actual_attempt_id,
+        "score": attempt.get("marks_obtained", 0),
+        "total_questions": attempt.get("total_marks", len(questions)),
+        "totalQuestions": attempt.get("total_marks", len(questions)),
+        "score_percentage": attempt.get("score_percentage", 0),
+        "percentage": attempt.get("score_percentage", 0),
+        "passed": float(attempt.get("score_percentage", 0)) > 65,
         "review": review_list,
     }
 
@@ -355,13 +475,20 @@ def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_
     # Validate questions
     valid_opts = {"A", "B", "C", "D"}
     for i, q in enumerate(req.questions):
-        q_text = q.question or ""
-        if not q_text.strip():
+        q_text = (q.question or "").strip()
+        if not q_text:
             raise HTTPException(status_code=400, detail=f"Question {i+1} is missing question text.")
+        opt_a = q.resolved_option_a().strip()
+        opt_b = q.resolved_option_b().strip()
+        opt_c = q.resolved_option_c().strip()
+        opt_d = q.resolved_option_d().strip()
+        if not opt_a or not opt_b or not opt_c or not opt_d:
+            raise HTTPException(status_code=400, detail=f"Question {i+1} must contain all 4 options (Option A, B, C, and D).")
         correct = q.resolved_correct_option()
         if correct not in valid_opts:
             raise HTTPException(status_code=400, detail=f"Question {i+1}: correct_option must be A, B, C, or D.")
 
+    test_id = None
     try:
         # Insert mock_tests row
         test_res = supabase_client.table("mock_tests").insert({
@@ -382,9 +509,10 @@ def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_
 
         test_id = test_res.data[0]["id"]
 
-        # Insert questions
+        # Insert questions in batch
+        questions_payload = []
         for i, q in enumerate(req.questions):
-            supabase_client.table("mock_test_questions").insert({
+            questions_payload.append({
                 "test_id": test_id,
                 "question_text": (q.question or "").strip(),
                 "option_a": q.resolved_option_a().strip(),
@@ -392,15 +520,34 @@ def upload_csv_test(req: UploadCSVTestRequest, current_user: dict = Depends(get_
                 "option_c": q.resolved_option_c().strip(),
                 "option_d": q.resolved_option_d().strip(),
                 "correct_option": q.resolved_correct_option(),
-                "explanation": (q.explanation or "").strip(),
+                "explanation": (q.explanation or "").strip() or None,
                 "question_order": i + 1,
                 "created_at": now,
-            }).execute()
+            })
+
+        q_res = supabase_client.table("mock_test_questions").insert(questions_payload).execute()
+        if not q_res.data or len(q_res.data) != len(questions_payload):
+            if test_id:
+                try:
+                    supabase_client.table("mock_tests").delete().eq("id", test_id).execute()
+                except Exception:
+                    pass
+            raise HTTPException(status_code=500, detail="Failed to persist all questions. Test creation rolled back.")
 
     except HTTPException:
+        if test_id:
+            try:
+                supabase_client.table("mock_tests").delete().eq("id", test_id).execute()
+            except Exception:
+                pass
         raise
     except Exception as e:
         print("[upload_csv_test error]:", e)
+        if test_id:
+            try:
+                supabase_client.table("mock_tests").delete().eq("id", test_id).execute()
+            except Exception:
+                pass
         raise HTTPException(status_code=500, detail="Failed to create test. Please try again.")
 
     return {

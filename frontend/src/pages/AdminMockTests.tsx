@@ -1,6 +1,6 @@
 //Testing
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import {
@@ -31,21 +31,15 @@ const itemVariants: Variants = {
 };
 
 /* ─── Filter tabs ─────────────────────────────────────────────── */
-const FILTERS = ['All', 'Company Drive', 'Departmental', 'Aptitude', 'Technical'] as const;
+const FILTERS = ['All', 'Departmental', 'Aptitude', 'Technical', 'General'] as const;
 type Filter = typeof FILTERS[number];
 
 /* ─── Category badge styles ──────────────────────────────────── */
 const categoryStyle = (category: string): string => {
-  if (category === 'Company Drive') return 'bg-violet-500/10 text-violet-300 border-violet-500/20';
-  if (category === 'Aptitude') return 'bg-amber-500/10 text-amber-300 border-amber-500/20';
-  if (category === 'Technical') return 'bg-sky-500/10 text-sky-300 border-sky-500/20';
+  const cat = (category || '').toLowerCase();
+  if (cat === 'aptitude') return 'bg-amber-500/10 text-amber-300 border-amber-500/20';
+  if (cat === 'technical') return 'bg-sky-500/10 text-sky-300 border-sky-500/20';
   return 'bg-orange-500/10 text-orange-300 border-orange-500/20';
-};
-
-const categoryLabel = (category: string, companyTag?: string, dept?: string): string => {
-  if (category === 'Company Drive' && companyTag) return `Company Drive · ${companyTag}`;
-  if (dept) return `Departmental · ${dept}`;
-  return category;
 };
 
 /* ─── Shared input styles ─────────────────────────────────────── */
@@ -59,20 +53,21 @@ import { parseCSVQuestions } from './MockTestView';
 
 const DEPT_OPTIONS = [
   'All Departments',
-  'CS (Computer Science & Engg)',
+  'CSE (Computer Science & Engineering)',
   'IT (Information Technology)',
-  'ECE (Electronics & Comm)',
-  'EEE (Electrical & Electronics)',
-  'Mechanical',
-  'Civil'
+  'ECE (Electronics & Communication Engineering)',
 ];
 const YEAR_OPTIONS = ['All Years', '1st Year', '2nd Year', '3rd Year', '4th Year'];
+const TEST_TYPE_OPTIONS = ['Aptitude', 'Technical', 'General'] as const;
 
 export const AdminMockTests: React.FC = () => {
-  const { mockTests, publishTest } = useApp();
+  /* ── Real Database Tests state ── */
+  const [tests, setTests] = useState<any[]>([]);
+  const [loadingTests, setLoadingTests] = useState<boolean>(true);
 
   /* ── Upload form state ── */
   const [testTitle, setTestTitle] = useState('');
+  const [testType, setTestType] = useState<'Aptitude' | 'Technical' | 'General'>('Aptitude');
   const [duration, setDuration] = useState(30);
   const [targetDept, setTargetDept] = useState(DEPT_OPTIONS[0]);
   const [targetYear, setTargetYear] = useState(YEAR_OPTIONS[4]);
@@ -86,15 +81,34 @@ export const AdminMockTests: React.FC = () => {
   /* ── Filter state ── */
   const [activeFilter, setActiveFilter] = useState<Filter>('All');
 
+  const fetchAdminTests = async () => {
+    setLoadingTests(true);
+    try {
+      const res = await api.getTests();
+      if (res && Array.isArray(res.tests)) {
+        setTests(res.tests);
+      }
+    } catch (e) {
+      console.error('Failed to load admin mock tests', e);
+    } finally {
+      setLoadingTests(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdminTests();
+  }, []);
+
   /* ── Filtered tests ── */
-  const filteredTests = mockTests.filter(t => {
-    const qCount = t.totalQuestions || t.questionCount || (t.questions ? t.questions.length : 0);
+  const filteredTests = tests.filter(t => {
+    const qCount = t.total_questions ?? t.totalQuestions ?? t.questionCount ?? 0;
     if (qCount <= 0) return false;
     if (activeFilter === 'All') return true;
-    if (activeFilter === 'Company Drive') return t.category === 'Company Drive';
-    if (activeFilter === 'Departmental') return t.category === 'Technical' && !t.companyTag;
-    if (activeFilter === 'Aptitude') return t.category === 'Aptitude';
-    if (activeFilter === 'Technical') return t.category === 'Technical';
+    if (activeFilter === 'Departmental') return t.target_department_id != null;
+    const tt = (t.test_type || t.category || '').toLowerCase();
+    if (activeFilter === 'Aptitude') return tt === 'aptitude';
+    if (activeFilter === 'Technical') return tt === 'technical';
+    if (activeFilter === 'General') return tt === 'general';
     return true;
   });
 
@@ -133,12 +147,9 @@ export const AdminMockTests: React.FC = () => {
     setCsvError(null);
 
     let deptCode = "All";
-    if (targetDept.includes("CS")) deptCode = "CS";
+    if (targetDept.includes("CS")) deptCode = "CSE";
     else if (targetDept.includes("IT")) deptCode = "IT";
     else if (targetDept.includes("ECE")) deptCode = "ECE";
-    else if (targetDept.includes("EEE")) deptCode = "EEE";
-    else if (targetDept.includes("Mechanical")) deptCode = "Mechanical";
-    else if (targetDept.includes("Civil")) deptCode = "Civil";
 
     let yearCode = "All";
     if (targetYear.includes("1st")) yearCode = "1st Year";
@@ -147,29 +158,16 @@ export const AdminMockTests: React.FC = () => {
     else if (targetYear.includes("4th")) yearCode = "4th Year";
 
     try {
-      const res = await api.uploadCSVTest({
-        title: testTitle,
+      await api.uploadCSVTest({
+        title: testTitle.trim(),
         duration: Number(duration),
+        test_type: testType.toLowerCase(),
         target_dept: deptCode,
         target_year: yearCode,
         questions: parsedQuestions
       });
 
-      if (res && res.test) {
-        publishTest(res.test);
-      } else {
-        publishTest({
-          title: testTitle,
-          category: 'Departmental',
-          durationMinutes: duration,
-          questionCount: parsedQuestions.length,
-          description: `Departmental assessment for ${targetDept} (${targetYear}).`,
-          companyTag: deptCode,
-          targetDept: deptCode,
-          targetYear: yearCode
-        });
-      }
-
+      await fetchAdminTests();
       setPublishing(false);
       setPublishSuccess(true);
       setTestTitle('');
@@ -243,7 +241,7 @@ export const AdminMockTests: React.FC = () => {
         <form onSubmit={handlePublish} className="p-6 space-y-5">
           {/* Row 1 */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-            <div className="md:col-span-6">
+            <div className="md:col-span-5">
               <label className={labelCls}>
                 Test Title <span className="text-orange-400">*</span>
               </label>
@@ -252,11 +250,25 @@ export const AdminMockTests: React.FC = () => {
                 required
                 value={testTitle}
                 onChange={e => setTestTitle(e.target.value)}
-                placeholder="e.g. Data Structures & Algorithms – CS 4th Year"
+                placeholder="e.g. Data Structures & Algorithms – CSE 4th Year"
                 className={inputCls}
               />
             </div>
             <div className="md:col-span-3">
+              <label className={labelCls}>
+                Test Type <span className="text-orange-400">*</span>
+              </label>
+              <select
+                value={testType}
+                onChange={e => setTestType(e.target.value as any)}
+                className={inputCls}
+              >
+                {TEST_TYPE_OPTIONS.map(tt => (
+                  <option key={tt} value={tt} className="bg-[#121217]">{tt}</option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-2">
               <label className={labelCls}>
                 Duration (mins) <span className="text-orange-400">*</span>
               </label>
@@ -270,7 +282,7 @@ export const AdminMockTests: React.FC = () => {
                 className={inputCls}
               />
             </div>
-            <div className="md:col-span-3">
+            <div className="md:col-span-2">
               <label className={labelCls}>Target Department</label>
               <select value={targetDept} onChange={e => setTargetDept(e.target.value)} className={inputCls}>
                 {DEPT_OPTIONS.map(d => (
@@ -282,7 +294,7 @@ export const AdminMockTests: React.FC = () => {
 
           {/* Row 2 */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-            <div className="md:col-span-5">
+            <div className="md:col-span-4">
               <label className={labelCls}>Target Year</label>
               <select value={targetYear} onChange={e => setTargetYear(e.target.value)} className={inputCls}>
                 {YEAR_OPTIONS.map(y => (
@@ -290,7 +302,7 @@ export const AdminMockTests: React.FC = () => {
                 ))}
               </select>
             </div>
-            <div className="md:col-span-7">
+            <div className="md:col-span-8">
               <label className={labelCls}>
                 Upload CSV Question Bank <span className="text-orange-400">*</span>
               </label>
@@ -405,52 +417,59 @@ export const AdminMockTests: React.FC = () => {
                   No mock test modules found matching the selected filter.
                 </div>
               ) : (
-                filteredTests.map(test => (
-                  <motion.div
-                    key={test.id}
-                    layout
-                    className="bg-white/[0.02] hover:bg-white/[0.04] border border-white/10 hover:border-orange-500/30 rounded-2xl p-5 space-y-4 transition-all duration-200 group relative flex flex-col justify-between"
-                  >
-                    <div className="space-y-3">
-                      {/* Badge Tag */}
-                      <div>
-                        <span className={`inline-block px-2.5 py-0.5 rounded-lg border text-[10px] font-bold font-mono tracking-wider uppercase ${categoryStyle(test.category)}`}>
-                          {categoryLabel(test.category, test.companyTag)}
-                        </span>
+                filteredTests.map(test => {
+                  const durationMins = test.duration_minutes ?? test.durationMinutes ?? test.durationMins ?? 30;
+                  const qCount = test.total_questions ?? test.totalQuestions ?? test.questionCount ?? 0;
+                  const deptTag = test.target_department_code || test.targetDept || (test.target_department_id ? 'Departmental' : 'All Departments');
+                  const yearTag = test.target_year ? `${test.target_year}th Year` : (test.targetYear || 'All Years');
+                  const typeLabel = (test.test_type || test.category || 'General').toUpperCase();
+
+                  return (
+                    <motion.div
+                      key={test.id}
+                      layout
+                      className="bg-white/[0.02] hover:bg-white/[0.04] border border-white/10 hover:border-orange-500/30 rounded-2xl p-5 space-y-4 transition-all duration-200 group relative flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        {/* Badge Tag */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-lg border text-[10px] font-bold font-mono tracking-wider uppercase ${categoryStyle(typeLabel)}`}>
+                            {typeLabel}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-medium text-zinc-400 font-mono">
+                            {deptTag} • {yearTag}
+                          </span>
+                        </div>
+
+                        {/* Title */}
+                        <div className="space-y-1">
+                          <h3 className="font-bold text-white text-base group-hover:text-orange-400 transition-colors font-heading leading-snug">
+                            {test.title}
+                          </h3>
+                        </div>
                       </div>
 
-                      {/* Title & Description */}
-                      <div className="space-y-1">
-                        <h3 className="font-bold text-white text-base group-hover:text-orange-400 transition-colors font-heading leading-snug">
-                          {test.title}
-                        </h3>
-                        <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed font-sans">
-                          {test.description}
-                        </p>
-                      </div>
-                    </div>
+                      {/* Footer Info */}
+                      <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                        <div className="flex items-center gap-3 text-xs text-zinc-400 font-mono">
+                          <span className="flex items-center gap-1">
+                            <FileText className="w-3.5 h-3.5 text-zinc-500" />
+                            {qCount > 0 ? `${qCount} Questions` : 'Questions: —'}
+                          </span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                            {durationMins > 0 ? `${durationMins} Mins` : 'Mins: —'}
+                          </span>
+                        </div>
 
-                    {/* Footer Info & Action */}
-                    <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                      <div className="flex items-center gap-3 text-xs text-zinc-400 font-mono">
-                        <span className="flex items-center gap-1">
-                          <FileText className="w-3.5 h-3.5 text-zinc-500" />
-                          {test.questionCount > 0 ? `${test.questionCount} Questions` : 'Questions: —'}
-                        </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                          {test.durationMinutes > 0 ? `${test.durationMinutes} Mins` : 'Mins: —'}
+                        <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-mono font-semibold">
+                          Published
                         </span>
                       </div>
-
-                      <button className="px-4 py-2 rounded-xl bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-black border border-orange-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95">
-                        <span>Start Test</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))
+                    </motion.div>
+                  );
+                })
               )}
             </motion.div>
           </AnimatePresence>

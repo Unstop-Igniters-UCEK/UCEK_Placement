@@ -195,11 +195,21 @@ class UploadCSVTestRequest(BaseModel):
 
     def resolved_dept_code(self) -> Optional[str]:
         code = self.target_department_code or self.target_dept
-        if not code or str(code).lower() in ("all", "all departments", ""):
+        if not code or str(code).lower() in ("all", "all departments", "none", ""):
             return None
         code_str = str(code).strip().upper()
-        if code_str in ("CS", "COMPUTER SCIENCE"):
+        if "CS" in code_str or "COMPUTER" in code_str:
             return "CSE"
+        if "IT" in code_str or "INFORMATION" in code_str:
+            return "IT"
+        if "ECE" in code_str or "ELECTRONIC" in code_str:
+            return "ECE"
+        if "EEE" in code_str or "ELECTRICAL" in code_str:
+            return "EEE"
+        if "MECH" in code_str:
+            return "MECH"
+        if "CIVIL" in code_str:
+            return "CIVIL"
         return code_str
 
     def resolved_year(self) -> Optional[int]:
