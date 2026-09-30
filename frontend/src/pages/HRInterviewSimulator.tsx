@@ -380,14 +380,14 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
         </motion.div>
 
         {/* RIGHT COLUMN: SPEECH FEEDBACK REPORT */}
-        <motion.div variants={itemVariants} className="lg:col-span-5 bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 sm:p-7 space-y-6 shadow-2xl flex flex-col justify-center min-h-[420px]">
+        <motion.div variants={itemVariants} className="lg:col-span-5 bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 sm:p-7 space-y-6 shadow-2xl flex flex-col justify-start min-h-[420px]">
           {analyzing ? (
-            <div className="py-24 text-center space-y-3">
+            <div className="py-20 my-auto text-center space-y-3">
               <Loader2 className="w-10 h-10 text-orange-400 mx-auto animate-spin" />
               <p className="text-xs font-semibold text-zinc-400 font-mono">Evaluating... Please Wait</p>
             </div>
           ) : !feedback ? (
-            <div className="py-24 text-center space-y-3">
+            <div className="py-20 my-auto text-center space-y-3">
               <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-zinc-400 shadow-inner">
                 <MessageSquare className="w-8 h-8" />
               </div>
@@ -398,48 +398,62 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-2 bg-[#000000] border border-white/10 p-3.5 rounded-2xl font-mono text-center shadow-inner">
-                <div>
-                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block truncate">Answer Score</span>
-                  <span className="text-xl sm:text-2xl font-extrabold text-white">{Math.round(feedback.overallRating * 10)} <span className="text-[10px] text-zinc-500 font-normal">/ 100</span></span>
+              {/* EVALUATION METRICS */}
+              <div className="grid grid-cols-3 gap-2 bg-[#000000] border border-white/10 p-3.5 rounded-2xl text-center shadow-inner">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block truncate">Answer Score</span>
+                  <div className="text-2xl font-extrabold text-white tracking-tight">
+                    {Math.round(feedback.overallRating * 10)}
+                    <span className="text-[11px] text-zinc-500 font-normal ml-0.5">/ 100</span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block truncate">Pace (WPM)</span>
-                  <span className="text-xl sm:text-2xl font-extrabold text-orange-400">{feedback.wpm}</span>
+                <div className="space-y-0.5 border-x border-white/5">
+                  <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block truncate">Pace (WPM)</span>
+                  <div className="text-2xl font-extrabold text-white tracking-tight">
+                    {feedback.wpm}
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block truncate">Confidence</span>
-                  <span className="text-xl sm:text-2xl font-extrabold text-emerald-400">{Math.round(feedback.confidenceScore)}%</span>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block truncate">Confidence</span>
+                  <div className="text-2xl font-extrabold text-white tracking-tight">
+                    {Math.round(feedback.confidenceScore)}
+                    <span className="text-[11px] text-zinc-500 font-normal ml-0.5">%</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <h4 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">Key Strengths</h4>
-                <ul className="space-y-2 text-xs">
+              {/* KEY STRENGTHS */}
+              <div className="space-y-2.5">
+                <h4 className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Key Strengths</h4>
+                <ul className="space-y-2">
                   {feedback.strengths.map((str, idx) => (
-                    <li key={idx} className="p-3.5 rounded-2xl bg-emerald-950/20 border border-emerald-800/40 text-emerald-300 flex items-start gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <span className="leading-relaxed">{str}</span>
+                    <li key={idx} className="p-3.5 rounded-2xl bg-[#000000] border border-white/10 text-zinc-200 flex items-start gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400/80 shrink-0 mt-0.5" />
+                      <span className="text-sm leading-[1.5]">{str}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="space-y-3">
-                <h4 className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">Actionable Improvement Areas</h4>
-                <ul className="space-y-2 text-xs">
+              {/* ACTIONABLE IMPROVEMENT AREAS */}
+              <div className="space-y-2.5">
+                <h4 className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Actionable Improvement Areas</h4>
+                <ul className="space-y-2">
                   {feedback.improvements.map((imp, idx) => (
-                    <li key={idx} className="p-3.5 rounded-2xl bg-amber-950/20 border border-amber-800/40 text-amber-300 flex items-start gap-2.5">
-                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                      <span className="leading-relaxed">{imp}</span>
+                    <li key={idx} className="p-3.5 rounded-2xl bg-[#000000] border border-white/10 text-zinc-200 flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-orange-400/80 shrink-0 mt-0.5" />
+                      <span className="text-sm leading-[1.5]">{imp}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#000000] border border-white/10 space-y-2 text-xs">
-                <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-wider">Suggested Ideal Response</span>
-                <p className="text-zinc-300 leading-relaxed italic">{feedback.sampleIdealResponse}</p>
+              {/* SUGGESTED IDEAL RESPONSE */}
+              <div className="space-y-2.5">
+                <h4 className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Suggested Ideal Response</h4>
+                <div className="p-3.5 rounded-2xl bg-[#000000] border border-white/10">
+                  <p className="text-sm leading-[1.5] text-zinc-200 italic">{feedback.sampleIdealResponse}</p>
+                </div>
               </div>
             </>
           )}
