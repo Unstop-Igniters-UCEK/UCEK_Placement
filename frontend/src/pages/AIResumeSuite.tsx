@@ -9,7 +9,6 @@ import {
   Search,
   CheckCircle2,
   AlertCircle,
-  Printer,
   Wand2,
   Building,
   Target,
@@ -27,6 +26,7 @@ import {
   Edit3,
   User as UserIcon
 } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 
 
 const COMPANY_DRIVES = [
@@ -99,6 +99,8 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfDownloadError, setPdfDownloadError] = useState<string | null>(null);
 
   // Synchronize builderTemplate when resumeData changes
   useEffect(() => {
@@ -584,75 +586,368 @@ export const AIResumeSuite: React.FC = React.memo(() => {
     document.body.removeChild(element);
   };
 
-  const handlePrintPdf = () => {
-    const previewEl = document.getElementById('resume-preview-document');
-    if (!previewEl) {
-      window.print();
-      return;
+  let _colorCanvas: HTMLCanvasElement | null = null;
+  let _colorCtx: CanvasRenderingContext2D | null = null;
+
+  const parseOklchComponents = (str: string): { l: number; c: number; h: number; a: number } | null => {
+    const m = str.match(/oklch\(\s*([\d.]+%?)\s+([\d.]+%?)\s+([\d.]+(?:deg|rad|turn)?)(?:\s*\/\s*([\d.]+%?))?\s*\)/i);
+    if (!m) return null;
+
+    const lVal = m[1].endsWith('%') ? parseFloat(m[1]) / 100 : parseFloat(m[1]);
+    const cVal = m[2].endsWith('%') ? (parseFloat(m[2]) / 100) * 0.4 : parseFloat(m[2]);
+
+    let hVal = 0;
+    if (m[3].endsWith('deg')) {
+      hVal = parseFloat(m[3]);
+    } else if (m[3].endsWith('rad')) {
+      hVal = (parseFloat(m[3]) * 180) / Math.PI;
+    } else if (m[3].endsWith('turn')) {
+      hVal = parseFloat(m[3]) * 360;
+    } else {
+      hVal = parseFloat(m[3]) || 0;
     }
 
-    const printWin = window.open('', '_blank', 'width=850,height=1100');
-    if (!printWin) {
-      window.print();
-      return;
+    let aVal = 1;
+    if (m[4]) {
+      aVal = m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4]);
     }
 
-    const docContent = previewEl.innerHTML;
-    const titleName = resumeData.personal.fullName || user?.name || 'Student';
+    return { l: lVal, c: cVal, h: hVal, a: aVal };
+  };
 
-    printWin.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <title></title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @page {
-      size: A4 portrait;
-      margin: 0;
-    }
-    *, ::before, ::after { box-sizing: border-box; }
-    html, body {
-      background: #ffffff !important;
-      color: #000000 !important;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      margin: 0;
-      padding: 0;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-    #print-container {
-      width: 100%;
-      background: #ffffff !important;
-      color: #000000 !important;
-    }
-    #print-container > div {
-      border-radius: 0 !important;
-      box-shadow: none !important;
-      border: none !important;
-      width: 100% !important;
-    }
-    .ats-print-padding {
-      padding: 10mm 12mm !important;
-    }
-  </style>
-</head>
-<body>
-  <div id="print-container" class="${builderTemplate === 'ats' ? 'ats-print-padding' : ''}">
-    ${docContent}
-  </div>
-  <script>
-    window.onload = function() {
-      setTimeout(function() {
-        document.title = "";
-        window.focus();
-        window.print();
-        setTimeout(function() { window.close(); }, 500);
-      }, 300);
+  const oklchToRgbString = (l: number, c: number, hDeg: number, a: number = 1): string => {
+    const hRad = (hDeg * Math.PI) / 180;
+    const a_ = c * Math.cos(hRad);
+    const b_ = c * Math.sin(hRad);
+
+    const l_ = l + 0.3963377774 * a_ + 0.2158037573 * b_;
+    const m_ = l - 0.1055613458 * a_ - 0.0638541728 * b_;
+    const s_ = l - 0.0894841775 * a_ - 1.2914855480 * b_;
+
+    const lCube = l_ * l_ * l_;
+    const mCube = m_ * m_ * m_;
+    const sCube = s_ * s_ * s_;
+
+    const rLin = +4.0767416621 * lCube - 3.3077115913 * mCube + 0.2309699292 * sCube;
+    const gLin = -1.2684380046 * lCube + 2.6097574011 * mCube - 0.3413193965 * sCube;
+    const bLin = -0.0041960863 * lCube - 0.7034186147 * mCube + 1.7076147010 * sCube;
+
+    const gamma = (x: number) => {
+      const clamped = Math.max(0, Math.min(1, x));
+      return clamped <= 0.0031308
+        ? 12.92 * clamped
+        : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055;
     };
-  </script>
-</body>
-</html>`);
-    printWin.document.close();
+
+    const r = Math.round(gamma(rLin) * 255);
+    const g = Math.round(gamma(gLin) * 255);
+    const b = Math.round(gamma(bLin) * 255);
+    const alpha = Math.max(0, Math.min(1, a));
+
+    if (alpha < 1) {
+      return `rgba(${r}, ${g}, ${b}, ${Number(alpha.toFixed(3))})`;
+    }
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+
+  const resolveColorToRgb = (color: string): string => {
+    if (!color || typeof color !== 'string') return color;
+    const trimmed = color.trim();
+    if (!trimmed.includes('oklch') && !trimmed.includes('lch(') && !trimmed.includes('lab(') && !trimmed.includes('color(')) {
+      return trimmed;
+    }
+
+    // 1. First try browser Canvas 2D parsing (fastest and handles all modern CSS color specs natively in Chrome)
+    try {
+      if (!_colorCanvas && typeof document !== 'undefined') {
+        _colorCanvas = document.createElement('canvas');
+        _colorCanvas.width = 1;
+        _colorCanvas.height = 1;
+        _colorCtx = _colorCanvas.getContext('2d', { willReadFrequently: true });
+      }
+      if (_colorCtx) {
+        _colorCtx.fillStyle = 'rgba(0, 0, 0, 0.002)';
+        _colorCtx.fillStyle = trimmed;
+        const res = _colorCtx.fillStyle;
+        if (res && res !== 'rgba(0, 0, 0, 0.002)' && !res.includes('oklch') && !res.includes('lch') && !res.includes('color(')) {
+          return res;
+        }
+      }
+    } catch {
+      // Proceed to fallback
+    }
+
+    // 2. Mathematical OKLCH fallback
+    const parsed = parseOklchComponents(trimmed);
+    if (parsed) {
+      return oklchToRgbString(parsed.l, parsed.c, parsed.h, parsed.a);
+    }
+
+    return trimmed;
+  };
+
+  const replaceUnsupportedColors = (cssText: string): string => {
+    if (!cssText || typeof cssText !== 'string') return cssText;
+    if (!cssText.includes('oklch') && !cssText.includes('lch(') && !cssText.includes('lab(') && !cssText.includes('color(')) {
+      return cssText;
+    }
+    return cssText.replace(/(?:oklch|lch|lab|color)\([^)]+\)/gi, match => resolveColorToRgb(match));
+  };
+
+  const generateResumeFilename = (fullName?: string, fallbackName?: string): string => {
+    let name = (fullName || fallbackName || 'Student').trim();
+    // Safely sanitize characters that are invalid in filenames across operating systems
+    name = name.replace(/[\\/:*?"<>|]+/g, '');
+    // Replace spaces and consecutive whitespace with single underscore
+    name = name.replace(/\s+/g, '_');
+    // Prevent duplicate underscores and remove leading/trailing underscores
+    name = name.replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+    if (!name) {
+      name = 'Student';
+    }
+    return `${name}_Resume.pdf`;
+  };
+
+  const handleDownloadPdf = async () => {
+    if (isGeneratingPdf) return;
+    setPdfDownloadError(null);
+    setIsGeneratingPdf(true);
+
+    let exportContainer: HTMLElement | null = null;
+    try {
+      const previewEl = document.getElementById('resume-preview-document');
+      if (!previewEl) {
+        throw new Error('Resume preview element not found. Please refresh the page and try again.');
+      }
+
+      // 1. Ensure required fonts and images are ready before exporting
+      if (document.fonts) {
+        try {
+          await document.fonts.ready;
+        } catch {
+          // Proceed even if fonts.ready fails
+        }
+      }
+
+      const previewImgs = Array.from(previewEl.querySelectorAll('img'));
+      if (previewImgs.length > 0) {
+        await Promise.all(
+          previewImgs.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise<void>(resolve => {
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+            });
+          })
+        );
+      }
+
+      // 2. Clone the live resume preview DOM element
+      // This preserves the exact current state including unsaved user edits,
+      // typography, colors, spacing, alignments, and selected layout.
+      const clone = previewEl.cloneNode(true) as HTMLElement;
+
+      // Remove UI-specific wrapper styling (rounded corners, shadow, preview height constraints)
+      clone.classList.remove('rounded-2xl', 'shadow-2xl', 'overflow-hidden');
+      clone.style.borderRadius = '0';
+      clone.style.boxShadow = 'none';
+      clone.style.border = 'none';
+      clone.style.margin = '0';
+      clone.style.overflow = 'visible';
+      clone.style.minHeight = 'auto';
+      clone.style.height = 'auto';
+      clone.style.width = '100%';
+      clone.style.backgroundColor = '#ffffff';
+      clone.style.color = '#000000';
+
+      // 3. Pre-process computed colors: Convert any oklch() / lch() to RGB/RGBA on the clone
+      // We read actual computed colors from the live DOM elements and explicitly set
+      // resolved RGB values as inline styles on the clone so html2canvas never encounters oklch()
+      const liveElements = [previewEl, ...Array.from(previewEl.querySelectorAll('*'))] as HTMLElement[];
+      const cloneElements = [clone, ...Array.from(clone.querySelectorAll('*'))] as HTMLElement[];
+
+      for (let i = 0; i < liveElements.length; i++) {
+        const liveEl = liveElements[i];
+        const cloneEl = cloneElements[i];
+        if (!liveEl || !cloneEl || !cloneEl.style) continue;
+
+        const cs = window.getComputedStyle(liveEl);
+        const colorProps = [
+          'color',
+          'backgroundColor',
+          'borderTopColor',
+          'borderRightColor',
+          'borderBottomColor',
+          'borderLeftColor',
+          'outlineColor',
+          'textDecorationColor'
+        ] as const;
+
+        for (const prop of colorProps) {
+          const val = cs[prop];
+          if (val && typeof val === 'string' && (val.includes('oklch') || val.includes('lch(') || val.includes('lab(') || val.includes('color('))) {
+            const resolved = replaceUnsupportedColors(val);
+            const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+            cloneEl.style.setProperty(cssProp, resolved, 'important');
+          }
+        }
+
+        const shadow = cs.boxShadow;
+        if (shadow && shadow !== 'none') {
+          if (shadow.includes('oklch') || shadow.includes('lch(') || shadow.includes('color(')) {
+            cloneEl.style.setProperty('box-shadow', replaceUnsupportedColors(shadow), 'important');
+          }
+        }
+
+        const inlineAttr = cloneEl.getAttribute('style');
+        if (inlineAttr && (inlineAttr.includes('oklch') || inlineAttr.includes('lch('))) {
+          cloneEl.setAttribute('style', replaceUnsupportedColors(inlineAttr));
+        }
+      }
+
+      // Ensure headings and individual entries avoid awkward page cuts
+      const breakAvoidSelectors = [
+        'h1', 'h2', 'h3', 'h4', 'li',
+        '.space-y-1', '.space-y-2', '.space-y-3'
+      ];
+      clone.querySelectorAll(breakAvoidSelectors.join(',')).forEach(el => {
+        const htmlEl = el as HTMLElement;
+        htmlEl.style.breakInside = 'avoid';
+        htmlEl.style.pageBreakInside = 'avoid';
+      });
+
+      // Avoid page break on Modern Exec banner header
+      const modernBanner = clone.querySelector('.bg-\\[\\#6b7036\\]');
+      if (modernBanner) {
+        (modernBanner as HTMLElement).style.breakInside = 'avoid';
+        (modernBanner as HTMLElement).style.pageBreakInside = 'avoid';
+      }
+
+      // 4. Create offscreen container with explicit standard A4 width
+      // Standard A4 width at 96 DPI is 794px (~210mm)
+      exportContainer = document.createElement('div');
+      exportContainer.id = 'resume-pdf-export-container';
+      exportContainer.style.position = 'fixed';
+      exportContainer.style.left = '-9999px';
+      exportContainer.style.top = '0';
+      exportContainer.style.width = '794px';
+      exportContainer.style.backgroundColor = '#ffffff';
+      exportContainer.style.color = '#000000';
+      exportContainer.style.zIndex = '-9999';
+
+      exportContainer.appendChild(clone);
+      document.body.appendChild(exportContainer);
+
+      // Brief tick for browser to compute styles and layout offscreen
+      await new Promise(r => setTimeout(r, 60));
+
+      // 5. Determine student name from current live Personal Header Information
+      const fileName = generateResumeFilename(
+        resumeData.personal.fullName,
+        builderTemplate === 'modern' ? 'Brian_Lee' : (user?.name || 'Student')
+      );
+
+      // 6. Configure html2pdf options with onclone color sanitation
+      const isModern = builderTemplate === 'modern';
+      const opt = {
+        margin: isModern ? 0 : [8, 8, 8, 8],
+        filename: fileName,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: {
+          scale: 2, // 2x retina scale for crisp text
+          useCORS: true,
+          letterRendering: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          onclone: (clonedDoc: Document, element: HTMLElement) => {
+            // A. Sanitize all <style> blocks in the cloned document so no oklch remains in CSS rules
+            const styleTags = clonedDoc.querySelectorAll('style');
+            styleTags.forEach(st => {
+              if (st.textContent && (st.textContent.includes('oklch') || st.textContent.includes('lch('))) {
+                st.textContent = replaceUnsupportedColors(st.textContent);
+              }
+            });
+
+            // B. Ensure cloned document root and body are explicitly clean white
+            if (clonedDoc.documentElement) {
+              clonedDoc.documentElement.style.setProperty('background-color', '#ffffff', 'important');
+              clonedDoc.documentElement.style.setProperty('color', '#000000', 'important');
+            }
+            if (clonedDoc.body) {
+              clonedDoc.body.style.setProperty('background-color', '#ffffff', 'important');
+              clonedDoc.body.style.setProperty('color', '#000000', 'important');
+            }
+
+            // C. Walk all elements in the target cloned tree and ensure computed colors are RGB
+            const win = clonedDoc.defaultView || window;
+            const allElements = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
+            for (const el of allElements) {
+              if (!el || !el.style) continue;
+
+              const attr = el.getAttribute('style');
+              if (attr && (attr.includes('oklch') || attr.includes('lch('))) {
+                el.setAttribute('style', replaceUnsupportedColors(attr));
+              }
+
+              try {
+                const cs = win.getComputedStyle(el);
+                const colorProps = [
+                  'color',
+                  'backgroundColor',
+                  'borderTopColor',
+                  'borderRightColor',
+                  'borderBottomColor',
+                  'borderLeftColor',
+                  'outlineColor',
+                  'textDecorationColor'
+                ] as const;
+
+                for (const prop of colorProps) {
+                  const val = cs[prop];
+                  if (typeof val === 'string' && (val.includes('oklch') || val.includes('lch(') || val.includes('lab(') || val.includes('color('))) {
+                    const resolved = replaceUnsupportedColors(val);
+                    const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+                    el.style.setProperty(cssProp, resolved, 'important');
+                  }
+                }
+
+                const shadow = cs.boxShadow;
+                if (shadow && shadow !== 'none' && (shadow.includes('oklch') || shadow.includes('lch(') || shadow.includes('color('))) {
+                  el.style.setProperty('box-shadow', replaceUnsupportedColors(shadow), 'important');
+                }
+              } catch {
+                // Ignore any access errors on unusual elements
+              }
+            }
+          }
+        },
+        jsPDF: {
+          unit: 'mm' as const,
+          format: 'a4' as const,
+          orientation: 'portrait' as const
+        },
+        pagebreak: {
+          mode: ['avoid-all', 'css', 'legacy'] as any,
+          avoid: ['h1', 'h2', 'h3', 'h4', 'li', '.space-y-1', '.space-y-2', '.space-y-3']
+        }
+      };
+
+      const html2pdfFn = typeof html2pdf === 'function' ? html2pdf : (html2pdf as any).default || (window as any).html2pdf;
+      if (!html2pdfFn) {
+        throw new Error('PDF generator library failed to initialize.');
+      }
+
+      // 7. Generate PDF and trigger direct browser file download
+      await html2pdfFn().from(clone).set(opt).save();
+    } catch (err: any) {
+      console.error('Failed to generate resume PDF:', err);
+      setPdfDownloadError(err?.message || 'Failed to generate PDF. Please try again.');
+    } finally {
+      if (exportContainer && document.body.contains(exportContainer)) {
+        document.body.removeChild(exportContainer);
+      }
+      setIsGeneratingPdf(false);
+    }
   };
 
   const containerVariants: Variants = {
@@ -1662,16 +1957,42 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                   </button>
                   <button
                     type="button"
-                    onClick={handlePrintPdf}
-                    className="btn-primary px-3.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 cursor-pointer"
+                    disabled={isGeneratingPdf}
+                    onClick={handleDownloadPdf}
+                    className="btn-primary px-3.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Printer className="w-3.5 h-3.5 text-black" />
-                    <span>Print PDF</span>
+                    {isGeneratingPdf ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 text-black animate-spin" />
+                        <span>Generating PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5 text-black" />
+                        <span>Download PDF</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
 
-              {/* RENDERED PREVIEW DOCUMENT PANE (Target of @media print) */}
+              {pdfDownloadError && (
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span>{pdfDownloadError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPdfDownloadError(null)}
+                    className="text-zinc-400 hover:text-white text-xs font-bold px-2 py-0.5 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              {/* RENDERED PREVIEW DOCUMENT PANE */}
               <div
                 id="resume-preview-document"
                 className={`bg-white text-black rounded-2xl shadow-2xl font-sans text-xs min-h-[680px] leading-normal select-text overflow-hidden ${builderTemplate === 'modern' ? 'p-0' : 'p-6 space-y-4'
