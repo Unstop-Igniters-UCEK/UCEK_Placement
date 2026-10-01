@@ -1,7 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { motion } from 'framer-motion';
-import { GraduationCap } from 'lucide-react';
 
 export const Header: React.FC = React.memo(() => {
   const { user } = useApp();
@@ -18,8 +17,8 @@ export const Header: React.FC = React.memo(() => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3 cursor-pointer group">
-          <div className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-bold shadow-md group-hover:scale-105 transition-transform">
-            <GraduationCap className="w-6 h-6 text-black" />
+          <div className="w-10 h-10 rounded-xl bg-white overflow-hidden flex items-center justify-center font-bold shadow-md group-hover:scale-105 transition-transform p-1">
+            <img src="/new_logo.png" alt="Impulse" className="w-full h-full object-contain" />
           </div>
           <span
             className="text-xl sm:text-2xl font-normal text-white tracking-tight group-hover:text-orange-400 transition-colors"

@@ -12,7 +12,6 @@ import {
   Mic,
   Users,
   ShieldCheck,
-  GraduationCap,
   X,
   UserPlus
 } from 'lucide-react';
@@ -47,10 +46,10 @@ export const Sidebar: React.FC = React.memo(() => {
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ duration: 0.15 }}
             onClick={() => setSidebarOpen(true)}
-            className="fixed top-4 left-4 z-40 w-11 h-11 rounded-full bg-white text-black border border-white/20 shadow-2xl flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all"
+            className="fixed top-4 left-4 z-40 w-11 h-11 rounded-full bg-white overflow-hidden border border-white/20 shadow-2xl flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all p-1.5"
             title="Open Navigation Menu"
           >
-            <GraduationCap className="w-6 h-6 text-black" />
+            <img src="/new_logo.png" alt="Impulse" className="w-full h-full object-contain" />
           </motion.button>
         )}
       </AnimatePresence>
@@ -99,10 +98,10 @@ export const Sidebar: React.FC = React.memo(() => {
                     setActiveTab(user.role === 'admin' ? 'admin-dashboard' : 'dashboard');
                     if (window.innerWidth < 1024) setSidebarOpen(false);
                   }}
-                  className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-bold shadow-lg shadow-orange-500/10 cursor-pointer hover:scale-105 transition-transform shrink-0"
+                  className="w-10 h-10 rounded-xl bg-white overflow-hidden flex items-center justify-center font-bold shadow-lg shadow-orange-500/10 cursor-pointer hover:scale-105 transition-transform shrink-0 p-1"
                   title="UCEK Ignite Dashboard"
                 >
-                  <GraduationCap className="w-5.5 h-5.5 text-black" />
+                  <img src="/new_logo.png" alt="Impulse" className="w-full h-full object-contain" />
                 </div>
 
                 {/* Reserved space for future brand name */}
