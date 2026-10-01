@@ -142,11 +142,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
 
         {/* 
           BRAND TEXT "Impulse":
-          Strictly 2–3px below the logo container bottom edge (which is the bottom of the staircase).
-          Appears cleanly as soon as the logo reveal finishes.
+          Optical alignment with logo center of mass, 4px spacing below staircase, and tuned font weight.
         */}
         <div
-          className="mt-[2.5px] text-2xl sm:text-3xl font-normal text-white tracking-tight select-none leading-none h-8 sm:h-9 flex items-center justify-center transition-opacity duration-150"
+          className="mt-[4px] -translate-x-[4px] text-2xl sm:text-3xl font-medium text-white tracking-tight select-none leading-none h-8 sm:h-9 flex items-center justify-center transition-opacity duration-150"
           style={{
             fontFamily: "'Poppins', sans-serif",
             opacity: showText ? 1 : 0,
