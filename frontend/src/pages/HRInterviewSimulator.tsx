@@ -69,12 +69,19 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef<number>(0);
+  const durationRef = useRef<number>(0);
 
   useEffect(() => {
     if (isRecording) {
       timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
+        if (startTimeRef.current > 0) {
+          const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+          setRecordingTime(elapsed);
+        } else {
+          setRecordingTime(prev => prev + 1);
+        }
+      }, 500);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
@@ -94,6 +101,8 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
     setFeedback(null);
     setApiError(null);
     setRecordingTime(0);
+    startTimeRef.current = Date.now();
+    durationRef.current = 0;
     audioChunksRef.current = [];
 
     try {
@@ -122,7 +131,11 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
 
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
-        await processRecording(mimeType);
+        const elapsed = startTimeRef.current > 0
+          ? Math.max(1, Math.round(((Date.now() - startTimeRef.current) / 1000) * 10) / 10)
+          : 0;
+        durationRef.current = elapsed;
+        await processRecording(mimeType, elapsed);
       };
 
       recorder.start(200);
@@ -134,13 +147,17 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
 
   const handleStopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      const elapsed = startTimeRef.current > 0
+        ? Math.max(1, Math.round(((Date.now() - startTimeRef.current) / 1000) * 10) / 10)
+        : recordingTime;
+      durationRef.current = elapsed;
       setIsRecording(false);
       setAnalyzing(true);
       mediaRecorderRef.current.stop();
     }
   };
 
-  const processRecording = async (mimeType: string) => {
+  const processRecording = async (mimeType: string, exactDuration?: number) => {
     try {
       const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
 
@@ -157,16 +174,22 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
         return;
       }
 
+      const durationSeconds = (exactDuration && exactDuration > 0)
+        ? exactDuration
+        : (durationRef.current > 0 ? durationRef.current : Math.max(1, recordingTime));
+
       const result = await analyzeInterview({
         question_id: selectedQuestion.id,
         questionText: selectedQuestion.questionText,
         audioBase64: base64Audio,
         mimeType: mimeType,
-        durationSeconds: recordingTime,
+        durationSeconds: durationSeconds,
       });
 
+      const paceVal = result.wpm ?? result.pace_wpm ?? 0;
+
       const mapped: InterviewFeedback = {
-        wpm: result.wpm ?? 0,
+        wpm: Math.round(paceVal),
         fillerCount: result.fillerCount ?? 0,
         fillerWords: result.fillerWords ?? [],
         confidenceScore: result.confidenceScore ?? 0,
@@ -187,6 +210,12 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
 
       if (lower.includes('expired') || msg.includes('401') || lower.includes('unauthorized')) {
         setApiError('Your session has expired. Please sign in again to continue.');
+      } else if (
+        lower.includes('ai request limit reached') ||
+        lower.includes('request limit reached') ||
+        (lower.includes('429') && (lower.includes('moment') || lower.includes('wait') || lower.includes('reach')))
+      ) {
+        setApiError('AI request limit reached. Please wait a moment before trying again.');
       } else if (lower.includes('429') || lower.includes('rate limit') || lower.includes('too_many_requests') || lower.includes('daily limit') || lower.includes('quota')) {
         setApiError('The AI interview evaluation service has reached its daily request limit. Please try again later or tomorrow.');
       } else if (lower.includes('503') || lower.includes('high demand') || lower.includes('high traffic') || lower.includes('temporarily unavailable') || lower.includes('unavailable')) {

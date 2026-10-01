@@ -91,9 +91,8 @@ export const Dashboard: React.FC = React.memo(() => {
   const [speechAnalytics, setSpeechAnalytics] = useState<SpeechAnalyticsResponse>({
     hasEvaluations: false,
     wpm: null,
+    score: null,
     confidenceScore: null,
-    starFramework: null,
-    fillerCount: null,
     totalEvaluations: 0,
     featuredPrompts: []
   });
@@ -716,11 +715,24 @@ export const Dashboard: React.FC = React.memo(() => {
                   </div>
 
                   <div className="p-3.5 rounded-xl bg-[#141414] border border-white/10 space-y-1.5 hover:border-white/20 transition-all">
-                    <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Fillers</span>
-                    <span className="font-bold text-zinc-200 text-base block">{speechAnalytics.fillerCount !== null ? speechAnalytics.fillerCount : '—'}</span>
-                    <span className="text-[9px] text-zinc-500 block font-medium">
-                      {speechAnalytics.hasEvaluations ? 'Optimal' : 'No sessions yet'}
-                    </span>
+                    <span className="text-[10px] text-zinc-400 block font-medium uppercase tracking-wider">Score</span>
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-extrabold text-white text-base">
+                        {speechAnalytics.score !== null ? Math.round(speechAnalytics.score) : '—'}
+                        {speechAnalytics.score !== null && <span className="text-[10px] text-zinc-400 font-normal font-mono"> / 100</span>}
+                      </span>
+                      {speechAnalytics.score !== null && (
+                        <span className={`text-[9px] font-semibold hidden sm:inline ${speechAnalytics.score >= 70 ? 'text-emerald-400' : speechAnalytics.score >= 50 ? 'text-orange-400' : 'text-zinc-400'}`}>
+                          {speechAnalytics.score >= 70 ? 'Good' : speechAnalytics.score >= 50 ? 'Average' : 'Needs Work'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="w-full bg-[#000000] rounded-full h-1 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${speechAnalytics.score !== null && speechAnalytics.score >= 70 ? 'bg-emerald-400' : 'bg-orange-400'}`}
+                        style={{ width: speechAnalytics.score !== null ? `${Math.min(100, Math.max(0, speechAnalytics.score))}%` : '0%' }}
+                      />
+                    </div>
                   </div>
                 </div>
 

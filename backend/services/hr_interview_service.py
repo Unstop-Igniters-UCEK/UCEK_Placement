@@ -16,6 +16,8 @@ import time
 import wave
 import struct
 import logging
+import threading
+from collections import defaultdict, deque
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
@@ -65,6 +67,80 @@ HR_EVALUATION_FALLBACK_MODELS = [
     for m in _raw_fallback_models.split(",")
     if m.strip() and m.strip() not in ("gemini-2.5-flash", "gemini-3.5-flash")
 ]
+
+# ─── Application-Level AI Rate Limiter ────────────────────────────────────────
+
+def get_ai_requests_per_minute() -> int:
+    """
+    Read and validate AI_REQUESTS_PER_MINUTE from environment.
+    Must be a positive integer; preserves sensible default of 10.
+    """
+    raw = os.getenv("AI_REQUESTS_PER_MINUTE", "10")
+    try:
+        val = int(raw.strip()) if isinstance(raw, str) else int(raw)
+        if val > 0:
+            return val
+        logger.warning(f"AI_REQUESTS_PER_MINUTE must be a positive integer, got '{raw}'. Defaulting to 10.")
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.warning(f"Invalid AI_REQUESTS_PER_MINUTE value '{raw}': {e}. Defaulting to 10.")
+    return 10
+
+
+class UserAIRateLimiter:
+    """
+    In-memory rolling-window rate limiter for external HR Interview AI requests.
+    Enforces a per-authenticated-user limit within a rolling 60-second window.
+    """
+    def __init__(self, window_seconds: float = 60.0):
+        self.window_seconds = window_seconds
+        self._user_requests: Dict[str, deque] = defaultdict(deque)
+        self._lock = threading.Lock()
+
+    def check_and_record(self, user_id: str) -> None:
+        """
+        Check if user is within the rate limit.
+        If allowed, records the request timestamp.
+        If exceeded, raises HTTPException(429) with Retry-After header.
+        Blocked requests are NOT recorded and consume zero external AI provider quota.
+        """
+        limit = get_ai_requests_per_minute()
+        now = time.time()
+        cutoff = now - self.window_seconds
+
+        with self._lock:
+            timestamps = self._user_requests[user_id]
+
+            # Prune timestamps older than the rolling window
+            while timestamps and timestamps[0] <= cutoff:
+                timestamps.popleft()
+
+            if len(timestamps) >= limit:
+                oldest = timestamps[0]
+                retry_after = max(1, int(oldest + self.window_seconds - now + 0.999))
+                logger.warning(
+                    f"[AIRateLimiter] User {user_id} exceeded HR AI rate limit ({len(timestamps)}/{limit} req in {int(self.window_seconds)}s). "
+                    f"Retry-After: {retry_after}s"
+                )
+                raise HTTPException(
+                    status_code=429,
+                    detail="AI request limit reached. Please wait a moment before trying again.",
+                    headers={"Retry-After": str(retry_after)}
+                )
+
+            # Record this successful request within the active window
+            timestamps.append(now)
+
+            # Evict completely inactive user records periodically
+            if len(self._user_requests) > 1000:
+                inactive = [
+                    uid for uid, dq in self._user_requests.items()
+                    if not dq or dq[-1] <= cutoff
+                ]
+                for uid in inactive:
+                    del self._user_requests[uid]
+
+
+hr_ai_rate_limiter = UserAIRateLimiter(window_seconds=60.0)
 
 SUPPORTED_MIME_TYPES = {
     "audio/webm",
@@ -153,13 +229,22 @@ def extract_audio_duration(
     client_duration: Optional[float] = None
 ) -> float:
     """
-    Extract the actual audio duration in seconds from the raw audio bytes.
-    1. Try standard RIFF/WAV header.
-    2. Try mutagen metadata.
-    3. Try WebM EBML duration / Cluster timestamps.
-    4. Fallback to client_duration if audio container has no seekable header (live stream).
+    Extract the actual audio duration in seconds from validated client duration or raw audio bytes.
+    1. Validated client duration (wall-clock measured by browser MediaRecorder session).
+    2. Try standard RIFF/WAV header.
+    3. Try mutagen metadata.
+    4. Try WebM EBML duration / Cluster timestamps.
     """
-    # 1. WAV header parsing
+    # 1. Validated client duration (measured directly during recording)
+    if client_duration is not None:
+        try:
+            cd = float(client_duration)
+            if cd > 0:
+                return round(cd, 2)
+        except (ValueError, TypeError):
+            pass
+
+    # 2. WAV header parsing
     if mime_type.lower() in ("audio/wav", "audio/x-wav", "audio/wave") or audio_bytes.startswith(b"RIFF"):
         try:
             with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
@@ -171,7 +256,7 @@ def extract_audio_duration(
         except Exception as e:
             logger.debug(f"WAV duration parse failed: {e}")
 
-    # 2. Mutagen generic container parsing
+    # 3. Mutagen generic container parsing
     try:
         import mutagen
         audio_file = mutagen.File(io.BytesIO(audio_bytes))
@@ -182,17 +267,17 @@ def extract_audio_duration(
     except Exception as e:
         logger.debug(f"Mutagen duration parse failed: {e}")
 
-    # 3. WebM / Matroska EBML parser
+    # 4. WebM / Matroska EBML parser
     try:
         # Check Info Duration (0x44, 0x89)
         idx = audio_bytes.find(b"\x44\x89")
         if idx != -1 and idx + 7 <= len(audio_bytes):
             size = audio_bytes[idx + 2]
-            if size == 4:
+            if size in (4, 0x84):
                 val = struct.unpack(">f", audio_bytes[idx + 3:idx + 7])[0]
                 if val > 0:
                     return round(val / 1000.0, 2)
-            elif size == 8 and idx + 11 <= len(audio_bytes):
+            elif size in (8, 0x88) and idx + 11 <= len(audio_bytes):
                 val = struct.unpack(">d", audio_bytes[idx + 3:idx + 11])[0]
                 if val > 0:
                     return round(val / 1000.0, 2)
@@ -205,18 +290,20 @@ def extract_audio_duration(
             pos = audio_bytes.find(cluster_pattern, pos)
             if pos == -1 or pos >= len(audio_bytes):
                 break
-            chunk = audio_bytes[pos:pos + 80]
+            chunk = audio_bytes[pos:pos + 128]
             t_idx = chunk.find(b"\xe7")
-            if t_idx != -1 and t_idx + 3 < len(chunk):
-                vlen = chunk[t_idx + 1]
-                if vlen == 1 and t_idx + 2 < len(chunk):
-                    tc = chunk[t_idx + 2]
+            if t_idx != -1 and t_idx + 2 < len(chunk):
+                raw_vlen = chunk[t_idx + 1]
+                vlen = raw_vlen & 0x0F if (raw_vlen & 0x80) else raw_vlen
+                data_start = t_idx + 2
+                if vlen == 1 and data_start + 1 <= len(chunk):
+                    tc = chunk[data_start]
                     last_tc = max(last_tc, tc)
-                elif vlen == 2 and t_idx + 4 <= len(chunk):
-                    tc = struct.unpack(">H", chunk[t_idx + 2:t_idx + 4])[0]
+                elif vlen == 2 and data_start + 2 <= len(chunk):
+                    tc = struct.unpack(">H", chunk[data_start:data_start + 2])[0]
                     last_tc = max(last_tc, tc)
-                elif vlen == 4 and t_idx + 6 <= len(chunk):
-                    tc = struct.unpack(">I", chunk[t_idx + 2:t_idx + 6])[0]
+                elif vlen == 4 and data_start + 4 <= len(chunk):
+                    tc = struct.unpack(">I", chunk[data_start:data_start + 4])[0]
                     last_tc = max(last_tc, tc)
             pos += 4
 
@@ -224,10 +311,6 @@ def extract_audio_duration(
             return round(last_tc / 1000.0, 2)
     except Exception as e:
         logger.debug(f"WebM EBML cluster scan failed: {e}")
-
-    # 4. Validated client duration fallback
-    if client_duration is not None and client_duration > 0:
-        return round(float(client_duration), 2)
 
     return 0.0
 
@@ -243,7 +326,8 @@ def calculate_speech_metrics(transcript: str, duration_seconds: float) -> Tuple[
     word_count = len(words)
 
     if duration_seconds > 0 and word_count > 0:
-        duration_minutes = duration_seconds / 60.0
+        effective_duration = max(1.0, duration_seconds)
+        duration_minutes = effective_duration / 60.0
         wpm = round(word_count / duration_minutes, 1)
     else:
         wpm = 0.0
@@ -260,6 +344,7 @@ def calculate_speech_metrics(transcript: str, duration_seconds: float) -> Tuple[
     total_filler_count = len(detected_fillers)
 
     return word_count, wpm, unique_fillers, total_filler_count
+
 
 
 # ─── Provider Interfaces ──────────────────────────────────────────────────────
@@ -467,7 +552,7 @@ class GeminiEvaluationProvider(EvaluationProvider):
             )
 
         prompt = f"""
-You are an expert HR Interview Evaluator evaluating a student candidate's spoken response for campus placement recruitment at University College of Engineering Kakinada (UCEK).
+You are an expert HR Interview Evaluator evaluating a student candidate's spoken response for campus placement recruitment at University College of Engineering, Kariavattom (UCEK).
 
 Question Asked:
 "{question_text}"
@@ -502,7 +587,7 @@ EVALUATION INSTRUCTIONS:
 
 4. BETTER ANSWER:
    - Provide a structural roadmap (2-4 key steps) explaining how to answer "{question_text}" effectively.
-   - Provide an exemplar model answer demonstrating an outstanding response to this exact question.
+   - Provide an exemplar model answer demonstrating an outstanding response to this exact question. If referencing the candidate's college or institution in the exemplar answer, strictly use the canonical name 'University College of Engineering, Kariavattom' (UCEK) and do not invent alternate institution names.
 """
 
         models_to_try = [self.primary_model]
@@ -603,6 +688,9 @@ class HRInterviewService:
                 status_code=400,
                 detail=f"Recording duration ({duration_seconds:.1f}s) exceeds maximum allowed duration ({HR_MAX_RECORDING_SECONDS}s)."
             )
+
+        # Rate-limit check immediately before external AI request (per authenticated student)
+        hr_ai_rate_limiter.check_and_record(user_id=student_id)
 
         # 5. Execute verbatim transcription via Gemini
         transcript = self.transcription_provider.transcribe(

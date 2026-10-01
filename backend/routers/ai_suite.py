@@ -231,6 +231,7 @@ def analyze_interview(req: AnalyzeInterviewRequest, current_user: dict = Depends
             "overallScore": analysis.score,
             "confidenceScore": analysis.confidence_score,
             "wpm": analysis.pace_wpm,
+            "pace_wpm": analysis.pace_wpm,
             "durationSeconds": analysis.duration_seconds,
             "wordCount": analysis.word_count,
             "fillerWords": analysis.filler_words,
@@ -265,7 +266,6 @@ def get_speech_analytics(current_user: dict = Depends(get_current_user)):
     featured_prompts = [q.get("question", "") for q in hr_questions[:2] if q.get("question")]
 
     base_response = {
-        "fillerCount": None,
         "featuredPrompts": featured_prompts,
     }
 

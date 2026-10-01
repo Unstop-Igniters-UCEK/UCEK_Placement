@@ -380,6 +380,7 @@ export interface InterviewEvaluation {
   confidenceScore: number;    // 0-100
   technicalAccuracy: number;  // 0-100
   wpm?: number;
+  pace_wpm?: number;
   durationSeconds?: number;
   wordCount?: number;
   fillerCount?: number;
@@ -425,11 +426,16 @@ export async function analyzeInterview(
 export interface SpeechAnalyticsResponse {
   hasEvaluations: boolean;
   wpm: number | null;
+  score: number | null;
   confidenceScore: number | null;
-  starFramework: string | null;
-  fillerCount: string | null;
   totalEvaluations: number;
   featuredPrompts: string[];
+  latest?: {
+    score: number;
+    pace_wpm: number;
+    confidence_score: number;
+    completed_at: string;
+  } | null;
 }
 
 /**
