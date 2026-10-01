@@ -29,54 +29,6 @@ import {
 import html2pdf from 'html2pdf.js';
 
 
-const COMPANY_DRIVES = [
-  {
-    id: 'tcs',
-    company: 'TCS Digital',
-    role: 'Systems Engineer / Developer',
-    text: `TCS Digital National Qualifier Test (NQT) Drive 2026.
-Role: Systems Engineer / Full Stack Developer.
-Requirements: Strong foundation in Data Structures, Algorithms, Core Java/C++, JavaScript, React, SQL databases, RESTful APIs, and basic understanding of Cloud & DevOps concepts. Excellent problem-solving skills and teamwork aptitude.`
-  },
-  {
-    id: 'infosys',
-    company: 'Infosys Specialist Programmer',
-    role: 'Specialist Programmer (SP)',
-    text: `Infosys Specialist Programmer & Digital Specialist Engineer Drive.
-Role: Specialist Programmer.
-Requirements: Expert knowledge in Data Structures, Competitive Coding, Dynamic Programming, Graph Algorithms, System Design basics, Microservices architecture, Docker, and SQL query optimization.`
-  },
-  {
-    id: 'wipro',
-    company: 'Wipro Elite NLTH',
-    role: 'Project Engineer',
-    text: `Wipro Elite National Level Talent Hunt Drive 2026.
-Role: Project Engineer.
-Requirements: Proficiency in Object Oriented Programming (Java/C++/Python), SQL relational queries, Web Development basics, Git version control, and logical reasoning.`
-  },
-  {
-    id: 'accenture',
-    company: 'Accenture Innovation',
-    role: 'Application Engineering Analyst',
-    text: `Accenture Innovation & Technology Campus Hiring 2026.
-Role: Associate Software Engineer / Analyst.
-Requirements: Experience with Cloud fundamentals, JavaScript/TypeScript, Full Stack web development, Agile methodologies, problem-solving, and client communication.`
-  },
-  {
-    id: 'ust',
-    company: 'UST Global',
-    role: 'Associate Software Engineer',
-    text: `UST Campus Graduate Trainee Program 2026.
-Role: Software Engineer Trainee.
-Requirements: Knowledge of modern web frameworks (React, Angular, or Node.js), relational database queries (PostgreSQL/MySQL), Git version control, unit testing frameworks (Jest/Mocha), and strong verbal communication skills.`
-  },
-  {
-    id: 'custom',
-    company: 'Custom Company Drive',
-    role: 'Software Developer',
-    text: ''
-  }
-];
 
 export const AIResumeSuite: React.FC = React.memo(() => {
   const { resumeData, setResumeData, user } = useApp();
@@ -208,22 +160,16 @@ export const AIResumeSuite: React.FC = React.memo(() => {
     }
   }, [user?.id]);
 
-  // SUB-TAB 3: JD MATCHER STATE
-  const [selectedCompanyDriveId, setSelectedCompanyDriveId] = useState('tcs');
-  const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
-  const [jdCompany, setJdCompany] = useState(COMPANY_DRIVES[0].company);
-  const [jdRole, setJdRole] = useState(COMPANY_DRIVES[0].role);
-  const [jdText, setJdText] = useState(COMPANY_DRIVES[0].text);
-  const [matchLoading, setMatchLoading] = useState(false);
-  const [matchError, setMatchError] = useState<string | null>(null);
-  const [matchResult, setMatchResult] = useState<JDMatchResult | null>(null);
-
-  // RESUME SOURCE TOGGLE & CHECKBOX
-  const [resumeSource, setResumeSource] = useState<'builder' | 'custom'>('builder');
-  const [useSameReviewerResume, setUseSameReviewerResume] = useState(false);
-  const [customResumeSourceText, setCustomResumeSourceText] = useState('');
+  // SUB-TAB 3: JD MATCHER STATE (Starts completely empty)
+  const [matcherResumeText, setMatcherResumeText] = useState('');
+  const [matcherFileName, setMatcherFileName] = useState<string | null>(null);
   const [matcherPdfLoading, setMatcherPdfLoading] = useState(false);
   const [matcherPdfProgress, setMatcherPdfProgress] = useState(0);
+  const [jdText, setJdText] = useState('');
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
+  const [matchValidationMsg, setMatchValidationMsg] = useState<string | null>(null);
+  const [matchResult, setMatchResult] = useState<JDMatchResult | null>(null);
   const jdFileInputRef = useRef<HTMLInputElement>(null);
 
   // HANDLER: Run ATS AI Scan (Pure Gemini evaluation with single request)
@@ -332,8 +278,8 @@ export const AIResumeSuite: React.FC = React.memo(() => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setResumeSource('custom');
-    setUseSameReviewerResume(false);
+    setMatcherFileName(file.name);
+    setMatchValidationMsg(null);
 
     if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
       setMatcherPdfLoading(true);
@@ -350,12 +296,12 @@ export const AIResumeSuite: React.FC = React.memo(() => {
 
         setTimeout(() => {
           if (text && text.trim().length > 10) {
-            setCustomResumeSourceText(text.trim());
+            setMatcherResumeText(text.trim());
           } else {
             const reader = new FileReader();
             reader.onload = (event) => {
               const raw = event.target?.result as string;
-              if (raw) setCustomResumeSourceText(raw);
+              if (raw) setMatcherResumeText(raw.trim());
             };
             reader.readAsText(file);
           }
@@ -368,7 +314,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
         const reader = new FileReader();
         reader.onload = (event) => {
           const raw = event.target?.result as string;
-          if (raw) setCustomResumeSourceText(raw);
+          if (raw) setMatcherResumeText(raw.trim());
         };
         reader.readAsText(file);
         setTimeout(() => {
@@ -380,9 +326,13 @@ export const AIResumeSuite: React.FC = React.memo(() => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target?.result as string;
-        if (text) setCustomResumeSourceText(text);
+        if (text) setMatcherResumeText(text.trim());
       };
       reader.readAsText(file);
+    }
+
+    if (e.target) {
+      e.target.value = '';
     }
   };
 
@@ -425,30 +375,28 @@ export const AIResumeSuite: React.FC = React.memo(() => {
 
   // HANDLER: Calculate JD Match
   const handleRunMatcher = async () => {
-    if (!jdText.trim()) return;
-    setMatchLoading(true);
-
-    let candidateText = '';
-    if (useSameReviewerResume && resumeText.trim()) {
-      candidateText = resumeText.trim();
-    } else if (resumeSource === 'builder') {
-      candidateText = getBuilderPlainText();
-    } else {
-      candidateText = customResumeSourceText.trim() || resumeText.trim() || getBuilderPlainText();
+    setMatchValidationMsg(null);
+    if (!matcherResumeText.trim()) {
+      setMatchValidationMsg('Upload your resume to continue.');
+      return;
+    }
+    if (!jdText.trim()) {
+      setMatchValidationMsg('Please provide a job description to continue.');
+      return;
     }
 
+    setMatchLoading(true);
+    setMatchError(null);
+
     try {
-      setMatchError(null);
       const data = await matchJDApi({
-        jobTitle: jdRole,
-        company: jdCompany,
         jdText: jdText.trim(),
-        resumeText: candidateText.trim()
+        resumeText: matcherResumeText.trim()
       });
       setMatchResult(data);
     } catch (err: any) {
       console.error('JD Match API Error:', err);
-      setMatchError(err?.message || 'Failed to calculate JD match. Check backend connection and Gemini API key.');
+      setMatchError(err?.message || 'JD evaluation temporarily unavailable.');
       setMatchResult(null);
     } finally {
       setMatchLoading(false);
@@ -2281,295 +2229,227 @@ export const AIResumeSuite: React.FC = React.memo(() => {
       {activeSubTab === 'matcher' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LEFT FORM CARD */}
-          <motion.div variants={itemVariants} className="lg:col-span-5 mono-card p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-sm text-white font-heading flex items-center gap-2">
-                <Target className="w-4 h-4 text-orange-400" />
-                Job Description Matcher
-              </h2>
-            </div>
-
-            {/* RESUME SOURCE TOGGLE & CHECKBOX BANNER */}
-            <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 text-xs text-zinc-300 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-zinc-400 block text-[10px]">Active Resume Source:</span>
-                  <strong className="font-semibold text-orange-400">
-                    {useSameReviewerResume
-                      ? 'AI Reviewer Resume Text'
-                      : resumeSource === 'builder'
-                        ? 'Resume Builder Profile'
-                        : 'Custom Uploaded / Pasted Resume'}
-                  </strong>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="file"
-                    ref={jdFileInputRef}
-                    onChange={handleMatcherFileUpload}
-                    accept=".pdf,.txt,.md,.doc,.docx"
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => jdFileInputRef.current?.click()}
-                    disabled={matcherPdfLoading}
-                    className="px-2.5 py-1 rounded-full bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 font-bold border border-orange-500/30 text-[11px] cursor-pointer transition-all flex items-center gap-1 disabled:opacity-50"
-                  >
-                    <Upload className="w-3 h-3 text-orange-400" />
-                    <span>Upload File</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUseSameReviewerResume(false);
-                      setResumeSource(prev => prev === 'builder' ? 'custom' : 'builder');
-                    }}
-                    className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
-                  >
-                    <Edit3 className="w-3 h-3 text-zinc-400" />
-                    <span>Change</span>
-                  </button>
-                </div>
+          <motion.div variants={itemVariants} className="lg:col-span-5 bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 sm:p-7 space-y-5 shadow-2xl flex flex-col justify-between">
+            <div className="space-y-5">
+              <div className="flex items-center justify-between pb-1 border-b border-white/5">
+                <h2 className="font-bold text-sm text-white font-heading flex items-center gap-2">
+                  <Target className="w-4 h-4 text-orange-400" />
+                  Job Description Matcher
+                </h2>
               </div>
 
-              {/* CHECKBOX: USE SAME RESUME AS AI REVIEWER */}
-              <label className="flex items-center gap-2 cursor-pointer pt-1 border-t border-white/10 text-[11px] font-medium text-zinc-200">
-                <input
-                  type="checkbox"
-                  checked={useSameReviewerResume}
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    setUseSameReviewerResume(checked);
-                    if (checked && resumeText.trim()) {
-                      setResumeSource('custom');
-                      setCustomResumeSourceText(resumeText.trim());
-                    }
-                  }}
-                  className="w-4 h-4 accent-orange-500 rounded cursor-pointer shrink-0"
-                />
-                <span>Use the same resume uploaded/entered in AI Reviewer</span>
-              </label>
-            </div>
-
-            {/* ANIMATED BAR LOADER FOR JD MATCHER PDF PARSING */}
-            {matcherPdfLoading && (
-              <div className="p-3.5 rounded-xl bg-orange-500/10 border border-orange-500/30 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-orange-400 font-heading">
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
-                    Extracting PDF Resume Content for Matcher...
-                  </span>
-                  <span className="font-mono text-[11px] text-white">{matcherPdfProgress}%</span>
-                </div>
-                <div className="w-full bg-black/60 h-2.5 rounded-full overflow-hidden border border-white/10 p-0.5">
-                  <div
-                    className="bg-gradient-to-r from-orange-500 via-amber-400 to-orange-400 h-full rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(249,115,22,0.8)]"
-                    style={{ width: `${matcherPdfProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* IF CUSTOM SOURCE IS SELECTED, SHOW CUSTOM TEXTAREA */}
-            {(resumeSource === 'custom' || useSameReviewerResume) && (
-              <div className="space-y-1.5 p-3 rounded-xl bg-[#121212] border border-white/10">
+              {/* 1. RESUME INPUT (UPLOAD RESUME ONLY) */}
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-zinc-400">Source Resume Plain Text for Matcher</label>
-                  <span className="text-[10px] font-mono text-zinc-500">
-                    {(useSameReviewerResume ? resumeText : customResumeSourceText).length} chars
-                  </span>
+                  <label className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Candidate Resume</label>
+                  {matcherResumeText.trim() && (
+                    <span className="text-[10px] font-mono text-zinc-500">
+                      {matcherResumeText.length} chars extracted
+                    </span>
+                  )}
+                </div>
+
+                <input
+                  type="file"
+                  ref={jdFileInputRef}
+                  onChange={handleMatcherFileUpload}
+                  accept=".pdf,.txt"
+                  className="hidden"
+                />
+
+                {!matcherFileName ? (
+                  <div
+                    onClick={() => jdFileInputRef.current?.click()}
+                    className="border border-dashed border-white/15 hover:border-orange-500/50 bg-[#000000] rounded-2xl p-5 text-center cursor-pointer transition-all hover:bg-orange-500/[0.02] group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-white/5 group-hover:bg-orange-500/10 flex items-center justify-center mx-auto mb-2 text-zinc-400 group-hover:text-orange-400 transition-colors">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <p className="text-xs font-semibold text-white group-hover:text-orange-400 transition-colors">
+                      Upload Resume (.PDF / .TXT)
+                    </p>
+                    <p className="text-[11px] text-zinc-500 mt-1">
+                      Extract resume plain text independently for match evaluation
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-2xl bg-[#000000] border border-white/10 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-white truncate max-w-[200px] sm:max-w-[260px]">
+                          {matcherFileName}
+                        </p>
+                        <p className="text-[10px] text-emerald-400 flex items-center gap-1 font-mono">
+                          <Check className="w-3 h-3" /> Resume ready for evaluation
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => jdFileInputRef.current?.click()}
+                      disabled={matcherPdfLoading || matchLoading}
+                      className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50 shrink-0"
+                    >
+                      <Upload className="w-3 h-3 text-zinc-400" />
+                      <span>Replace</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* ANIMATED BAR LOADER FOR PDF PARSING */}
+                {matcherPdfLoading && (
+                  <div className="p-3.5 rounded-2xl bg-[#000000] border border-orange-500/30 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-orange-400 font-heading">
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
+                        Extracting Resume Content...
+                      </span>
+                      <span className="font-mono text-[11px] text-white">{matcherPdfProgress}%</span>
+                    </div>
+                    <div className="w-full bg-black/60 h-2 rounded-full overflow-hidden border border-white/10 p-0.5">
+                      <div
+                        className="bg-gradient-to-r from-orange-500 via-amber-400 to-orange-400 h-full rounded-full transition-all duration-300"
+                        style={{ width: `${matcherPdfProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. JOB DESCRIPTION TEXTAREA */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Job Description</label>
+                  {jdText.trim() && (
+                    <span className="text-[10px] font-mono text-zinc-500">
+                      {jdText.length} chars
+                    </span>
+                  )}
                 </div>
                 <textarea
-                  className="w-full bg-black/60 text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none h-36 font-mono leading-relaxed resize-none"
-                  value={useSameReviewerResume ? resumeText : customResumeSourceText}
+                  className="w-full bg-[#000000] text-xs text-white p-3.5 rounded-2xl border border-white/10 focus:border-orange-500 outline-none h-44 font-sans leading-relaxed resize-none transition-colors placeholder:text-zinc-600 overflow-y-auto overscroll-contain custom-scrollbar"
+                  data-lenis-prevent="true"
+                  value={jdText}
                   onChange={e => {
-                    if (!useSameReviewerResume) {
-                      setCustomResumeSourceText(e.target.value);
-                    }
+                    setJdText(e.target.value);
+                    if (matchValidationMsg) setMatchValidationMsg(null);
                   }}
-                  readOnly={useSameReviewerResume}
-                  placeholder="Paste custom candidate resume text or upload PDF file above..."
+                  onWheel={e => e.stopPropagation()}
+                  placeholder="Paste the target job description requirements, responsibilities, and qualifications..."
                 />
               </div>
-            )}
 
-            {/* TARGET COMPANY DRIVE CUSTOM DROPDOWN */}
-            <div className="space-y-1.5 relative">
-              <label className="text-[11px] font-medium text-zinc-400">Select Placement Drive / Company</label>
-              <div
-                onClick={() => setCompanyDropdownOpen(prev => !prev)}
-                className="w-full bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 hover:border-orange-500 cursor-pointer flex items-center justify-between font-sans transition-colors"
-              >
-                <span className="font-semibold text-white">{jdCompany || 'Select Target Company'}</span>
-                <ChevronDown className="w-4 h-4 text-orange-400 shrink-0" />
-              </div>
-
-              {companyDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-[#0d0d0d] border border-white/20 rounded-2xl p-2 shadow-2xl z-50 space-y-1 backdrop-blur-2xl max-h-60 overflow-y-auto custom-scrollbar">
-                  {COMPANY_DRIVES.map(drive => (
-                    <div
-                      key={drive.id}
-                      onClick={() => {
-                        setSelectedCompanyDriveId(drive.id);
-                        setJdCompany(drive.company);
-                        if (drive.role) setJdRole(drive.role);
-                        if (drive.text) setJdText(drive.text);
-                        setCompanyDropdownOpen(false);
-                      }}
-                      className={`px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center justify-between ${selectedCompanyDriveId === drive.id
-                        ? 'bg-orange-500/15 text-orange-400 font-bold border border-orange-500/30'
-                        : 'text-zinc-300 hover:text-white hover:bg-white/5'
-                        }`}
-                    >
-                      <span>{drive.company}</span>
-                      {selectedCompanyDriveId === drive.id && <Check className="w-3.5 h-3.5 text-orange-400 shrink-0" />}
-                    </div>
-                  ))}
+              {/* VALIDATION MESSAGE BANNER */}
+              {matchValidationMsg && (
+                <div className="p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-xs text-orange-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-orange-400 shrink-0" />
+                  <span>{matchValidationMsg}</span>
                 </div>
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-medium text-zinc-400">Job Title / Designation</label>
-              <input
-                type="text"
-                className="w-full bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none font-sans"
-                value={jdRole}
-                onChange={e => setJdRole(e.target.value)}
-                placeholder="Systems Engineer / Developer"
-              />
+            {/* ACTION BUTTON */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRunMatcher();
+                }}
+                disabled={matchLoading || !matcherResumeText.trim() || !jdText.trim()}
+                className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
+              >
+                {matchLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 text-black animate-spin" />
+                    <span>Calculating Match...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-black" />
+                    <span>Calculate Job Description Match</span>
+                  </>
+                )}
+              </button>
             </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-medium text-zinc-400">Target Job Description (JD)</label>
-              <textarea
-                className="w-full bg-[#121212] text-xs text-white p-3.5 rounded-xl border border-white/10 focus:border-orange-500 outline-none h-44 font-sans leading-relaxed resize-none"
-                value={jdText}
-                onChange={e => setJdText(e.target.value)}
-                placeholder="Paste Job Description requirements, qualifications, key skills, responsibilities..."
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                handleRunMatcher();
-              }}
-              disabled={matchLoading || !jdText.trim()}
-              className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
-            >
-              {matchLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 text-black animate-spin" />
-                  <span>Evaluating... Please Wait</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 text-black" />
-                  <span>Calculate Job Description Match</span>
-                </>
-              )}
-            </button>
           </motion.div>
 
           {/* RIGHT MATCH ANALYSIS OUTPUT CARD */}
-          <motion.div variants={itemVariants} className="lg:col-span-7 mono-card p-6 space-y-6 flex flex-col justify-between">
+          <motion.div variants={itemVariants} className="lg:col-span-7 bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 sm:p-7 space-y-6 shadow-2xl flex flex-col justify-start min-h-[500px]">
             {matchError ? (
-              <div className="py-16 text-center space-y-4 my-auto p-6 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
-                <div className="w-14 h-14 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto shadow-inner">
-                  <AlertCircle className="w-7 h-7 text-rose-400" />
+              <div className="py-20 text-center space-y-3 my-auto p-6 bg-[#000000] border border-white/10 rounded-2xl">
+                <div className="w-14 h-14 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
+                  <AlertCircle className="w-6 h-6 text-orange-400" />
                 </div>
-                <div className="space-y-2 max-w-md mx-auto">
-                  <h3 className="text-base font-bold text-rose-400 font-heading">AI Service Error</h3>
-                  <p className="text-xs text-rose-200/90 leading-relaxed font-mono bg-black/40 p-3 rounded-xl border border-rose-500/30 text-left break-words">
-                    {matchError}
-                  </p>
+                <div className="space-y-1 max-w-sm mx-auto">
+                  <h3 className="text-sm font-bold text-white font-heading">JD evaluation temporarily unavailable.</h3>
+                  <p className="text-xs text-zinc-400">Please try again in a moment.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleRunMatcher()}
-                  className="px-6 py-2 text-xs font-bold text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 rounded-full cursor-pointer transition-all"
-                >
-                  Retry JD Matcher
-                </button>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleRunMatcher()}
+                    className="px-6 py-2 text-xs font-bold text-white bg-white/10 hover:bg-white/15 border border-white/20 rounded-full cursor-pointer transition-all"
+                  >
+                    Try Again
+                  </button>
+                </div>
               </div>
             ) : !matchResult ? (
-              <div className="py-24 text-center space-y-4 my-auto">
-                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 flex items-center justify-center mx-auto shadow-inner">
-                  <Target className="w-8 h-8 text-zinc-400" />
+              <div className="py-20 text-center space-y-3 my-auto">
+                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-zinc-400 shadow-inner">
+                  <Target className="w-8 h-8" />
                 </div>
-                <div className="space-y-1.5 max-w-sm mx-auto">
-                  <h3 className="text-base font-bold text-white font-heading">No Match Evaluation Yet</h3>
-                  <p className="text-xs text-zinc-400 leading-relaxed">
-                    Select a target placement drive above or paste a job description to calculate match alignment %, skill gaps, and custom bullet recommendations.
+                <div className="space-y-1 max-w-xs mx-auto">
+                  <p className="text-sm font-bold text-white font-heading">NO MATCH EVALUATION YET</p>
+                  <p className="text-xs text-zinc-400 font-sans leading-relaxed">
+                    Upload your resume and provide a job description on the left to calculate match alignment.
                   </p>
                 </div>
               </div>
             ) : (
               <div className="space-y-6">
-                {/* MATCH SCORES HEADER */}
-                <div className="grid grid-cols-2 gap-4 bg-[#121212] border border-white/10 p-5 rounded-2xl text-center">
-                  <div>
-                    <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-bold">JD Match %</span>
-                    <span className="text-3xl font-black text-orange-400 font-heading pt-1 block">{matchResult.matchPercentage}%</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-bold">Est. Interview Callback</span>
-                    <span className="text-3xl font-black text-emerald-400 font-heading pt-1 block">{matchResult.interviewChance}%</span>
+                {/* SINGLE JD MATCH HEADER */}
+                <div className="bg-[#000000] border border-white/10 p-4 rounded-2xl text-center shadow-inner">
+                  <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block">JD Match</span>
+                  <div className="text-3xl font-extrabold text-orange-400 tracking-tight pt-1">
+                    {matchResult.matchPercentage}
+                    <span className="text-sm text-zinc-500 font-normal ml-0.5">%</span>
                   </div>
                 </div>
 
-                {/* MATCH SUMMARY */}
+                {/* ALIGNMENT SUMMARY */}
                 {matchResult.summary && (
-                  <div className="p-3.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-xs text-zinc-300 leading-relaxed flex items-start gap-2.5">
-                    <Sparkles className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="text-orange-400 font-bold block mb-0.5">Alignment Summary for {jdCompany}:</strong>
-                      {matchResult.summary}
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Alignment Summary</h4>
+                    <div className="p-3.5 rounded-2xl bg-[#000000] border border-white/10">
+                      <p className="text-sm leading-[1.6] text-zinc-200">{matchResult.summary}</p>
                     </div>
                   </div>
                 )}
 
-                {/* MATCHING SKILLS FOUND */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    Matching Skills Found
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {matchResult.matchingSkills.map((sk, i) => (
-                      <span key={i} className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center gap-1">
-                        <Check className="w-3 h-3 text-emerald-400" /> {sk}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* MISSING SKILLS TO ADD */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                    <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
-                    Missing Critical Skills to Add
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {matchResult.missingSkills.map((sk, i) => (
-                      <span key={i} className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold flex items-center gap-1">
-                        ! {sk}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* TAILORED BULLET RECOMMENDATIONS */}
-                <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Tailored Bullet Recommendations for {jdCompany}</h4>
-                  {matchResult.tailoredBullets.map((tb, idx) => (
-                    <div key={idx} className="p-3.5 rounded-2xl bg-[#121212] border border-white/10 text-xs font-mono text-emerald-400 leading-relaxed">
-                      + "{tb}"
+                {/* MISSING CRITICAL SKILLS TO ADD */}
+                <div className="space-y-2.5">
+                  <h4 className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Missing Critical Skills to Add</h4>
+                  {matchResult.missingSkills && matchResult.missingSkills.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 pt-0.5">
+                      {matchResult.missingSkills.map((sk, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-full bg-[#000000] border border-white/10 text-zinc-200 text-xs font-medium text-center leading-normal"
+                        >
+                          {sk}
+                        </span>
+                      ))}
                     </div>
-                  ))}
+                  ) : (
+                    <div className="p-3.5 rounded-2xl bg-[#000000] border border-white/10 text-xs text-zinc-400">
+                      No critical skill gaps detected between resume and job description.
+                    </div>
+                  )}
                 </div>
               </div>
             )}

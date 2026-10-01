@@ -303,10 +303,10 @@ class ReviewResumeRequest(BaseModel):
 
 
 class MatchJDRequest(BaseModel):
-    jobTitle: Optional[str] = "Software Engineer"
-    company: Optional[str] = "Target Employer"
     jdText: str
     resumeText: str
+    jobTitle: Optional[str] = None
+    company: Optional[str] = None
 
 
 class EnhanceBulletRequest(BaseModel):

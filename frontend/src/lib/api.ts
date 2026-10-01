@@ -560,7 +560,7 @@ export async function matchJDApi(payload: {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(parseErrorMessage(err, `Failed to match JD (${res.status})`));
+    throw new Error(parseErrorMessage(err, 'JD evaluation temporarily unavailable.'));
   }
 
   const data = await res.json();

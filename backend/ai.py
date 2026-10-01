@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import time
 import logging
@@ -316,42 +317,249 @@ def analyze_resume_with_gemini(resume_text: str, job_role: str = "Software Engin
     return review_resume_with_gemini(resume_text, job_role)
 
 
-def match_jd_with_gemini(job_title: str, company: str, jd_text: str, resume_text: str) -> dict:
-    client = get_gemini_client()
+# Comprehensive catalog of industry technical and professional skills: { canonical: [aliases] }
+TECHNICAL_SKILLS_CATALOG = {
+    # Programming Languages
+    "Python": ["python", "python3", "py"],
+    "Java": ["java", "core java", "j2ee"],
+    "C++": ["c++", "cpp"],
+    "C#": ["c#", "csharp", "c-sharp"],
+    "C": ["c language", "ansi c"],
+    "JavaScript": ["javascript", "js", "ecmascript"],
+    "TypeScript": ["typescript", "ts"],
+    "Go": ["golang", "go language"],
+    "Rust": ["rust", "rustlang"],
+    "PHP": ["php"],
+    "Ruby": ["ruby"],
+    "Kotlin": ["kotlin"],
+    "Swift": ["swift"],
+    "SQL": ["sql", "structured query language", "pl/sql", "t-sql"],
+    "HTML/CSS": ["html", "html5", "css", "css3"],
+    "Bash": ["bash", "shell scripting", "shell script", "zsh"],
 
-    prompt = f"""Compare the candidate's resume against the Job Description for '{job_title}' at '{company}'.
+    # Web & Full Stack
+    "React": ["react", "react.js", "reactjs"],
+    "Next.js": ["next.js", "nextjs", "next js"],
+    "Angular": ["angular", "angularjs", "angular.js"],
+    "Vue.js": ["vue", "vue.js", "vuejs"],
+    "Node.js": ["node.js", "nodejs", "node js"],
+    "Express.js": ["express", "express.js", "expressjs"],
+    "Django": ["django", "django rest framework", "drf"],
+    "FastAPI": ["fastapi", "fast-api"],
+    "Flask": ["flask"],
+    "Spring Boot": ["spring boot", "springboot", "spring framework"],
+    ".NET": [".net", "asp.net", "dotnet", ".net core"],
+    "GraphQL": ["graphql"],
+    "REST APIs": ["rest api", "rest apis", "restful", "restful api", "restful apis", "rest"],
+    "Microservices": ["microservices", "microservice", "micro-services"],
+    "Tailwind CSS": ["tailwind", "tailwind css", "tailwindcss"],
+    "Redux": ["redux", "redux toolkit"],
+
+    # Databases & Caching
+    "PostgreSQL": ["postgresql", "postgres"],
+    "MySQL": ["mysql"],
+    "MongoDB": ["mongodb", "mongo"],
+    "Redis": ["redis"],
+    "SQLite": ["sqlite"],
+    "Cassandra": ["cassandra"],
+    "Elasticsearch": ["elasticsearch"],
+    "Oracle": ["oracle db", "oracle database"],
+    "Firebase": ["firebase", "firestore"],
+    "Supabase": ["supabase"],
+
+    # Cloud & DevOps
+    "AWS": ["aws", "amazon web services", "ec2", "s3", "lambda"],
+    "Azure": ["azure", "microsoft azure"],
+    "Google Cloud": ["gcp", "google cloud", "google cloud platform"],
+    "Docker": ["docker", "containerization", "containers"],
+    "Kubernetes": ["kubernetes", "k8s"],
+    "CI/CD": ["ci/cd", "ci-cd", "continuous integration", "continuous deployment"],
+    "Jenkins": ["jenkins"],
+    "GitHub Actions": ["github actions"],
+    "Terraform": ["terraform"],
+    "Linux": ["linux", "unix", "ubuntu"],
+    "Git": ["git", "github", "gitlab"],
+
+    # AI / ML / Data
+    "Machine Learning": ["machine learning", "ml"],
+    "Deep Learning": ["deep learning", "dl"],
+    "Natural Language Processing": ["nlp", "natural language processing"],
+    "Computer Vision": ["computer vision"],
+    "PyTorch": ["pytorch"],
+    "TensorFlow": ["tensorflow", "keras"],
+    "Pandas": ["pandas"],
+    "NumPy": ["numpy"],
+    "Scikit-Learn": ["scikit-learn", "sklearn"],
+    "Data Engineering": ["data engineering", "etl"],
+    "Apache Spark": ["spark", "apache spark", "pyspark"],
+    "Kafka": ["kafka", "apache kafka"],
+
+    # CS Fundamentals & Methodologies
+    "Data Structures & Algorithms": ["data structures", "algorithms", "dsa"],
+    "System Design": ["system design", "distributed systems"],
+    "Object-Oriented Programming": ["oop", "object oriented programming", "oops"],
+    "Agile / Scrum": ["agile", "scrum", "kanban", "sprints"],
+    "Unit Testing": ["unit testing", "test driven development", "tdd", "jest", "pytest", "junit"],
+    "Web Security": ["cybersecurity", "security", "oauth", "jwt", "owasp"]
+}
+
+
+def extract_missing_skills(jd_text: str, resume_text: str) -> list:
+    """
+    Deterministically computes missing critical skills by scanning the actual Job Description
+    and cross-referencing against the candidate's actual resume text.
+    Skills clearly present in the resume are NEVER marked as missing.
+    Zero mock/invented skills.
+    """
+    jd_lower = jd_text.lower()
+    resume_lower = resume_text.lower()
+    missing: list[str] = []
+
+    def check_presence(term: str, target: str) -> bool:
+        pattern = rf'(?<![\w#+.]){re.escape(term)}(?![\w#+.])'
+        return bool(re.search(pattern, target))
+
+    for canonical, aliases in TECHNICAL_SKILLS_CATALOG.items():
+        # Check if the JD explicitly references this skill
+        is_in_jd = any(check_presence(alias, jd_lower) for alias in aliases)
+        if is_in_jd:
+            # Check if candidate resume clearly contains the skill
+            is_in_resume = any(check_presence(alias, resume_lower) for alias in aliases)
+            if not is_in_resume:
+                missing.append(canonical)
+
+    return missing
+
+
+def match_jd_with_gemini(*args, **kwargs) -> dict:
+    """
+    Matches candidate resume against a Job Description using the central shared Gemini model.
+    Exactly ONE request. No retries, no fallback model, no fabricated data.
+    The response provides ONLY:
+      1. JD Match % (0-100)
+      2. Alignment Summary
+    Missing Critical Skills are computed deterministically by the backend.
+    """
+    # Accommodate both match_jd_with_gemini(jd_text, resume_text) and legacy signatures
+    if len(args) >= 4:
+        jd_text = str(args[2] or "").strip()
+        resume_text = str(args[3] or "").strip()
+    elif len(args) == 2:
+        jd_text = str(args[0] or "").strip()
+        resume_text = str(args[1] or "").strip()
+    else:
+        jd_text = str(kwargs.get("jd_text") or (args[0] if args else "")).strip()
+        resume_text = str(kwargs.get("resume_text") or (args[1] if len(args) > 1 else "")).strip()
+
+    if not resume_text:
+        raise HTTPException(status_code=400, detail="Upload your resume to continue.")
+    if not jd_text:
+        raise HTTPException(status_code=400, detail="Job description is required.")
+
+    # 1. Deterministic backend skill comparison
+    missing_skills = extract_missing_skills(jd_text, resume_text)
+
+    client = get_gemini_client()
+    model_name = get_shared_gemini_model()
+
+    missing_context = (
+        f"Backend skill gap analysis indicates candidate appears to be missing: {', '.join(missing_skills)}."
+        if missing_skills
+        else "Backend skill analysis indicates candidate demonstrates the primary technical skills referenced in the job description."
+    )
+
+    prompt = f"""You are an expert technical hiring manager evaluating a candidate's resume against a Job Description.
+
+Evaluation Requirements:
+1. JD Match Percentage (jd_match_percentage): An integer from 0 to 100 representing how well the candidate's actual qualifications, experience, projects, tools, and technical scope align with the job description requirements.
+2. Alignment Summary (alignment_summary): A concise, objective 2-3 sentence summary evaluating alignment, noting key areas of fit and specific technology/experience gaps.
+
+Critical Grounding Rules:
+- Base your evaluation STRICTLY and ONLY on the provided Resume and Job Description.
+- Do NOT invent candidate experiences or JD requirements.
+- Note: {missing_context}
 
 Job Description:
 \"\"\"
 {jd_text}
 \"\"\"
 
-Resume Text:
+Candidate Resume Text:
 \"\"\"
 {resume_text}
-\"\"\"
+\"\"\""""
 
-Return ONLY a valid JSON object matching this structure:
-{{
-  "matchPercentage": 82,
-  "interviewChance": 75,
-  "matchingSkills": ["React", "TypeScript", "SQL", "Git", "REST APIs"],
-  "missingSkills": ["Docker", "AWS", "Microservices", "CI/CD"],
-  "tailoredBullets": [
-    "Engineered robust REST API microservices handling 500+ requests/sec using Node.js and SQL.",
-    "Integrated modern responsive UI with React and TypeScript, optimizing client-side rendering."
-  ],
-  "summary": "Candidate matches core frontend and database requirements but lacks cloud deployment keywords."
-}}"""
+    schema: dict = {
+        "type": "object",
+        "properties": {
+            "jd_match_percentage": {
+                "type": "integer",
+                "description": "0 to 100 percentage match between candidate resume and job description"
+            },
+            "alignment_summary": {
+                "type": "string",
+                "description": "Concise 2-3 sentence objective assessment of candidate fit and gaps"
+            }
+        },
+        "required": ["jd_match_percentage", "alignment_summary"]
+    }
 
-    result = generate_gemini_json(client, prompt)
-    if result and isinstance(result, dict):
-        return result
+    try:
+        # EXACTLY ONE REQUEST. No retries, no second requests, no fallback model.
+        afc_disable = types.AutomaticFunctionCallingConfig(disable=True) if hasattr(types, "AutomaticFunctionCallingConfig") else None
+        res_config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=schema,
+            automatic_function_calling=afc_disable
+        )
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=res_config
+        )
+        if not response or not response.text:
+            raise ValueError("Gemini returned empty response text")
 
-    raise HTTPException(
-        status_code=500,
-        detail="Gemini AI failed to process Job Description matching."
-    )
+        raw_text = response.text.strip()
+        if raw_text.startswith("```json"):
+            raw_text = raw_text[7:]
+        if raw_text.startswith("```"):
+            raw_text = raw_text[3:]
+        if raw_text.endswith("```"):
+            raw_text = raw_text[:-3]
+
+        parsed = json.loads(raw_text.strip())
+        if not isinstance(parsed, dict):
+            raise ValueError("Response is not a valid JSON object")
+
+        raw_score = parsed.get("jd_match_percentage")
+        if raw_score is None:
+            raw_score = parsed.get("matchPercentage")
+        if raw_score is None:
+            raise ValueError("Missing 'jd_match_percentage' in Gemini response")
+
+        match_percentage = max(0, min(100, int(round(float(raw_score)))))
+        alignment_summary = str(parsed.get("alignment_summary") or parsed.get("summary") or "").strip()
+        if not alignment_summary:
+            raise ValueError("Missing 'alignment_summary' in Gemini response")
+
+        return {
+            "matchPercentage": match_percentage,
+            "jd_match_percentage": match_percentage,
+            "summary": alignment_summary,
+            "alignment_summary": alignment_summary,
+            "missingSkills": missing_skills,
+            "missing_skills": missing_skills
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[match_jd_with_gemini] JD Match failed with model '{model_name}': {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="JD evaluation temporarily unavailable."
+        )
 
 def enhance_bullet_with_gemini(bullet_text: str, target_role: str = "Software Engineer") -> dict:
     client = get_gemini_client()

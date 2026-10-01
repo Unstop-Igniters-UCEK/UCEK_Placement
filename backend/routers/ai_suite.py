@@ -141,7 +141,11 @@ def review_resume(req: ReviewResumeRequest, current_user: dict = Depends(get_cur
 @router.post("/match-jd")
 def match_jd(req: MatchJDRequest, current_user: dict = Depends(get_current_user)):
     """Match resume against a job description using Gemini AI. Results are not stored."""
-    result = match_jd_with_gemini(req.jobTitle, req.company, req.jdText, req.resumeText)
+    if not req.resumeText or not req.resumeText.strip():
+        raise HTTPException(status_code=400, detail="Upload your resume to continue.")
+    if not req.jdText or not req.jdText.strip():
+        raise HTTPException(status_code=400, detail="Job description is required.")
+    result = match_jd_with_gemini(req.jdText.strip(), req.resumeText.strip())
     return {"match": result}
 
 
