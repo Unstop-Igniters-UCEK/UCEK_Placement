@@ -44,16 +44,14 @@ export const Dashboard: React.FC = React.memo(() => {
   const {
     user,
     setActiveTab,
-    roadmaps,
     recentScores,
-    clearTestHistory,
     mentorshipPair,
     resumeData,
     mockTests,
     setSelectedInterviewQuestionId
   } = useApp();
 
-  const [driveFilter, setDriveFilter] = useState<'all' | 'Departmental' | 'Aptitude' | 'Technical' | 'General'>('all');
+  const [driveFilter, setDriveFilter] = useState<'all' | 'General' | 'Aptitude' | 'Technical'>('all');
   const [selectedReviewResult, setSelectedReviewResult] = useState<TestResult | null>(null);
   const [reviewLoading, setReviewLoading] = useState<boolean>(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
@@ -171,26 +169,6 @@ export const Dashboard: React.FC = React.memo(() => {
     }
   }, [user?.id, recentScores.length]);
 
-  // Domain progress calculations
-  const userDomain = (user?.domain || '').toLowerCase();
-  const currentDomainRoadmap = userDomain
-    ? (roadmaps || []).find(r => r && r.name && r.name.toLowerCase() === userDomain)
-    : null;
-
-  let totalTopics = 0;
-  let doneTopics = 0;
-  if (currentDomainRoadmap && Array.isArray(currentDomainRoadmap.modules)) {
-    currentDomainRoadmap.modules.forEach(m => {
-      if (m && Array.isArray(m.milestones)) {
-        m.milestones.forEach(ms => {
-          totalTopics++;
-          if (ms && ms.completed) doneTopics++;
-        });
-      }
-    });
-  }
-  const domainPct = totalTopics > 0 ? Math.round((doneTopics / totalTopics) * 100) : 0;
-
   // Authentic Mock Drive Practice Stats (Current Availability & Cleared)
   const [mockDriveSummary, setMockDriveSummary] = useState<MockDrivePracticeSummary>({
     total_available: 0,
@@ -215,9 +193,6 @@ export const Dashboard: React.FC = React.memo(() => {
   const filteredScores = (recentScores || []).filter(s => {
     if (!s) return false;
     if (driveFilter === 'all') return true;
-    if (driveFilter === 'Departmental') {
-      return Boolean(s.isDepartmental || s.is_departmental || (s.target_department_id && s.target_department_id === (user as any)?.departmentId));
-    }
     const tType = (s.test_type || s.testType || s.category || '').toLowerCase();
     return tType === driveFilter.toLowerCase();
   });
@@ -287,7 +262,7 @@ export const Dashboard: React.FC = React.memo(() => {
                     <div className="flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-[#2a2e2f] border border-white/10 text-xs text-zinc-300 max-w-full">
                       <Layers className="w-4 h-4 text-orange-400 shrink-0" />
                       <span className="shrink-0">Domain:</span>
-                      <strong className="text-white font-semibold truncate">{user.domain ? user.domain : "Not selected"}</strong>
+                      <strong className="text-white font-semibold truncate">{user.domain ? user.domain : "Not Selected"}</strong>
                     </div>
                   </div>
                 </div>
@@ -368,7 +343,7 @@ export const Dashboard: React.FC = React.memo(() => {
                     <BookOpen className="w-4 h-4 text-white" />
                   </div>
                   <span className="mono-badge rounded-full text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
-                    {user?.domain ? `${domainPct}% Done` : 'Not selected'}
+                    {user?.domain ? 'Primary Path' : 'Not Selected'}
                   </span>
                 </div>
 
@@ -380,14 +355,11 @@ export const Dashboard: React.FC = React.memo(() => {
                 </div>
 
                 <div className="space-y-1 pt-0.5">
-                  <div className="w-full bg-zinc-900/90 rounded-full h-1.5 overflow-hidden p-0.5 border border-white/10">
-                    <div
-                      className="bg-gradient-to-r from-orange-600 to-amber-500 h-full rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
-                      style={{ width: `${user?.domain ? domainPct : 0}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] text-zinc-400 font-medium block text-right">
-                    {user?.domain ? 'Active: Core Fundamentals' : 'Not selected'}
+                  <p className="text-xs text-zinc-300 font-medium truncate">
+                    {user?.domain ? user.domain : 'Select a domain to begin your roadmap.'}
+                  </p>
+                  <span className="text-[10px] text-zinc-400 font-medium block">
+                    {user?.domain ? 'Designated faculty & mentor alignment' : 'Click to choose your specialization'}
                   </span>
                 </div>
               </motion.div>
@@ -484,7 +456,7 @@ export const Dashboard: React.FC = React.memo(() => {
                 {/* FILTER TABS & CTA INLINE ON THE RIGHT */}
                 <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap min-w-0 max-w-full">
                   <div className="flex items-center bg-[#2a2e2f] p-1 rounded-full border border-white/10 text-xs max-w-full overflow-x-auto no-scrollbar">
-                    {(['all', 'Departmental', 'Aptitude', 'Technical', 'General'] as const).map(tab => (
+                    {(['all', 'General', 'Aptitude', 'Technical'] as const).map(tab => (
                       <button
                         key={tab}
                         onClick={() => setDriveFilter(tab)}
@@ -498,16 +470,6 @@ export const Dashboard: React.FC = React.memo(() => {
                     ))}
                   </div>
 
-                  {recentScores.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={clearTestHistory}
-                      className="px-3 py-1.5 rounded-full bg-[#141414] hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/30 text-zinc-400 hover:text-rose-400 transition-all text-xs font-medium cursor-pointer shrink-0"
-                      title="Clear past test attempt history"
-                    >
-                      Clear History
-                    </button>
-                  )}
 
                   <button
                     onClick={() => setActiveTab('tests')}
@@ -549,7 +511,8 @@ export const Dashboard: React.FC = React.memo(() => {
                           if (!res) return null;
                           const resIdStr = String(res.id || idx);
                           const resTitleStr = String(res.testTitle || 'Mock Assessment Drive');
-                          const resCategoryStr = String(res.category || 'General');
+                          const rawCat = String(res.category || res.test_type || res.testType || 'General').toLowerCase();
+                          const resCategoryStr = rawCat === 'aptitude' ? 'Aptitude' : rawCat === 'technical' ? 'Technical' : 'General';
                           const resAccuracy = res.accuracy ?? 0;
 
                           return (

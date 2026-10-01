@@ -15,6 +15,7 @@ export interface User {
   year: string;
   branch: string;
   domain?: string | null;
+  domain_id?: string | null;
   hasSelectedDomain?: boolean;
   targetDrive?: string | null;
   readinessScore?: number | null;
@@ -67,7 +68,7 @@ export interface Question {
 export interface MockTest {
   id: string;
   title: string;
-  category: 'Aptitude' | 'Company Drive' | 'Technical' | 'Verbal' | 'Departmental' | string;
+  category: 'Aptitude' | 'Technical' | 'General';
   companyTag?: string;
   company_tag?: string;
   durationMinutes: number;

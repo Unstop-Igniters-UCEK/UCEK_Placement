@@ -265,7 +265,6 @@ export const LandingPage: React.FC = React.memo(() => {
           role: selectedRole,
           branch,
           year,
-          domain: 'Software Engineering',
           adminSecurityCode: selectedRole === 'admin' ? adminPasscode : undefined
         });
       } catch (err: any) {

@@ -439,20 +439,28 @@ class Database:
                 return res.data[0]
         except Exception:
             pass
-        # 4. Try alias mapping for known product titles
         _alias_map = {
             "software engineering": "software-engineering",
             "swe": "software-engineering",
-            "backend & cloud engineering": "backend-engineering",
             "backend engineering": "backend-engineering",
+            "backend & cloud engineering": "backend-engineering",
             "dev": "backend-engineering",
+            "data science & data analytics": "data-science-data-analytics",
+            "data science & ai": "data-science-data-analytics",
+            "data science": "data-science-data-analytics",
+            "artificial intelligence & machine learning": "ai-machine-learning",
+            "ai & ml": "ai-machine-learning",
+            "cybersecurity": "cybersecurity",
+            "cybersecurity & soc": "cybersecurity",
             "ui/ux & product design": "ui-ux",
             "ui/ux": "ui-ux",
             "ui": "ui-ux",
+            "graphic design": "graphic-design",
+            "graphics designing": "graphic-design",
             "video editing": "video-editing",
-            "graphics designing": "graphics-designing",
-            "cybersecurity & soc": "cybersecurity",
-            "cybersecurity": "cybersecurity",
+            "core electronics & embedded systems": "core-electronics-embedded-systems",
+            "core electronics & embedded": "core-electronics-embedded-systems",
+            "elec": "core-electronics-embedded-systems",
         }
         mapped_slug = _alias_map.get(ident.lower())
         if mapped_slug:
@@ -987,12 +995,11 @@ class Database:
                 target_dept = t_info.get("target_department_id")
                 is_departmental = bool(target_dept and (student_dept_id is None or str(target_dept) == str(student_dept_id)))
 
-                # Determine real category
-                if is_departmental:
-                    category = "Departmental"
-                elif t_type in ("aptitude", "technical", "general"):
+                # Determine real category strictly: Aptitude, Technical, or General
+                if t_type in ("aptitude", "technical", "general"):
                     category = t_type.capitalize()
                 else:
+                    t_type = "general"
                     category = "General"
 
                 marks = int(a.get("marks_obtained", 0) or 0)

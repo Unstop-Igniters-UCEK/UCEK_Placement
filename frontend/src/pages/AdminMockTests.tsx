@@ -33,7 +33,7 @@ const itemVariants: Variants = {
 };
 
 /* ─── Filter tabs ─────────────────────────────────────────────── */
-const FILTERS = ['All', 'Departmental', 'Aptitude', 'Technical', 'General'] as const;
+const FILTERS = ['All', 'General', 'Aptitude', 'Technical'] as const;
 type Filter = typeof FILTERS[number];
 
 /* ─── Category badge styles ──────────────────────────────────── */
@@ -127,7 +127,6 @@ export const AdminMockTests: React.FC = () => {
     const qCount = t.total_questions ?? t.totalQuestions ?? t.questionCount ?? 0;
     if (qCount <= 0) return false;
     if (activeFilter === 'All') return true;
-    if (activeFilter === 'Departmental') return t.target_department_id != null;
     const tt = (t.test_type || t.category || '').toLowerCase();
     if (activeFilter === 'Aptitude') return tt === 'aptitude';
     if (activeFilter === 'Technical') return tt === 'technical';

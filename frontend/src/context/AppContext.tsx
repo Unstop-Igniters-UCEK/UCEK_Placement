@@ -33,7 +33,8 @@ import {
   getResumeApi,
   getMockTestNotificationsApi,
   markMockTestNotificationsSeenApi,
-  MockTestNotification
+  MockTestNotification,
+  selectDomainApi
 } from '../lib/api';
 
 export type Theme = 'dark' | 'light';
@@ -194,8 +195,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               role: (data.user.role as UserRole) || 'mentee',
               year: data.user.year || '4th Year',
               branch: data.user.branch || 'CSE',
-              domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
-              hasSelectedDomain: data.user.hasSelectedDomain ?? false,
+              domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain || data.user.domain_name) : null,
+              domain_id: data.user.domain_id || null,
+              hasSelectedDomain: Boolean(data.user.domain_id || data.user.hasSelectedDomain),
               targetDrive: data.user.targetDrive || null,
               readinessScore: data.user.readinessScore ?? null,
               readiness: data.user.readiness,
@@ -467,8 +469,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: (data.user.role as UserRole) || role,
       year: data.user.year || '4th Year',
       branch: data.user.branch || 'CSE',
-      domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
-      hasSelectedDomain: data.user.hasSelectedDomain ?? false,
+      domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain || data.user.domain_name) : null,
+      domain_id: data.user.domain_id || null,
+      hasSelectedDomain: Boolean(data.user.domain_id || data.user.hasSelectedDomain),
       targetDrive: data.user.targetDrive || null,
       readinessScore: data.user.readinessScore ?? null,
       readiness: data.user.readiness,
@@ -491,8 +494,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: (data.user.role as UserRole) || 'mentee',
       year: data.user.year || '4th Year',
       branch: data.user.branch || 'CSE',
-      domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain) : null,
-      hasSelectedDomain: data.user.hasSelectedDomain ?? false,
+      domain: data.user.hasSelectedDomain ? (data.user.domainInterest || data.user.domain || data.user.domain_name) : null,
+      domain_id: data.user.domain_id || null,
+      hasSelectedDomain: Boolean(data.user.domain_id || data.user.hasSelectedDomain),
       targetDrive: data.user.targetDrive || null,
       readinessScore: data.user.readinessScore ?? null,
       readiness: data.user.readiness,
@@ -519,13 +523,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   }, []);
 
-  const updateUserDomain = useCallback(async (domainName: string): Promise<boolean> => {
+  const updateUserDomain = useCallback(async (domainIdOrName: string): Promise<boolean> => {
     try {
-      const updatedUser = await updateProfileApi({ domainInterest: domainName, hasSelectedDomain: true });
+      const updatedUser = await selectDomainApi(domainIdOrName);
       setUser(prev => prev ? {
         ...prev,
-        domain: updatedUser.domainInterest || updatedUser.domain || domainName,
-        hasSelectedDomain: true
+        domain: updatedUser.domain_name || updatedUser.domain || updatedUser.domainInterest || null,
+        domain_id: updatedUser.domain_id || null,
+        hasSelectedDomain: Boolean(updatedUser.domain_id || updatedUser.hasSelectedDomain)
       } : null);
       return true;
     } catch (err) {
@@ -663,11 +668,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const publishTest = useCallback((test: any) => {
     const newTest: MockTest = {
       id: test.id || `custom_${Date.now()}`,
-      title: test.title || "Departmental Assessment",
-      category: test.category || 'Departmental',
+      title: test.title || "Placement Assessment",
+      category: (() => {
+        const raw = String(test.category || test.test_type || test.testType || 'General').toLowerCase();
+        if (raw === 'aptitude') return 'Aptitude';
+        if (raw === 'technical') return 'Technical';
+        return 'General';
+      })(),
       durationMinutes: test.durationMinutes || test.durationMins || test.duration || 30,
       questionCount: test.questionCount || test.totalQuestions || (Array.isArray(test.questions) ? test.questions.length : 0),
-      description: test.description || `Departmental assessment drive.`,
+      description: test.description || 'Placement mock assessment drive.',
       companyTag: test.companyTag || test.company_tag || test.targetDept || "Department Core",
       questions: Array.isArray(test.questions) ? test.questions : [],
       passPercentage: test.passPercentage || test.pass_percentage || 60,

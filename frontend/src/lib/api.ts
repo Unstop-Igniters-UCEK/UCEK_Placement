@@ -134,6 +134,33 @@ export async function updateProfileApi(payload: {
   return data.user;
 }
 
+export async function selectDomainApi(domainIdOrName: string): Promise<AuthResponse['user']> {
+  const res = await authFetch(`${BASE_URL}/api/user/select-domain`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ domain_id: domainIdOrName }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to select domain (${res.status})`));
+  }
+
+  const data = await res.json();
+  return data.user;
+}
+
+export async function getDomainsApi(): Promise<{ id: string; name: string; slug: string }[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/user/domains`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.domains || [];
+  } catch {
+    return [];
+  }
+}
+
 function parseErrorMessage(err: any, fallback: string): string {
   if (!err) return fallback;
   let msg = fallback;
@@ -665,9 +692,24 @@ export async function getTestHistoryApi(category?: string): Promise<any[]> {
       id: String(s.id),
       testId: String(s.test_id || s.testId || ''),
       testTitle: s.test_title || s.testTitle || 'Mock Assessment Drive',
-      category: s.category || (s.test_type ? s.test_type.charAt(0).toUpperCase() + s.test_type.slice(1) : 'General'),
-      test_type: s.test_type || s.testType || 'general',
-      testType: s.test_type || s.testType || 'general',
+      category: (() => {
+        const raw = String(s.category || s.test_type || s.testType || 'General').toLowerCase();
+        if (raw === 'aptitude') return 'Aptitude';
+        if (raw === 'technical') return 'Technical';
+        return 'General';
+      })(),
+      test_type: (() => {
+        const raw = String(s.test_type || s.testType || s.category || 'general').toLowerCase();
+        if (raw === 'aptitude') return 'aptitude';
+        if (raw === 'technical') return 'technical';
+        return 'general';
+      })(),
+      testType: (() => {
+        const raw = String(s.test_type || s.testType || s.category || 'general').toLowerCase();
+        if (raw === 'aptitude') return 'aptitude';
+        if (raw === 'technical') return 'technical';
+        return 'general';
+      })(),
       target_department_id: s.target_department_id || null,
       isDepartmental: Boolean(s.is_departmental || s.isDepartmental),
       is_departmental: Boolean(s.is_departmental || s.isDepartmental),

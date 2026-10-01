@@ -112,8 +112,8 @@ def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_c
         dom_ident = req.resolved_domain_identifier()
         if dom_ident:
             domain = db.get_domain_by_name_or_slug(dom_ident)
-            if not domain:
-                raise HTTPException(status_code=400, detail=f"Unknown domain: {dom_ident}")
+            if not domain or not domain.get("is_active", True):
+                raise HTTPException(status_code=400, detail=f"Unknown or inactive domain: {dom_ident}")
             new_domain_id = domain["id"]
 
             # If switching domain, delete old roadmap progress per Impulse_DB_Design.md §10
@@ -207,8 +207,8 @@ def select_domain(req: SelectDomainRequest, current_user: dict = Depends(get_cur
     # Validate domain exists
     dom_ident = req.resolved_identifier()
     domain = db.get_domain_by_name_or_slug(dom_ident)
-    if not domain:
-        raise HTTPException(status_code=400, detail=f"Unknown domain: {dom_ident}")
+    if not domain or not domain.get("is_active", True):
+        raise HTTPException(status_code=400, detail=f"Unknown or inactive domain: {dom_ident}")
 
     now = datetime.utcnow().isoformat()
     new_domain_id = domain["id"]

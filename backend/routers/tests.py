@@ -130,12 +130,10 @@ def get_test_history(category: Optional[str] = None, current_user: dict = Depend
     scores = db.get_student_test_history(current_user["id"])
     if category and category.lower() != "all":
         cat_lower = category.lower()
-        filtered = []
-        for s in scores:
-            if cat_lower == "departmental" and s.get("is_departmental"):
-                filtered.append(s)
-            elif s.get("test_type", "").lower() == cat_lower or s.get("category", "").lower() == cat_lower:
-                filtered.append(s)
+        filtered = [
+            s for s in scores
+            if s.get("test_type", "").lower() == cat_lower or s.get("category", "").lower() == cat_lower
+        ]
         return {"scores": filtered}
     return {"scores": scores}
 
