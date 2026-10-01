@@ -483,7 +483,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const loginUser = useCallback(async (email: string, password?: string, role?: string): Promise<boolean> => {
-    const data = await loginApi({ email, password: password || '', role });
+    const safeRole = (typeof role === 'string' && role === 'admin') ? 'admin' : 'mentee';
+    const data = await loginApi({ email: String(email || '').trim(), password: String(password || ''), role: safeRole });
     if (data.accessToken) {
       setStoredToken(data.accessToken);
     }

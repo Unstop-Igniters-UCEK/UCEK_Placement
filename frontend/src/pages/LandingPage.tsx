@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
 import Grainient from '../components/Grainient';
 import { CustomSelect } from '../components/CustomSelect';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogIn, UserPlus, X, AlertCircle, Eye, EyeOff, KeyRound, CheckCircle2 } from 'lucide-react';
+import { LogIn, UserPlus, X, AlertCircle, Eye, EyeOff, KeyRound, CheckCircle2, Loader2 } from 'lucide-react';
 import { sendOtpApi, verifyOtpResetApi, getRegistrationStatusApi } from '../lib/api';
 
 export const LandingPage: React.FC = React.memo(() => {
@@ -20,6 +21,10 @@ export const LandingPage: React.FC = React.memo(() => {
   // Password visibility states
   const [showAdminPasscode, setShowAdminPasscode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Registration popup modal state ('idle' | 'loading' | 'success' | 'error')
+  const [regModalState, setRegModalState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [regErrorMsg, setRegErrorMsg] = useState<string | null>(null);
 
   // Form state
   const [email, setEmail] = useState('');
@@ -89,22 +94,24 @@ export const LandingPage: React.FC = React.memo(() => {
   const handleOpenLogin = () => {
     setErrorMsg(null);
     setSuccessMsg(null);
+    setSelectedRole(prev => (prev === 'admin' ? 'admin' : 'mentee'));
     setAuthMode('login');
   };
 
-  const handleOpenSignup = async (targetRole: UserRole = 'mentee') => {
+  const handleOpenSignup = async (targetRoleOrEvent?: UserRole | React.MouseEvent | any) => {
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    const safeRole: UserRole = (typeof targetRoleOrEvent === 'string' && targetRoleOrEvent === 'admin') ? 'admin' : 'mentee';
     const enabled = await checkRegistrationStatus();
 
-    if (targetRole !== 'admin' && !enabled) {
+    if (safeRole !== 'admin' && !enabled) {
       setSelectedRole('mentee');
       setShowRestrictionModal(true);
       return;
     }
 
-    setSelectedRole(targetRole);
+    setSelectedRole(safeRole);
     setAuthMode('signup');
   };
 
@@ -112,14 +119,16 @@ export const LandingPage: React.FC = React.memo(() => {
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    const safeRole: UserRole = selectedRole === 'admin' ? 'admin' : 'mentee';
     const enabled = await checkRegistrationStatus();
 
-    if (selectedRole !== 'admin' && !enabled) {
+    if (safeRole !== 'admin' && !enabled) {
       setSelectedRole('mentee');
       setShowRestrictionModal(true);
       return;
     }
 
+    setSelectedRole(safeRole);
     setAuthMode('signup');
   };
 
@@ -150,12 +159,13 @@ export const LandingPage: React.FC = React.memo(() => {
     setOtpStep('email');
   };
 
-  const handleRoleSelect = async (role: UserRole) => {
+  const handleRoleSelect = async (role: UserRole | any) => {
     setErrorMsg(null);
     setYear('');
+    const safeRole: UserRole = role === 'admin' ? 'admin' : 'mentee';
 
     // If in signup mode and switching to Student role, check setting
-    if (authMode === 'signup' && role !== 'admin') {
+    if (authMode === 'signup' && safeRole !== 'admin') {
       const enabled = await checkRegistrationStatus();
       if (!enabled) {
         setSelectedRole('mentee');
@@ -164,7 +174,7 @@ export const LandingPage: React.FC = React.memo(() => {
       }
     }
 
-    setSelectedRole(role);
+    setSelectedRole(safeRole);
   };
 
   const handleSendOtp = async (e: React.FormEvent) => {
@@ -223,12 +233,16 @@ export const LandingPage: React.FC = React.memo(() => {
       return;
     }
 
+    const safeRole: UserRole = selectedRole === 'admin' ? 'admin' : 'mentee';
+
     if (authMode === 'login') {
       try {
-        await loginUser(cleanEmail, password, selectedRole);
+        await loginUser(cleanEmail, String(password || ''), safeRole);
       } catch (err: any) {
-        setErrorMsg(err.message || 'Login failed. Check your credentials.');
+        const msg = String(err?.message || err || '');
+        setErrorMsg(msg || 'Login failed. Check your credentials.');
       }
+      return;
     } else if (authMode === 'signup') {
       if (selectedRole !== 'admin') {
         const enabled = await checkRegistrationStatus();
@@ -257,26 +271,35 @@ export const LandingPage: React.FC = React.memo(() => {
         setErrorMsg(selectedRole === 'admin' ? 'Please select your Designation.' : 'Please select your Year.');
         return;
       }
+      const safeRole: UserRole = selectedRole === 'admin' ? 'admin' : 'mentee';
+      // Validation passed - immediately launch loading modal
+      setRegModalState('loading');
+      setRegErrorMsg(null);
+
       try {
         await signupUser({
-          name: fullName,
+          name: String(fullName || '').trim(),
           email: cleanEmail,
-          password,
-          role: selectedRole,
-          branch,
-          year,
-          adminSecurityCode: selectedRole === 'admin' ? adminPasscode : undefined
+          password: String(password || ''),
+          role: safeRole,
+          branch: String(branch || '').trim(),
+          year: String(year || '').trim(),
+          adminSecurityCode: safeRole === 'admin' ? String(adminPasscode || '').trim() : undefined
         });
+        // Backend confirmed success!
+        setRegModalState('success');
       } catch (err: any) {
-        const msg = String(err.message || '');
+        const msg = String(err?.message || err || '');
         if (
           msg.includes('exclusive to students') ||
           msg.includes('temporarily unavailable') ||
           msg.includes('self-registration is currently disabled')
         ) {
+          setRegModalState('idle');
           setShowRestrictionModal(true);
         } else {
-          setErrorMsg(err.message || 'Registration failed.');
+          setRegModalState('error');
+          setRegErrorMsg(msg || 'Registration failed. Please check your credentials and try again.');
         }
       }
     }
@@ -377,7 +400,7 @@ export const LandingPage: React.FC = React.memo(() => {
                 </button>
 
                 <button
-                  onClick={handleOpenSignup}
+                  onClick={() => handleOpenSignup('mentee')}
                   className="text-xs px-8 py-3.5 rounded-full font-bold text-white bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/25 hover:border-white/40 shadow-lg hover:shadow-[0_0_24px_rgba(255,255,255,0.18)] active:scale-[0.97] transition-all duration-150 cursor-pointer flex items-center gap-2"
                   style={{ fontFamily: 'Poppins, sans-serif' }}
                 >
@@ -812,7 +835,12 @@ export const LandingPage: React.FC = React.memo(() => {
                           Already have an account?{' '}
                           <button
                             type="button"
-                            onClick={() => setAuthMode('login')}
+                            onClick={() => {
+                              setSelectedRole(prev => (prev === 'admin' ? 'admin' : 'mentee'));
+                              setErrorMsg(null);
+                              setSuccessMsg(null);
+                              setAuthMode('login');
+                            }}
                             className="text-white font-bold hover:underline cursor-pointer ml-1"
                           >
                             Sign In here
@@ -888,6 +916,107 @@ export const LandingPage: React.FC = React.memo(() => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── REGISTRATION STATUS POPUP MODAL ── */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {regModalState !== 'idle' && (
+              <div
+                className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+                data-lenis-prevent="true"
+              >
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="relative w-full max-w-md bg-[#000000] border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-5 my-auto overflow-hidden font-sans"
+                  onClick={e => e.stopPropagation()}
+                >
+                  {/* Subtle ambient orange accent glow */}
+                  <div className="absolute -top-12 -right-12 w-36 h-36 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                  {/* 1. LOADING STATE */}
+                  {regModalState === 'loading' && (
+                    <div className="py-4 space-y-4">
+                      <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
+                        <Loader2 className="w-7 h-7 text-orange-400 animate-spin" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <h3 className="text-lg font-bold text-white font-heading">
+                          Creating your account…
+                        </h3>
+                        <p className="text-xs text-zinc-400 max-w-xs mx-auto leading-relaxed">
+                          Please wait while we establish your profile and placement credentials.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. SUCCESS STATE */}
+                  {regModalState === 'success' && (
+                    <div className="py-2 space-y-4">
+                      <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto shadow-inner">
+                        <CheckCircle2 className="w-7 h-7 text-emerald-400 stroke-[2.5]" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <h3 className="text-lg font-bold text-white font-heading">
+                          Account Created Successfully
+                        </h3>
+                        <p className="text-xs text-zinc-300 max-w-xs mx-auto leading-relaxed">
+                          Your account has been created successfully. You can now sign in.
+                        </p>
+                      </div>
+                      <div className="pt-2 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRegModalState('idle');
+                            setAuthMode('login');
+                            setPassword('');
+                            setErrorMsg(null);
+                            setSuccessMsg(null);
+                          }}
+                          className="btn-primary py-2.5 px-7 text-xs font-bold rounded-full cursor-pointer shadow-lg active:scale-[0.98] transition-transform duration-100"
+                        >
+                          Sign In
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. ERROR STATE */}
+                  {regModalState === 'error' && (
+                    <div className="py-2 space-y-4">
+                      <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto shadow-inner">
+                        <AlertCircle className="w-7 h-7 text-rose-400 stroke-[2.5]" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <h3 className="text-lg font-bold text-white font-heading">
+                          Registration Failed
+                        </h3>
+                        <p className="text-xs text-rose-300 max-w-xs mx-auto leading-relaxed">
+                          {regErrorMsg || 'Unable to create your account. Please check your information and try again.'}
+                        </p>
+                      </div>
+                      <div className="pt-2 flex justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setRegModalState('idle')}
+                          className="py-2.5 px-6 text-xs font-bold text-zinc-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/15 rounded-full cursor-pointer transition-all active:scale-[0.98]"
+                        >
+                          Try Again
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
     </div>
   );
 });

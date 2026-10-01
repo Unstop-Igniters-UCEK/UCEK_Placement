@@ -1676,7 +1676,7 @@ export const MockTestView: React.FC = () => {
 
               {fullscreenError && (
                 <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
                   <span>{fullscreenError}</span>
                 </div>
               )}
@@ -1694,7 +1694,7 @@ export const MockTestView: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleConfirmStartWithFullscreen(pendingTestToStart)}
+                  onClick={() => handleConfirmStartWithFullscreen()}
                   className="btn-primary !px-5 !py-2 !text-xs !font-bold flex items-center gap-2 shadow-lg shadow-orange-500/20 cursor-pointer"
                 >
                   <Play className="w-3.5 h-3.5 fill-black text-black shrink-0" />

@@ -98,6 +98,8 @@ export interface AuthResponse {
     branch: string;
     domainInterest?: string;
     domain?: string;
+    domain_id?: string | null;
+    domain_name?: string | null;
     hasSelectedDomain?: boolean;
     readinessScore?: number | null;
     readiness?: UserReadinessMetrics;
@@ -177,13 +179,17 @@ function parseErrorMessage(err: any, fallback: string): string {
 }
 
 export async function loginApi(payload: LoginPayload): Promise<AuthResponse> {
+  const safeEmail = typeof payload.email === 'string' ? payload.email.trim() : '';
+  const safePassword = typeof payload.password === 'string' ? payload.password : '';
+  const safeRole = (typeof payload.role === 'string' && payload.role === 'admin') ? 'admin' : 'mentee';
+
   const res = await fetch(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      email: payload.email,
-      password: payload.password || '',
-      role: payload.role,
+      email: safeEmail,
+      password: safePassword,
+      role: safeRole,
     }),
   });
 
@@ -196,18 +202,27 @@ export async function loginApi(payload: LoginPayload): Promise<AuthResponse> {
 }
 
 export async function registerApi(payload: RegisterPayload): Promise<AuthResponse> {
+  const safeName = typeof payload.name === 'string' ? payload.name.trim() : '';
+  const safeEmail = typeof payload.email === 'string' ? payload.email.trim() : '';
+  const safePassword = typeof payload.password === 'string' ? payload.password : '';
+  const safeRole = typeof payload.role === 'string' ? payload.role : 'mentee';
+  const safeYear = typeof payload.year === 'string' ? payload.year : '4th Year';
+  const safeBranch = typeof payload.branch === 'string' ? payload.branch : 'CSE';
+  const safeDomain = typeof payload.domainInterest === 'string' ? payload.domainInterest : undefined;
+  const safeAdminCode = typeof payload.adminSecurityCode === 'string' ? payload.adminSecurityCode : undefined;
+
   const res = await fetch(`${BASE_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      name: payload.name,
-      email: payload.email,
-      password: payload.password || '',
-      role: payload.role || 'mentee',
-      year: payload.year || '4th Year',
-      branch: payload.branch || 'CSE',
-      domainInterest: payload.domainInterest || undefined,
-      adminSecurityCode: payload.adminSecurityCode || undefined,
+      name: safeName,
+      email: safeEmail,
+      password: safePassword,
+      role: safeRole,
+      year: safeYear,
+      branch: safeBranch,
+      domainInterest: safeDomain,
+      adminSecurityCode: safeAdminCode,
     }),
   });
 
