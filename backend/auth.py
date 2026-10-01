@@ -22,8 +22,10 @@ logger = logging.getLogger("uvicorn.error")
 
 JWT_SECRET = os.getenv('JWT_SECRET')
 if not JWT_SECRET:
-    JWT_SECRET = 'ucek_unstop_igniters_placement_platform_secret_2026'
-    logger.warning("[SECURITY WARNING] JWT_SECRET environment variable is not set! Using default secret.")
+    raise RuntimeError(
+        "CRITICAL SECURITY CONFIGURATION ERROR: JWT_SECRET environment variable is not set. "
+        "Please define JWT_SECRET in your .env file."
+    )
 
 ALGORITHM = 'HS256'
 ALLOWED_EMAIL_DOMAIN = os.getenv('ALLOWED_EMAIL_DOMAIN', '')

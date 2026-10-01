@@ -25,8 +25,27 @@ from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel, Field, ValidationError
 from fastapi import HTTPException
 
-from google import genai
-from google.genai import types
+try:
+    # pyrefly: ignore [missing-import]
+    # type: ignore
+    from google import genai
+    # pyrefly: ignore [missing-import]
+    # type: ignore
+    from google.genai import types
+    HAS_GENAI = True
+except ImportError:
+    genai = None  # type: ignore
+    types = None  # type: ignore
+    HAS_GENAI = False
+
+try:
+    # pyrefly: ignore [missing-import]
+    # type: ignore
+    import mutagen
+    HAS_MUTAGEN = True
+except ImportError:
+    mutagen = None  # type: ignore
+    HAS_MUTAGEN = False
 
 from dotenv import load_dotenv
 
@@ -258,15 +277,15 @@ def extract_audio_duration(
             logger.debug(f"WAV duration parse failed: {e}")
 
     # 3. Mutagen generic container parsing
-    try:
-        import mutagen
-        audio_file = mutagen.File(io.BytesIO(audio_bytes))
-        if audio_file is not None and hasattr(audio_file, "info") and hasattr(audio_file.info, "length"):
-            length = audio_file.info.length
-            if length and length > 0:
-                return round(float(length), 2)
-    except Exception as e:
-        logger.debug(f"Mutagen duration parse failed: {e}")
+    if HAS_MUTAGEN and mutagen is not None:
+        try:
+            audio_file = mutagen.File(io.BytesIO(audio_bytes))
+            if audio_file is not None and hasattr(audio_file, "info") and hasattr(audio_file.info, "length"):
+                length = audio_file.info.length
+                if length and length > 0:
+                    return round(float(length), 2)
+        except Exception as e:
+            logger.debug(f"Mutagen duration parse failed: {e}")
 
     # 4. WebM / Matroska EBML parser
     try:

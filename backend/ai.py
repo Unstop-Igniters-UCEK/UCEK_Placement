@@ -312,11 +312,6 @@ Resume Text:
         )
 
 
-def analyze_resume_with_gemini(resume_text: str, job_role: str = "Software Engineer") -> dict:
-    """Legacy alias routing directly to review_resume_with_gemini."""
-    return review_resume_with_gemini(resume_text, job_role)
-
-
 # Comprehensive catalog of industry technical and professional skills: { canonical: [aliases] }
 TECHNICAL_SKILLS_CATALOG = {
     # Programming Languages
@@ -594,61 +589,6 @@ Return ONLY a valid JSON object matching this exact structure:
     raise HTTPException(
         status_code=500,
         detail="Gemini AI failed to enhance bullet point."
-    )
-
-def analyze_interview_with_gemini(question_text: str, transcript_text: str = None, audio_b64: str = None, mime_type: str = "audio/webm") -> dict:
-    client = get_gemini_client()
-
-    contents = []
-    
-    if audio_b64:
-        try:
-            import base64
-            audio_bytes = base64.b64decode(audio_b64.split(",")[-1] if "," in audio_b64 else audio_b64)
-            contents.append(types.Part.from_bytes(data=audio_bytes, mime_type=mime_type))
-        except Exception as err:
-            print("Error decoding audio bytes for Gemini:", err)
-
-    text_prompt = f"""
-You are a Senior Technical Interviewer evaluating a candidate's spoken audio response for campus recruitment.
-Question Asked: "{question_text}"
-Candidate Context: "{transcript_text or 'Audio recording provided.'}"
-
-CRITICAL EVALUATION INSTRUCTIONS:
-1. Listen carefully to the candidate's audio recording.
-2. Transcribe what the candidate actually spoke into `transcript`. If silent or no clear speech, set transcript to "".
-3. Count the words and estimate actual Words Per Minute (wpm) based on the audio duration and spoken word count. If silent, wpm must be 0.
-4. Detect any verbal filler words (e.g., "um", "uh", "like", "you know", "basically", "actually") in the speech and list them in `fillerWords`.
-5. Count total filler occurrences in `fillerCount`. If none detected, fillerCount must be 0.
-6. Evaluate technical accuracy, clarity, confidence, tone, and STAR structuring.
-7. If the audio is silent or blank, set overallScore: 0, confidenceScore: 0, technicalAccuracy: 0, wpm: 0, fillerCount: 0, fillerWords: [], transcript: "", tone: "No Speech Detected", and advise the student to check their microphone.
-
-Return ONLY a valid JSON object matching this structure:
-{{
-  "transcript": "<exact transcription of spoken audio, or empty string if silent>",
-  "wpm": <number, actual words per minute based on spoken duration and word count, or 0 if silent>,
-  "fillerWords": [<array of detected filler words like "um", "uh", "like">],
-  "fillerCount": <number of filler words detected, 0 if none>,
-  "overallScore": <number 0-100>,
-  "confidenceScore": <number 0-100>,
-  "technicalAccuracy": <number 0-100>,
-  "tone": "<e.g. Confident & Articulate, Calm, Hesitant, Developing Confidence, Monotone>",
-  "aiFeedback": {{
-    "strengths": [<string array of 2-3 key strengths>],
-    "areasForImprovement": [<string array of 2-3 areas to polish>],
-    "idealAnswerSnippet": "<string expert exemplar answer snippet for this question>"
-  }}
-}}
-"""
-    contents.append(text_prompt)
-
-    result = generate_gemini_json(client, contents)
-    if result:
-        return result
-
-    raise HTTPException(
-        status_code=500,
-        detail="Gemini AI failed to evaluate interview recording."
     )
 
 

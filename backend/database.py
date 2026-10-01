@@ -8,9 +8,10 @@ PostgreSQL/Supabase is the single source of truth.
 """
 
 import os
+import re
 import hashlib
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
 # ─── Load environment variables ────────────────────────────────────────────────
@@ -114,12 +115,13 @@ class Database:
         """Ensure the default admin account exists in the `users` table."""
         import logging
         _logger = logging.getLogger("uvicorn.error")
-        admin_pw_env = os.getenv("ADMIN_DEFAULT_PASSWORD", "admin")
-        if admin_pw_env == "admin":
+        admin_pw_env = os.getenv("ADMIN_DEFAULT_PASSWORD")
+        if not admin_pw_env:
             _logger.warning(
-                "[SECURITY WARNING] Default admin password is 'admin'. "
-                "Set ADMIN_DEFAULT_PASSWORD env var to a strong password."
+                "[SECURITY NOTICE] ADMIN_DEFAULT_PASSWORD environment variable is not set. "
+                "Skipping default admin account seeding to prevent insecure defaults."
             )
+            return
         admin_email = os.getenv("ADMIN_EMAIL", "unstopignitersucek@gmail.com").strip().lower()
         if not supabase_client:
             return
@@ -684,7 +686,6 @@ class Database:
                         try:
                             clean_str = str(pub_raw).replace("Z", "+00:00")
                             pub_dt = datetime.fromisoformat(clean_str)
-                            from datetime import timezone
                             if pub_dt.tzinfo is not None:
                                 s_aware = since.replace(tzinfo=timezone.utc) if since.tzinfo is None else since
                                 if pub_dt <= s_aware:

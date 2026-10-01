@@ -20,7 +20,7 @@ from backend.schemas import (
     EnhanceBulletRequest, AnalyzeInterviewRequest
 )
 from backend.ai import (
-    review_resume_with_gemini, analyze_resume_with_gemini, match_jd_with_gemini,
+    review_resume_with_gemini, match_jd_with_gemini,
     enhance_bullet_with_gemini,
     extract_text_from_pdf_bytes
 )

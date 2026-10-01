@@ -12,7 +12,6 @@ PyJWT==2.13.0
 bcrypt==5.0.0
 supabase==2.31.0
 google-genai>=0.1.0
-google-generativeai>=0.8.0
 pypdf==6.16.1
 PyPDF2==3.0.1
 mutagen>=1.47.0
