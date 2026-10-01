@@ -25,7 +25,6 @@ export const Sidebar: React.FC = React.memo(() => {
     { id: 'admin-dashboard', label: 'Admin Dashboard', icon: LayoutDashboard },
     { id: 'admin-tests', label: 'Mock Tests', icon: CheckSquare },
     { id: 'admin-roles', label: 'Student Onboarding', icon: UserPlus },
-    { id: 'mentorship', label: 'Mentorship', icon: Users },
   ] : [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'roadmap', label: 'Domain Roadmap', icon: Compass },

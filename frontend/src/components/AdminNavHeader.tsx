@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   CheckSquare,
   UserPlus,
-  Users,
   ChevronDown,
 } from 'lucide-react';
 
@@ -22,7 +21,6 @@ export const AdminNavHeader: React.FC = React.memo(() => {
     { id: 'admin-dashboard', label: 'Admin Dashboard',     icon: LayoutDashboard },
     { id: 'admin-tests',     label: 'Mock Tests',          icon: CheckSquare },
     { id: 'admin-roles',     label: 'Student Onboarding',  icon: UserPlus },
-    { id: 'mentorship',      label: 'Mentorship',           icon: Users },
   ];
 
   const activeItem = adminNavItems.find(item => item.id === activeTab) || adminNavItems[0];

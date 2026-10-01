@@ -32,7 +32,7 @@ export function App() {
 
 function AppContent() {
   const [splashActive, setSplashActive] = useState(true);
-  const { activeTab, user } = useApp();
+  const { activeTab, user, setActiveTab } = useApp();
   const lenisRef = useRef<Lenis | null>(null);
 
   // Manual scroll progress for the top progress bar (driven by Lenis events)
@@ -85,6 +85,12 @@ function AppContent() {
       window.scrollTo(0, 0);
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (user?.role === 'admin' && activeTab === 'mentorship') {
+      setActiveTab('admin-dashboard');
+    }
+  }, [user, activeTab, setActiveTab]);
 
   return (
     <>
@@ -139,7 +145,7 @@ function AppContent() {
                       {activeTab === 'resumes' && <AIResumeSuite />}
                       {activeTab === 'tests' && <MockTests />}
                       {activeTab === 'interview' && <HRInterviewSimulator />}
-                      {activeTab === 'mentorship' && <Mentorship />}
+                      {activeTab === 'mentorship' && user?.role !== 'admin' && <Mentorship />}
                       {(activeTab === 'admin-dashboard' || activeTab === 'admin-tests' || activeTab === 'admin-roles') && <AdminPanel />}
                     </Suspense>
                   </ErrorBoundary>
