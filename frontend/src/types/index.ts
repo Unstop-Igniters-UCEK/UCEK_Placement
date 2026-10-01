@@ -211,21 +211,15 @@ export interface ResumeData {
 }
 
 export interface ResumeReviewResult {
-  overallScore: number;
-  atsScore: number;
-  impactScore: number;
-  formattingScore?: number;
-  summary?: string;
-  strengths?: string[];
-  missingKeywords: string[];
-  bulletImprovements: {
+  ats_score: number;
+  recruiter_assessment: string;
+  strengths: string[];
+  recommended_keywords: string[];
+  bullet_recommendations: {
     category: string;
-    issue: string;
     original: string;
-    originalBullet?: string;
     revised: string;
-    revisedBullet?: string;
-    suggestion: string;
+    reason: string;
   }[];
 }
 

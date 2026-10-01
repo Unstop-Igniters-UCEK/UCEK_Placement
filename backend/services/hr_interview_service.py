@@ -52,7 +52,8 @@ HR_TRANSCRIPTION_MODEL = (
 
 HR_EVALUATION_PROVIDER = os.getenv("HR_EVALUATION_PROVIDER", "gemini")
 HR_EVALUATION_MODEL = (
-    os.getenv("GEMINI_HR_EVALUATION_MODEL")
+    os.getenv("GEMINI_MODEL")
+    or os.getenv("GEMINI_HR_EVALUATION_MODEL")
     or os.getenv("HR_EVALUATION_MODEL")
     or "gemini-3.8-flash"
 )

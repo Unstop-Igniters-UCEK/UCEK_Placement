@@ -1,8 +1,11 @@
 import os
 import json
 import time
+import logging
 from dotenv import load_dotenv
 from fastapi import HTTPException
+
+logger = logging.getLogger("ai_resume_reviewer")
 
 # Load environment variables
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
@@ -18,7 +21,21 @@ except ImportError:
     HAS_GENAI = False
     genai = None
     types = None
-SUPPORTED_MODELS = ["gemini-2.5-flash", "gemini-3.5-flash"]
+def get_shared_gemini_model() -> str:
+    """
+    Returns the central shared Gemini model configured in .env for evaluation workloads.
+    Hierarchy: GEMINI_MODEL -> GEMINI_HR_EVALUATION_MODEL -> HR_EVALUATION_MODEL -> default.
+    Changing GEMINI_MODEL (or GEMINI_HR_EVALUATION_MODEL) in .env automatically updates both
+    Resume Reviewer and HR Interview without hardcoding.
+    """
+    return (
+        os.getenv("GEMINI_MODEL")
+        or os.getenv("GEMINI_HR_EVALUATION_MODEL")
+        or os.getenv("HR_EVALUATION_MODEL")
+        or "gemini-3.5-flash-lite"
+    )
+
+SUPPORTED_MODELS = [get_shared_gemini_model()]
 
 def get_gemini_client():
     if not HAS_GENAI:
@@ -146,63 +163,158 @@ def generate_gemini_json(client, contents, config=None):
         )
     return None
 
-def analyze_resume_with_gemini(resume_text: str, job_role: str = "Software Engineer") -> dict:
+def review_resume_with_gemini(resume_text: str, domain: str = "Software Engineering") -> dict:
+    """
+    Evaluates submitted resume strictly against the target domain using Gemini AI.
+    ONE single request to the configured shared Gemini model.
+    NO retries, NO fallback models, NO mock/sample data.
+    Raises HTTPException(status_code=503, detail="AI review temporarily unavailable.") on failure.
+    """
     client = get_gemini_client()
-    
-    prompt = f"""You are a Senior Technical Recruiter at top IT firms. Review the following resume text for a candidate applying for the role '{job_role}'.
+    model_name = get_shared_gemini_model()
+    clean_domain = domain.strip() if domain and domain.strip() else "Software Engineering"
+
+    prompt = f"""You are an expert technical recruiter and ATS evaluation specialist.
+Evaluate the candidate's submitted resume strictly and exclusively against the target domain '{clean_domain}'.
+
+Evaluation Requirements:
+1. ATS Score (ats_score): An integer between 0 and 100 estimating how ATS-friendly and relevant the resume is for '{clean_domain}' (evaluating standard section organization, recognizable headings, readability, role/domain terminology, and ability for ATS parsers to identify key information).
+2. Recruiter Assessment (recruiter_assessment): A concise, objective evaluation based ONLY on the actual resume text and selected domain.
+3. Key Resume Strengths (strengths): A list of 2-5 actual strengths evidenced directly in the submitted resume text.
+4. Recommended Recruiter Keywords (recommended_keywords): A list of 3-8 domain-specific keywords or skills relevant to '{clean_domain}' that the candidate should consider adding or strengthening if applicable. (Do not claim the candidate has these unless present in the resume).
+5. AI Bullet Point Recommendations (bullet_recommendations): Up to 3 recommendations for weak or vague bullet points found in the submitted resume. For each:
+   - "category": The improvement area (e.g. "Action & Impact", "Clarity & Detail", "Technical Scope").
+   - "original": Exact or near-exact original bullet from the resume.
+   - "revised": An improved professional revision. CRITICAL: Ground the revision ONLY in facts from the resume. Never invent projects, achievements, metrics, percentages, certifications, or experiences not present in the submitted resume.
+   - "reason": A brief explanation of why the revision is stronger.
+
+CRITICAL GROUNDING RULES:
+- Evaluate ONLY the supplied resume text and target domain.
+- Do NOT fabricate achievements, numbers, certifications, projects, or metrics.
+- Return ONLY valid JSON adhering strictly to the schema below.
+
+Target Domain:
+\"\"\"
+{clean_domain}
+\"\"\"
 
 Resume Text:
 \"\"\"
 {resume_text}
-\"\"\"
+\"\"\""""
 
-Return ONLY a valid JSON object matching this exact structure:
-{{
-  "overallScore": 84,
-  "atsScore": 88,
-  "impactScore": 79,
-  "formattingScore": 90,
-  "summary": "Candidate demonstrates solid technical foundations with well-structured project experiences.",
-  "missingKeywords": ["Docker", "Kubernetes", "Redis", "CI/CD Pipelines", "Unit Testing"],
-  "strengths": ["Clear technical stack listed", "Structured educational background", "Relevant project experience"],
-  "improvements": [
-    {{
-      "category": "Impact & Metrics",
-      "issue": "Lacks quantified outcomes",
-      "original": "Worked on frontend features and APIs.",
-      "originalBullet": "Worked on frontend features and APIs.",
-      "suggested": "Engineered 4+ high-throughput REST APIs and responsive UI, accelerating page load speeds by 35%.",
-      "revisedBullet": "Engineered 4+ high-throughput REST APIs and responsive UI, accelerating page load speeds by 35%.",
-      "suggestion": "Quantify achievements using the STAR method with percentages and metric numbers."
-    }}
-  ]
-}}"""
+    schema: dict = {
+        "type": "object",
+        "properties": {
+            "ats_score": {
+                "type": "integer",
+                "description": "0-100 ATS friendliness score"
+            },
+            "recruiter_assessment": {
+                "type": "string",
+                "description": "Concise objective recruiter assessment"
+            },
+            "strengths": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of actual candidate strengths from resume"
+            },
+            "recommended_keywords": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Recommended keywords for the target domain"
+            },
+            "bullet_recommendations": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "category": {"type": "string"},
+                        "original": {"type": "string"},
+                        "revised": {"type": "string"},
+                        "reason": {"type": "string"}
+                    },
+                    "required": ["category", "original", "revised", "reason"]
+                },
+                "description": "Bullet point improvements"
+            }
+        },
+        "required": ["ats_score", "recruiter_assessment", "strengths", "recommended_keywords", "bullet_recommendations"]
+    }
 
-    result = generate_gemini_json(client, prompt)
-    if result and isinstance(result, dict):
-        improvements = result.get("improvements") or result.get("bulletImprovements") or []
-        if isinstance(improvements, list):
-            for imp in improvements:
-                if isinstance(imp, dict):
-                    orig = imp.get("original") or imp.get("originalBullet") or ""
-                    rev = imp.get("suggested") or imp.get("revised") or imp.get("revisedBullet") or ""
-                    imp["original"] = orig
-                    imp["originalBullet"] = orig
-                    imp["revised"] = rev
-                    imp["suggested"] = rev
-                    imp["revisedBullet"] = rev
-        result["improvements"] = improvements
-        result["bulletImprovements"] = improvements
-        if "missingKeywords" not in result:
-            result["missingKeywords"] = result.get("missing_keywords") or []
-        if "strengths" not in result:
-            result["strengths"] = []
-        return result
+    try:
+        # EXACTLY ONE REQUEST. No retries, no second requests, no fallback model.
+        afc_disable = types.AutomaticFunctionCallingConfig(disable=True) if hasattr(types, "AutomaticFunctionCallingConfig") else None
+        res_config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=schema,
+            automatic_function_calling=afc_disable
+        )
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=res_config
+        )
+        if not response or not response.text:
+            raise ValueError("Gemini returned empty response text")
 
-    raise HTTPException(
-        status_code=500,
-        detail="Gemini AI failed to return structured resume analysis JSON."
-    )
+        raw_text = response.text.strip()
+        if raw_text.startswith("```json"):
+            raw_text = raw_text[7:]
+        if raw_text.startswith("```"):
+            raw_text = raw_text[3:]
+        if raw_text.endswith("```"):
+            raw_text = raw_text[:-3]
+
+        parsed = json.loads(raw_text.strip())
+        if not isinstance(parsed, dict):
+            raise ValueError("Response is not a valid JSON object")
+
+        ats_score = parsed.get("ats_score")
+        if ats_score is None:
+            raise ValueError("Missing 'ats_score' in Gemini response")
+        parsed["ats_score"] = max(0, min(100, int(round(float(ats_score)))))
+
+        if not isinstance(parsed.get("recruiter_assessment"), str):
+            raise ValueError("Invalid or missing 'recruiter_assessment' in Gemini response")
+
+        if not isinstance(parsed.get("strengths"), list):
+            parsed["strengths"] = []
+
+        if not isinstance(parsed.get("recommended_keywords"), list):
+            parsed["recommended_keywords"] = []
+
+        raw_bullets = parsed.get("bullet_recommendations")
+        if not isinstance(raw_bullets, list):
+            parsed["bullet_recommendations"] = []
+        else:
+            valid_bullets = []
+            for b in raw_bullets:
+                if isinstance(b, dict) and "original" in b and "revised" in b:
+                    valid_bullets.append({
+                        "category": str(b.get("category", "Structure & Impact")),
+                        "original": str(b.get("original", "")),
+                        "revised": str(b.get("revised", "")),
+                        "reason": str(b.get("reason", "Provides clearer phrasing."))
+                    })
+            parsed["bullet_recommendations"] = valid_bullets
+
+        return parsed
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[review_resume_with_gemini] AI evaluation failed with model '{model_name}': {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="AI review temporarily unavailable."
+        )
+
+
+def analyze_resume_with_gemini(resume_text: str, job_role: str = "Software Engineer") -> dict:
+    """Legacy alias routing directly to review_resume_with_gemini."""
+    return review_resume_with_gemini(resume_text, job_role)
+
 
 def match_jd_with_gemini(job_title: str, company: str, jd_text: str, resume_text: str) -> dict:
     client = get_gemini_client()

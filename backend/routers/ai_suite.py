@@ -20,7 +20,7 @@ from backend.schemas import (
     EnhanceBulletRequest, AnalyzeInterviewRequest
 )
 from backend.ai import (
-    analyze_resume_with_gemini, match_jd_with_gemini,
+    review_resume_with_gemini, analyze_resume_with_gemini, match_jd_with_gemini,
     enhance_bullet_with_gemini,
     extract_text_from_pdf_bytes
 )
@@ -56,7 +56,7 @@ async def parse_pdf(file: UploadFile = File(...)):
 def review_resume(req: ReviewResumeRequest, current_user: dict = Depends(get_current_user)):
     """
     Run an AI ATS resume review and persist the result.
-    Stores ONE row per student in resume_reviews (upsert — replaces previous).
+    ONE click = ONE Gemini request. Zero mock or fallback data.
     The ATS score feeds into the readiness calculation.
     """
     if not req.resumeText or len(req.resumeText.strip()) < 30:
@@ -65,24 +65,13 @@ def review_resume(req: ReviewResumeRequest, current_user: dict = Depends(get_cur
             detail="The resume text is empty or too short. Please upload a PDF with selectable text."
         )
 
-    result = analyze_resume_with_gemini(req.resumeText, req.jobRole or "Software Engineer")
+    # Selected domain is the only target context
+    domain = (req.jobRole or "").strip() or current_user.get("domain") or "Software Engineering"
 
-    # Extract ATS score
-    ats_score: float = 0.0
-    if isinstance(result, dict):
-        for key in ("overallScore", "atsScore"):
-            try:
-                val = result.get(key)
-                if val is not None:
-                    ats_score = float(val)
-                    break
-            except Exception:
-                pass
-        if ats_score == 0.0 and isinstance(result.get("categoryScores"), dict):
-            try:
-                ats_score = float(result["categoryScores"].get("atsCompatibility", 0))
-            except Exception:
-                pass
+    # Exactly ONE Gemini request — raises 503 on AI failure
+    result = review_resume_with_gemini(req.resumeText, domain)
+
+    ats_score: float = float(result.get("ats_score", 0))
 
     # Resolve domain_id — use student's current domain if not provided
     domain_id = req.domain_id or current_user.get("domain_id")
@@ -95,9 +84,7 @@ def review_resume(req: ReviewResumeRequest, current_user: dict = Depends(get_cur
             # Check if a review row already exists
             existing_res = supabase_client.table("resume_reviews").select("id, resume_revision").eq("student_id", current_user["id"]).execute()
 
-            improvement_points = {}
-            if isinstance(result, dict):
-                improvement_points = result.get("improvements") or result.get("improvementPoints") or result.get("feedback") or {}
+            improvement_points = result.get("bullet_recommendations", [])
 
             if existing_res.data:
                 existing = existing_res.data[0]

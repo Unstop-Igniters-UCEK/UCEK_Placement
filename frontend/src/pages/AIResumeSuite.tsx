@@ -85,6 +85,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   // SUB-TAB 1: REVIEWER STATE (Starts COMPLETELY BLANK on first load)
   const [targetRole, setTargetRole] = useState('');
   const [resumeText, setResumeText] = useState('');
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [parsePdfLoading, setParsePdfLoading] = useState(false);
@@ -118,61 +119,61 @@ export const AIResumeSuite: React.FC = React.memo(() => {
 
             const mappedSkills = Array.isArray(r.skills)
               ? r.skills.map((sk: any, idx: number) => ({
-                  id: sk.id ? String(sk.id) : `sk_${idx}`,
-                  category: sk.category || 'Technical Skills',
-                  items: sk.skill || sk.items || ''
-                }))
+                id: sk.id ? String(sk.id) : `sk_${idx}`,
+                category: sk.category || 'Technical Skills',
+                items: sk.skill || sk.items || ''
+              }))
               : [];
 
             const mappedProjects = Array.isArray(r.projects)
               ? r.projects.map((p: any, idx: number) => {
-                  let bullets: string[] = [];
-                  if (Array.isArray(p.bullets) && p.bullets.length > 0) {
-                    bullets = p.bullets;
-                  } else if (p.description) {
-                    bullets = String(p.description).split('\n').filter((b: string) => b.trim().length > 0);
-                  }
-                  return {
-                    id: p.id ? String(p.id) : `proj_${idx}`,
-                    title: p.title || 'Project',
-                    techStack: p.technologies || p.techStack || '',
-                    description: p.description || '',
-                    link: p.project_url || p.link || '',
-                    bullets: bullets.length > 0 ? bullets : ['Project implementation and key contributions.']
-                  };
-                })
+                let bullets: string[] = [];
+                if (Array.isArray(p.bullets) && p.bullets.length > 0) {
+                  bullets = p.bullets;
+                } else if (p.description) {
+                  bullets = String(p.description).split('\n').filter((b: string) => b.trim().length > 0);
+                }
+                return {
+                  id: p.id ? String(p.id) : `proj_${idx}`,
+                  title: p.title || 'Project',
+                  techStack: p.technologies || p.techStack || '',
+                  description: p.description || '',
+                  link: p.project_url || p.link || '',
+                  bullets: bullets.length > 0 ? bullets : ['Project implementation and key contributions.']
+                };
+              })
               : [];
 
             const mappedExperience = Array.isArray(r.experience)
               ? r.experience.map((exp: any, idx: number) => {
-                  let bullets: string[] = [];
-                  if (Array.isArray(exp.bullets) && exp.bullets.length > 0) {
-                    bullets = exp.bullets;
-                  } else if (exp.description) {
-                    bullets = String(exp.description).split('\n').filter((b: string) => b.trim().length > 0);
-                  }
-                  return {
-                    id: exp.id ? String(exp.id) : `exp_${idx}`,
-                    company: exp.organization || exp.company || 'Company',
-                    position: exp.role || exp.position || 'Role',
-                    startDate: exp.start_date || exp.startDate || '',
-                    endDate: exp.end_date || exp.endDate || '',
-                    isCurrent: Boolean(exp.is_current ?? exp.isCurrent ?? false),
-                    bullets: bullets.length > 0 ? bullets : ['Key responsibility and outcome.']
-                  };
-                })
+                let bullets: string[] = [];
+                if (Array.isArray(exp.bullets) && exp.bullets.length > 0) {
+                  bullets = exp.bullets;
+                } else if (exp.description) {
+                  bullets = String(exp.description).split('\n').filter((b: string) => b.trim().length > 0);
+                }
+                return {
+                  id: exp.id ? String(exp.id) : `exp_${idx}`,
+                  company: exp.organization || exp.company || 'Company',
+                  position: exp.role || exp.position || 'Role',
+                  startDate: exp.start_date || exp.startDate || '',
+                  endDate: exp.end_date || exp.endDate || '',
+                  isCurrent: Boolean(exp.is_current ?? exp.isCurrent ?? false),
+                  bullets: bullets.length > 0 ? bullets : ['Key responsibility and outcome.']
+                };
+              })
               : [];
 
             const mappedEducation = Array.isArray(r.education)
               ? r.education.map((edu: any, idx: number) => ({
-                  id: edu.id ? String(edu.id) : `edu_${idx}`,
-                  institution: edu.institution || 'University',
-                  degree: edu.degree || 'Degree',
-                  fieldOfStudy: edu.field_of_study || edu.fieldOfStudy || '',
-                  startDate: edu.start_year ? String(edu.start_year) : (edu.startDate ? String(edu.startDate) : ''),
-                  endDate: edu.end_year ? String(edu.end_year) : (edu.endDate ? String(edu.endDate) : ''),
-                  gpa: edu.grade || edu.gpa || ''
-                }))
+                id: edu.id ? String(edu.id) : `edu_${idx}`,
+                institution: edu.institution || 'University',
+                degree: edu.degree || 'Degree',
+                fieldOfStudy: edu.field_of_study || edu.fieldOfStudy || '',
+                startDate: edu.start_year ? String(edu.start_year) : (edu.startDate ? String(edu.startDate) : ''),
+                endDate: edu.end_year ? String(edu.end_year) : (edu.endDate ? String(edu.endDate) : ''),
+                gpa: edu.grade || edu.gpa || ''
+              }))
               : [];
 
             const mappedCertifications = Array.isArray(r.certifications)
@@ -223,32 +224,39 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   const [matcherPdfProgress, setMatcherPdfProgress] = useState(0);
   const jdFileInputRef = useRef<HTMLInputElement>(null);
 
-  // HANDLER: Run ATS AI Scan (Prevents blank white-screen React crash)
+  // HANDLER: Run ATS AI Scan (Pure Gemini evaluation with single request)
   const handleRunReview = async () => {
     if (!resumeText.trim()) return;
-    setReviewLoading(true);
+    setReviewResult(null);
     setReviewError(null);
+    setReviewLoading(true);
     try {
       const data = await reviewResumeApi({
         resumeText: resumeText.trim(),
-        jobRole: targetRole.trim() || 'Software Engineer'
+        jobRole: targetRole.trim() || 'Software Engineering'
       });
-      // Normalize object to prevent undefined map crashes
+      if (!data || typeof data.ats_score !== 'number' || typeof data.recruiter_assessment !== 'string') {
+        throw new Error('AI review temporarily unavailable.');
+      }
       const normalized: ResumeReviewResult = {
-        overallScore: typeof data?.overallScore === 'number' ? data.overallScore : 0,
-        atsScore: typeof data?.atsScore === 'number' ? data.atsScore : 0,
-        impactScore: typeof data?.impactScore === 'number' ? data.impactScore : 0,
-        formattingScore: typeof data?.formattingScore === 'number' ? data.formattingScore : 0,
-        summary: data?.summary || "",
-        strengths: Array.isArray(data?.strengths) ? data.strengths : [],
-        missingKeywords: Array.isArray(data?.missingKeywords) ? data.missingKeywords : ((data as any)?.missing_keywords || []),
-        bulletImprovements: Array.isArray(data?.bulletImprovements) ? data.bulletImprovements : ((data as any)?.improvements || [])
+        ats_score: Math.max(0, Math.min(100, Math.round(data.ats_score))),
+        recruiter_assessment: data.recruiter_assessment,
+        strengths: Array.isArray(data.strengths) ? data.strengths : [],
+        recommended_keywords: Array.isArray(data.recommended_keywords) ? data.recommended_keywords : [],
+        bullet_recommendations: Array.isArray(data.bullet_recommendations)
+          ? data.bullet_recommendations.map((b: any) => ({
+            category: String(b?.category || 'Structure & Impact'),
+            original: String(b?.original || ''),
+            revised: String(b?.revised || ''),
+            reason: String(b?.reason || '')
+          }))
+          : []
       };
       setReviewResult(normalized);
     } catch (err: any) {
       console.error('Review API Error:', err);
-      setReviewError(err?.message || 'Failed to review resume. Check backend connection and Gemini API key.');
       setReviewResult(null);
+      setReviewError('AI review temporarily unavailable.');
     } finally {
       setReviewLoading(false);
     }
@@ -258,6 +266,8 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    setUploadedFileName(file.name);
 
     if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
       setParsePdfLoading(true);
@@ -279,7 +289,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
             const reader = new FileReader();
             reader.onload = (event) => {
               const raw = event.target?.result as string;
-              if (raw) setResumeText(raw);
+              if (raw) setResumeText(raw.trim());
             };
             reader.readAsText(file);
           }
@@ -293,7 +303,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
         const reader = new FileReader();
         reader.onload = (event) => {
           const raw = event.target?.result as string;
-          if (raw) setResumeText(raw);
+          if (raw) setResumeText(raw.trim());
         };
         reader.readAsText(file);
         setTimeout(() => {
@@ -305,9 +315,13 @@ export const AIResumeSuite: React.FC = React.memo(() => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target?.result as string;
-        if (text) setResumeText(text);
+        if (text) setResumeText(text.trim());
       };
       reader.readAsText(file);
+    }
+
+    if (e.target) {
+      e.target.value = '';
     }
   };
 
@@ -652,9 +666,9 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   };
 
   // Safe array extractors for reviewResult
-  const missingKws = reviewResult?.missingKeywords || [];
   const strengthsList = reviewResult?.strengths || [];
-  const bulletList = reviewResult?.bulletImprovements || (reviewResult as any)?.improvements || [];
+  const recommendedKeywords = reviewResult?.recommended_keywords || [];
+  const bulletRecommendations = reviewResult?.bullet_recommendations || [];
 
   return (
     <motion.div
@@ -721,7 +735,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LEFT INPUT CARD */}
           <motion.div variants={itemVariants} className="lg:col-span-5 mono-card p-6 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <h2 className="font-bold text-sm text-white font-heading flex items-center gap-2">
                 <FileText className="w-4 h-4 text-orange-400" />
                 Upload or Paste Resume Content
@@ -733,6 +747,15 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                 accept=".pdf,.txt,.md,.doc,.docx"
                 className="hidden"
               />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={parsePdfLoading}
+                className="px-3 py-1.5 rounded-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50 shrink-0"
+              >
+                <Upload className="w-3.5 h-3.5 text-orange-400" />
+                <span>Upload Resume</span>
+              </button>
             </div>
 
             {/* ANIMATED BAR LOADER FOR PDF PARSING */}
@@ -755,7 +778,7 @@ export const AIResumeSuite: React.FC = React.memo(() => {
             )}
 
             <div className="space-y-1.5 pt-1">
-              <label className="text-[11px] font-medium text-zinc-400">Target Role / Domain</label>
+              <label className="text-[11px] font-medium text-zinc-400">Domain</label>
               <input
                 type="text"
                 className="w-full bg-[#121212] text-xs text-white p-3 rounded-xl border border-white/10 focus:border-orange-500 outline-none font-sans"
@@ -766,14 +789,27 @@ export const AIResumeSuite: React.FC = React.memo(() => {
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-medium text-zinc-400">Paste Resume Plain Text</label>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <label className="text-[11px] font-medium text-zinc-400 shrink-0">Paste Resume Plain Text</label>
+                  {uploadedFileName && (
+                    <span className="text-[10px] text-zinc-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full flex items-center gap-1 max-w-[170px]" title={uploadedFileName}>
+                      <FileText className="w-2.5 h-2.5 text-orange-400 shrink-0" />
+                      <span className="truncate">{uploadedFileName}</span>
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] text-zinc-500 font-mono">{resumeText.length} chars</span>
               </div>
               <textarea
-                className="w-full bg-[#121212] text-xs text-white p-3.5 rounded-xl border border-white/10 focus:border-orange-500 outline-none h-72 font-mono leading-relaxed resize-none"
+                className="w-full bg-[#121212] text-xs text-white p-3.5 rounded-xl border border-white/10 focus:border-orange-500 outline-none h-72 font-mono leading-relaxed resize-none overflow-y-auto overscroll-contain custom-scrollbar"
+                data-lenis-prevent="true"
                 value={resumeText}
-                onChange={e => setResumeText(e.target.value)}
+                onChange={e => {
+                  setResumeText(e.target.value);
+                  if (!e.target.value.trim()) setUploadedFileName(null);
+                }}
+                onWheel={e => e.stopPropagation()}
                 placeholder="Paste the raw text of your resume here (Header, Summary, Experience, Projects, Skills)..."
               />
             </div>
@@ -802,132 +838,118 @@ export const AIResumeSuite: React.FC = React.memo(() => {
           </motion.div>
 
           {/* RIGHT REVIEW ANALYSIS OUTPUT CARD */}
-          <motion.div variants={itemVariants} className="lg:col-span-7 mono-card p-6 space-y-6 flex flex-col justify-between min-h-[500px]">
+          <motion.div variants={itemVariants} className="lg:col-span-7 bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 sm:p-7 space-y-6 shadow-2xl flex flex-col justify-start min-h-[500px]">
             {reviewError ? (
-              <div className="py-16 text-center space-y-4 my-auto p-6 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
-                <div className="w-14 h-14 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto shadow-inner">
-                  <AlertCircle className="w-7 h-7 text-rose-400" />
+              <div className="py-20 text-center space-y-3 my-auto p-6 bg-[#000000] border border-white/10 rounded-2xl">
+                <div className="w-14 h-14 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
+                  <AlertCircle className="w-6 h-6 text-orange-400" />
                 </div>
-                <div className="space-y-2 max-w-md mx-auto">
-                  <h3 className="text-base font-bold text-rose-400 font-heading">AI Service Error</h3>
-                  <p className="text-xs text-rose-200/90 leading-relaxed font-mono bg-black/40 p-3 rounded-xl border border-rose-500/30 text-left break-words">
-                    {reviewError}
-                  </p>
-                  <p className="text-[11px] text-zinc-400">
-                    If GEMINI_API_KEY is missing, ensure your environment variables are configured on Render.com and redeployed.
-                  </p>
+                <div className="space-y-1 max-w-sm mx-auto">
+                  <h3 className="text-sm font-bold text-white font-heading">AI review temporarily unavailable.</h3>
+                  <p className="text-xs text-zinc-400">Please try again in a moment.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleRunReview()}
-                  className="px-6 py-2 text-xs font-bold text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 rounded-full cursor-pointer transition-all"
-                >
-                  Retry AI Review
-                </button>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleRunReview()}
+                    className="px-6 py-2 text-xs font-bold text-white bg-white/10 hover:bg-white/15 border border-white/20 rounded-full cursor-pointer transition-all"
+                  >
+                    Try Again
+                  </button>
+                </div>
               </div>
             ) : !reviewResult ? (
-              <div className="py-24 text-center space-y-4 my-auto">
-                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 flex items-center justify-center mx-auto shadow-inner">
-                  <FileText className="w-8 h-8 text-zinc-400" />
+              <div className="py-20 text-center space-y-3 my-auto">
+                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-zinc-400 shadow-inner">
+                  <FileText className="w-8 h-8" />
                 </div>
-                <div className="space-y-1.5 max-w-sm mx-auto">
-                  <h3 className="text-base font-bold text-white font-heading">No Review Analysis Yet</h3>
-                  <p className="text-xs text-zinc-400 leading-relaxed">
-                    Paste your resume text on the left and click 'Run Instant AI Review' to see ATS scores and itemized bullet point improvements.
+                <div className="space-y-1 max-w-xs mx-auto">
+                  <p className="text-sm font-bold text-white font-heading">AI Evaluation Workspace</p>
+                  <p className="text-xs text-zinc-400 font-sans leading-relaxed">
+                    Paste your resume text on the left and click 'Run Instant AI Resume Review' to generate the ATS evaluation and recommendations.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-6 py-2.5 text-xs font-bold text-white bg-white/10 hover:bg-white/15 border border-white/20 rounded-full cursor-pointer transition-all hover:scale-105"
-                >
-                  Upload Your Resume
-                </button>
               </div>
             ) : (
               <div className="space-y-6">
-                {/* 4 SCORE METRICS HEADER */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#121212] border border-white/10 p-4 rounded-2xl text-center">
-                  <div>
-                    <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-bold">Overall Score</span>
-                    <span className="text-2xl font-black text-white font-heading pt-1 block">{reviewResult.overallScore}%</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-bold">ATS Pass Rate</span>
-                    <span className="text-2xl font-black text-orange-400 font-heading pt-1 block">{reviewResult.atsScore}%</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-bold">Impact Score</span>
-                    <span className="text-2xl font-black text-emerald-400 font-heading pt-1 block">{reviewResult.impactScore}%</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-bold">Formatting</span>
-                    <span className="text-2xl font-black text-blue-400 font-heading pt-1 block">{reviewResult.formattingScore || 90}%</span>
+                {/* SINGLE ATS SCORE HEADER */}
+                <div className="bg-[#000000] border border-white/10 p-4 rounded-2xl text-center shadow-inner">
+                  <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider block">ATS Score</span>
+                  <div className="text-3xl font-extrabold text-orange-400 tracking-tight pt-1">
+                    {reviewResult.ats_score}
+                    <span className="text-sm text-zinc-500 font-normal ml-0.5">%</span>
                   </div>
                 </div>
 
-                {/* SUMMARY CALLOUT */}
-                {reviewResult.summary && (
-                  <div className="p-3.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-xs text-zinc-300 leading-relaxed flex items-start gap-2.5">
-                    <Sparkles className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="text-orange-400 font-bold block mb-0.5">Recruiter Assessment:</strong>
-                      {reviewResult.summary}
+                {/* RECRUITER ASSESSMENT */}
+                {reviewResult.recruiter_assessment && (
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Recruiter Assessment</h4>
+                    <div className="p-3.5 rounded-2xl bg-[#000000] border border-white/10">
+                      <p className="text-sm leading-[1.6] text-zinc-200">{reviewResult.recruiter_assessment}</p>
                     </div>
                   </div>
                 )}
 
-                {/* STRENGTHS */}
+                {/* KEY RESUME STRENGTHS */}
                 {strengthsList.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      Key Resume Strengths
-                    </h4>
-                    <div className="space-y-1.5">
+                  <div className="space-y-2.5">
+                    <h4 className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Key Resume Strengths</h4>
+                    <ul className="space-y-2">
                       {strengthsList.map((str, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-xs text-zinc-300">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                          <span>{str}</span>
-                        </div>
+                        <li key={idx} className="p-3.5 rounded-2xl bg-[#000000] border border-white/10 text-zinc-200 flex items-start gap-2.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400/80 shrink-0 mt-0.5" />
+                          <span className="text-sm leading-[1.5]">{str}</span>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   </div>
                 )}
 
-                {/* MISSING RECRUITER KEYWORDS */}
-                {missingKws.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                      <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
-                      Missing Recruiter Keywords
-                    </h4>
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {missingKws.map((kw, i) => (
-                        <span key={i} className="px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold flex items-center gap-1">
-                          <Plus className="w-3 h-3 text-rose-400" /> {kw}
+                {/* RECOMMENDED RECRUITER KEYWORDS */}
+                {recommendedKeywords.length > 0 && (
+                  <div className="space-y-2.5">
+                    <h4 className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Recommended Recruiter Keywords</h4>
+                    <div className="flex flex-wrap gap-2 pt-0.5">
+                      {recommendedKeywords.map((kw, idx) => (
+                        <span
+                          key={idx}
+                          className="px-3.5 py-1.5 rounded-full bg-[#000000] border border-white/10 text-zinc-200 text-xs font-medium flex items-center gap-1.5"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+                          {kw}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* ITEMIZATION BULLET POINT RECOMMENDATIONS */}
-                {bulletList.length > 0 && (
-                  <div className="space-y-3 pt-2">
-                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">AI Bullet Point Recommendations</h4>
-                    {bulletList.map((imp: any, idx: number) => (
-                      <div key={idx} className="p-4 rounded-2xl bg-[#121212] border border-white/10 space-y-2 text-xs">
-                        <div className="flex items-center justify-between text-orange-400 font-bold text-[11px]">
-                          <span>{imp.category} • {imp.issue}</span>
+                {/* AI BULLET POINT RECOMMENDATIONS */}
+                {bulletRecommendations.length > 0 && (
+                  <div className="space-y-2.5">
+                    <h4 className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">AI Bullet Point Recommendations</h4>
+                    <div className="space-y-3">
+                      {bulletRecommendations.map((b, idx) => (
+                        <div key={idx} className="p-4 rounded-2xl bg-[#000000] border border-white/10 space-y-2.5">
+                          <div className="text-[11px] font-bold text-orange-400 tracking-wide uppercase">
+                            {b.category}
+                          </div>
+                          <div className="space-y-2 text-xs">
+                            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
+                              <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block">Original Bullet</span>
+                              <p className="text-zinc-400 text-xs leading-relaxed font-mono">{b.original}</p>
+                            </div>
+                            <div className="p-3 rounded-xl bg-orange-500/[0.04] border border-orange-500/20 space-y-1">
+                              <span className="text-[10px] uppercase font-bold text-orange-400 tracking-wider block">Recommended Revision</span>
+                              <p className="text-zinc-200 text-xs leading-relaxed font-mono">{b.revised}</p>
+                            </div>
+                          </div>
+                          {b.reason && (
+                            <p className="text-xs text-zinc-400 italic leading-relaxed pt-0.5">{b.reason}</p>
+                          )}
                         </div>
-                        <div className="space-y-1 font-mono text-[11px] pt-1">
-                          <p className="text-rose-400/90 line-through">Original: "{imp.original || imp.originalBullet}"</p>
-                          <p className="text-emerald-400 font-semibold">Revised: "{imp.revised || imp.revisedBullet || imp.suggested}"</p>
-                        </div>
-                        <p className="text-[11px] text-zinc-400 italic pt-1">{imp.suggestion}</p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
