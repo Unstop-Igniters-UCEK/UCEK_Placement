@@ -84,6 +84,12 @@ class DemoLoginRequest(BaseModel):
     role: str
 
 
+class ChangePasswordRequest(BaseModel):
+    currentPassword: str = Field(..., min_length=1, max_length=128)
+    newPassword: str = Field(..., min_length=6, max_length=128)
+    confirmPassword: str = Field(..., min_length=6, max_length=128)
+
+
 # ─── Profile ──────────────────────────────────────────────────────────────────
 
 class ProfileUpdateRequest(BaseModel):

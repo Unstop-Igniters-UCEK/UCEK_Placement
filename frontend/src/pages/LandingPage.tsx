@@ -569,11 +569,14 @@ export const LandingPage: React.FC = React.memo(() => {
                             <label className="block text-xs font-semibold text-zinc-300">6-Digit Verification Code</label>
                             <input
                               type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              autoComplete="one-time-code"
                               maxLength={6}
                               className="w-full px-4 py-2.5 rounded-full bg-white/5 border border-white/20 text-white font-mono font-bold tracking-[0.3em] text-center text-xs focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all"
                               placeholder="123456"
                               value={otpCode}
-                              onChange={e => setOtpCode(e.target.value)}
+                              onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                               required
                             />
                           </div>
@@ -583,6 +586,7 @@ export const LandingPage: React.FC = React.memo(() => {
                             <div className="relative">
                               <input
                                 type={showNewPassword ? "text" : "password"}
+                                autoComplete="new-password"
                                 className="w-full pl-4 pr-10 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans"
                                 placeholder="Min 6 characters"
                                 value={newPassword}

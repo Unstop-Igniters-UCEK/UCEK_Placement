@@ -14,6 +14,7 @@ interface CustomSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  direction?: 'up' | 'down' | 'auto';
 }
 
 export const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -23,8 +24,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   placeholder = 'Select option...',
   className = '',
   disabled = false,
+  direction = 'auto',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const normalizedOptions: SelectOption[] = options.map(opt =>
@@ -32,6 +35,25 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   );
 
   const selectedOption = normalizedOptions.find(opt => opt.value === value);
+
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      if (direction === 'up') {
+        setOpenUpward(true);
+      } else if (direction === 'down') {
+        setOpenUpward(false);
+      } else {
+        const rect = containerRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        // If space below is constrained (< 220px) and there is sufficient space above, open upwards
+        if (spaceBelow < 220 && rect.top > spaceBelow) {
+          setOpenUpward(true);
+        } else {
+          setOpenUpward(false);
+        }
+      }
+    }
+  }, [isOpen, direction]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -54,7 +76,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   }, [isOpen]);
 
   return (
-    <div className={`relative w-full ${className}`} ref={containerRef}>
+    <div className={`relative w-full ${isOpen ? 'z-30' : 'z-10'} ${className}`} ref={containerRef}>
       {/* Trigger Button */}
       <button
         type="button"
@@ -82,11 +104,13 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 4, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            initial={{ opacity: 0, y: openUpward ? 6 : -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: openUpward ? 6 : -6, scale: 0.98 }}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute left-0 right-0 z-50 mt-1 max-h-56 overflow-y-auto rounded-2xl bg-[#0d0d12]/95 backdrop-blur-2xl border border-white/20 shadow-2xl p-1.5 space-y-0.5 font-sans no-scrollbar"
+            className={`absolute left-0 right-0 z-50 max-h-56 overflow-y-auto rounded-2xl bg-[#0d0d12]/95 backdrop-blur-2xl border border-white/20 shadow-2xl p-1.5 space-y-0.5 font-sans no-scrollbar ${
+              openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+            }`}
           >
             {normalizedOptions.map(opt => {
               const isSelected = opt.value === value;

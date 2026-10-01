@@ -262,6 +262,25 @@ export async function verifyOtpResetApi(email: string, otpCode: string, newPassw
   return res.json();
 }
 
+export async function changePasswordApi(payload: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<{ message: string }> {
+  const res = await authFetch(`${BASE_URL}/api/user/change-password`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, 'Failed to change password'));
+  }
+
+  return res.json();
+}
+
 export async function getMeApi(): Promise<{ user: AuthResponse['user'] }> {
   const res = await authFetch(`${BASE_URL}/api/auth/me`, {
     method: 'GET',
@@ -436,6 +455,31 @@ export interface SpeechAnalyticsResponse {
     confidence_score: number;
     completed_at: string;
   } | null;
+}
+
+export interface DepartmentItem {
+  id: string;
+  code: string;
+  name: string;
+}
+
+/**
+ * Fetch active departments from the backend catalog.
+ */
+export async function getDepartmentsApi(): Promise<DepartmentItem[]> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/departments`);
+    if (!res.ok) {
+      const fallback = await fetch(`${BASE_URL}/api/user/departments`);
+      if (!fallback.ok) return [];
+      const fbData = await fallback.json();
+      return Array.isArray(fbData.departments) ? fbData.departments : [];
+    }
+    const data = await res.json();
+    return Array.isArray(data.departments) ? data.departments : [];
+  } catch {
+    return [];
+  }
 }
 
 /**

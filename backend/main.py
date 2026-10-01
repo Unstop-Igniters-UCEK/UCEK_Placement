@@ -86,6 +86,12 @@ def get_domains_root():
     return {"domains": db.get_all_domains()}
 
 
+@app.get("/api/departments")
+def get_departments_root():
+    from backend.database import db
+    return {"departments": db.get_all_departments()}
+
+
 # ─── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(user.router)

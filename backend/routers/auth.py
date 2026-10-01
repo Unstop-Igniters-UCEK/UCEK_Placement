@@ -336,14 +336,16 @@ def demo_login(req: DemoLoginRequest, response: Response):
 
 import requests as http_requests
 
-def _send_otp_email(to_email: str, otp_code: str) -> bool:
+def _send_otp_email(to_email: str, otp_code: str) -> tuple[bool, Optional[str]]:
     resend_api_key = (os.getenv("RESEND_API_KEY") or "").strip()
     if not resend_api_key:
-        print("[Resend Notice] RESEND_API_KEY is not configured.")
-        return False
+        msg = "Email service not configured (RESEND_API_KEY is missing)."
+        print(f"[Resend Notice] {msg}")
+        return False, msg
     try:
+        from_email = (os.getenv("RESEND_FROM_EMAIL") or "").strip() or "UCEK Placement Portal <onboarding@resend.dev>"
         payload = {
-            "from": "UCEK Placement Portal <onboarding@resend.dev>",
+            "from": from_email,
             "to": [to_email],
             "subject": f"🔑 {otp_code} is your Password Verification Code",
             "html": f"""
@@ -362,16 +364,25 @@ def _send_otp_email(to_email: str, otp_code: str) -> bool:
         headers = {
             "Authorization": f"Bearer {resend_api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         }
         resp = http_requests.post("https://api.resend.com/emails", json=payload, headers=headers, timeout=10)
         if resp.status_code in (200, 201):
             print(f"[Resend] OTP email dispatched to {to_email}")
-            return True
+            return True, None
+
+        error_detail = None
+        try:
+            body = resp.json()
+            error_detail = body.get("message")
+        except Exception:
+            pass
+
         print(f"[Resend HTTP {resp.status_code}]: {resp.text}")
-        return False
+        return False, error_detail or f"Email provider rejected request (HTTP {resp.status_code})."
     except Exception as e:
         print(f"[Resend Error] {to_email}:", e)
-        return False
+        return False, f"Failed to connect to email provider: {str(e)}"
 
 
 @router.post("/send-otp")
@@ -379,7 +390,7 @@ def _send_otp_email(to_email: str, otp_code: str) -> bool:
 def send_otp(request: Request, req: SendOTPRequest):
     email = req.email.strip().lower()
     user = db.get_user_by_email(email)
-    # Always respond the same way to prevent email enumeration
+    # If account does not exist, return generic notice to prevent email enumeration
     if not user:
         return {
             "message": f"If an account exists for {email}, a verification code has been dispatched.",
@@ -392,7 +403,13 @@ def send_otp(request: Request, req: SendOTPRequest):
     db.otp_store[email] = {"code": otp_code, "expiresAt": expires_at, "attempts": 0}
     print(f"\n[OTP] Generated for {email}: {otp_code}\n")
 
-    _send_otp_email(email, otp_code)
+    sent, error_msg = _send_otp_email(email, otp_code)
+    if not sent:
+        raise HTTPException(
+            status_code=502,
+            detail=error_msg or "Failed to deliver verification email. Please check your email configuration."
+        )
+
     return {
         "message": f"6-digit verification code dispatched to {email}. Please check your inbox.",
         "otpSent": True,

@@ -6,9 +6,9 @@ Aligned with Impulse_DB_Design.md §32 (Profile Updates) and §8 (Readiness).
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.database import db, supabase_client, get_user_readiness_metrics
+from backend.database import db, supabase_client, get_user_readiness_metrics, hash_password, verify_password
 from backend.auth import get_current_user
-from backend.schemas import ProfileUpdateRequest, SelectDomainRequest, SaveResumeRequest
+from backend.schemas import ProfileUpdateRequest, SelectDomainRequest, SaveResumeRequest, ChangePasswordRequest
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 
@@ -143,6 +143,49 @@ def update_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_c
         "message": "Profile updated successfully.",
         "user": _build_profile_payload(updated_user, readiness),
     }
+
+
+@router.post("/change-password")
+def change_password(req: ChangePasswordRequest, current_user: dict = Depends(get_current_user)):
+    """
+    Authenticated student/user password change.
+    Validates current password against stored hash, validates new password match and policy,
+    hashes the new password, and updates users.password_hash.
+    """
+    uid = current_user["id"]
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    # 1. Server-side validation
+    if not req.currentPassword:
+        raise HTTPException(status_code=400, detail="Current password is required.")
+    if not req.newPassword:
+        raise HTTPException(status_code=400, detail="New password is required.")
+    if len(req.newPassword) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters long.")
+    if req.newPassword != req.confirmPassword:
+        raise HTTPException(status_code=400, detail="New passwords do not match.")
+    if req.currentPassword == req.newPassword:
+        raise HTTPException(status_code=400, detail="New password must be different from current password.")
+
+    # 2. Verify current password against stored password hash
+    stored_hash = current_user.get("password_hash")
+    if not stored_hash:
+        user_record = db.get_user_by_id(uid)
+        stored_hash = user_record.get("password_hash") if user_record else None
+
+    if not stored_hash or not verify_password(req.currentPassword, stored_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+    # 3. Securely hash the new password using existing password hashing
+    new_hash = hash_password(req.newPassword)
+
+    # 4. Update ONLY this authenticated user's password in the database
+    success = db.update_user_password(uid, new_hash)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update password. Please try again.")
+
+    return {"message": "Password changed successfully."}
 
 
 @router.post("/select-domain")
