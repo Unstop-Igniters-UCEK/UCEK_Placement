@@ -15,6 +15,7 @@ import {
   Bell,
   FileCheck2
 } from 'lucide-react';
+import { MockTestNotification } from '../lib/api';
 import { EditProfileModal } from './EditProfileModal';
 
 export const StudentNavHeader: React.FC = React.memo(() => {
@@ -26,12 +27,14 @@ export const StudentNavHeader: React.FC = React.memo(() => {
     notifications,
     unreadNotificationsCount,
     markNotificationsAsRead,
+    markNotificationAsRead,
     setHighlightedTestId
   } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userCardOpen, setUserCardOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [popupNotifications, setPopupNotifications] = useState<MockTestNotification[]>([]);
   const notificationRef = useRef<HTMLDivElement>(null);
 
   // Click-outside listener to close notification popup on desktop
@@ -39,6 +42,7 @@ export const StudentNavHeader: React.FC = React.memo(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
         setNotificationOpen(false);
+        setPopupNotifications([]);
       }
     };
     if (notificationOpen) {
@@ -53,7 +57,15 @@ export const StudentNavHeader: React.FC = React.memo(() => {
     setNotificationOpen(prev => {
       const next = !prev;
       if (next) {
-        markNotificationsAsRead();
+        // Display the latest notifications (maximum 3)
+        const toDisplay = notifications.slice(0, 3);
+        setPopupNotifications(toDisplay);
+        // Treat displayed notification(s) as read/seen and remove from active list
+        if (notifications.length > 0) {
+          markNotificationsAsRead();
+        }
+      } else {
+        setPopupNotifications([]);
       }
       return next;
     });
@@ -213,7 +225,10 @@ export const StudentNavHeader: React.FC = React.memo(() => {
                     {/* Click-away backdrop overlay on mobile */}
                     <div
                       className="fixed inset-0 z-40 md:hidden"
-                      onClick={() => setNotificationOpen(false)}
+                      onClick={() => {
+                        setNotificationOpen(false);
+                        setPopupNotifications([]);
+                      }}
                     />
                     <motion.div
                       initial={{ opacity: 0, y: 8, scale: 0.96 }}
@@ -229,14 +244,14 @@ export const StudentNavHeader: React.FC = React.memo(() => {
                             Notifications
                           </h3>
                         </div>
-                        {unreadNotificationsCount > 0 && (
+                        {popupNotifications.length > 0 && (
                           <span className="px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-[10px] font-semibold text-orange-400 font-mono">
-                            {unreadNotificationsCount} New
+                            {popupNotifications.length} New
                           </span>
                         )}
                       </div>
 
-                      {notifications.length === 0 ? (
+                      {popupNotifications.length === 0 ? (
                         <div className="py-6 px-3 text-center space-y-1.5">
                           <Bell className="w-5 h-5 text-zinc-600 mx-auto" />
                           <p className="text-xs font-medium text-zinc-400">No new notifications</p>
@@ -246,11 +261,13 @@ export const StudentNavHeader: React.FC = React.memo(() => {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          {notifications.slice(0, 3).map((n) => (
+                          {popupNotifications.map((n) => (
                             <div
                               key={n.id}
                               onClick={() => {
+                                markNotificationAsRead(n.id);
                                 setNotificationOpen(false);
+                                setPopupNotifications([]);
                                 setHighlightedTestId(n.id);
                                 setActiveTab('tests');
                               }}

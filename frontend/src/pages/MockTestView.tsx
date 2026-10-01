@@ -270,6 +270,7 @@ export const MockTestView: React.FC = () => {
 
   const activeTestRef = useRef<any>(null);
   const examSubmittedRef = useRef<boolean>(false);
+  const isSubmittingRef = useRef<boolean>(false);
   const isTerminatedRef = useRef<boolean>(false);
   const hasLeftFocusRef = useRef<boolean>(false);
   const instanceIdRef = useRef<string>(Math.random().toString(36).substring(2, 9));
@@ -412,7 +413,8 @@ export const MockTestView: React.FC = () => {
     reason: 'violation' | 'fullscreen_exit' | 'timeout' | 'abandoned',
     message: string
   ) => {
-    if (isTerminatedRef.current || examSubmittedRef.current) return;
+    if (isTerminatedRef.current || examSubmittedRef.current || isSubmittingRef.current) return;
+    isTerminatedRef.current = true;
     setIsTerminated(true);
     setTerminationReason(reason);
     setTerminationMessage(message);
@@ -440,6 +442,9 @@ export const MockTestView: React.FC = () => {
   // Start Assessment session
   const handleStartAssessment = async (test: any) => {
     const totalSec = (test.duration_minutes || test.durationMins || test.durationMinutes || 30) * 60;
+    isSubmittingRef.current = false;
+    examSubmittedRef.current = false;
+    isTerminatedRef.current = false;
     setLoadingTestDetails(true);
     setActiveTest(test);
     setExamSubmitted(false);
@@ -512,7 +517,13 @@ export const MockTestView: React.FC = () => {
     if (!activeTest || examSubmitted || isTerminated) return;
 
     const onFullscreenChange = () => {
-      if (!document.fullscreenElement && activeTestRef.current && !examSubmittedRef.current && !isTerminatedRef.current) {
+      if (
+        !document.fullscreenElement &&
+        activeTestRef.current &&
+        !examSubmittedRef.current &&
+        !isSubmittingRef.current &&
+        !isTerminatedRef.current
+      ) {
         handleTerminateAssessment(
           'fullscreen_exit',
           'Fullscreen mode was exited during the test. Your assessment has been terminated and your progress was lost.'
@@ -531,7 +542,7 @@ export const MockTestView: React.FC = () => {
     if (!activeTest || examSubmitted || isTerminated) return;
 
     const recordViolation = () => {
-      if (examSubmittedRef.current || isTerminatedRef.current) return;
+      if (examSubmittedRef.current || isTerminatedRef.current || isSubmittingRef.current) return;
       if (hasLeftFocusRef.current) return;
       hasLeftFocusRef.current = true;
 
@@ -647,10 +658,10 @@ export const MockTestView: React.FC = () => {
   useEffect(() => {
     if (!activeTest || examSubmitted || loadingTestDetails || isTerminated) return;
     if (timeLeftSec <= 0) {
-      handleTerminateAssessment(
-        'timeout',
-        'Your assessment time has expired. This attempt has ended and your current progress was not submitted.'
-      );
+      // When timer reaches zero, force-submit current answers instead of abandoning
+      if (!isSubmittingRef.current && !examSubmittedRef.current) {
+        handleFinalSubmitExam();
+      }
       return;
     }
     const timer = setInterval(() => {
@@ -661,27 +672,37 @@ export const MockTestView: React.FC = () => {
 
   // Submit Quiz
   const handleFinalSubmitExam = async () => {
-    if (!activeTest || submittingExam || examSubmitted || loadingTestDetails || isTerminated) return;
+    if (!activeTest || submittingExam || isSubmittingRef.current || examSubmitted || loadingTestDetails || isTerminated) return;
+    
+    // 1. Enter intentional "submitting" state
+    isSubmittingRef.current = true;
     setSubmittingExam(true);
+    setSubmitExamError(null);
 
     const durationTotalSec = (activeTest.durationMins || activeTest.durationMinutes || 30) * 60;
     const timeTakenSec = Math.max(1, durationTotalSec - timeLeftSec);
 
-    // Exit fullscreen cleanly on valid submission
-    if (document.fullscreenElement) {
-      try {
-        await document.exitFullscreen();
-      } catch {}
-    }
-
+    // 2. Submit attempt to backend while exam is still active in fullscreen
     try {
       const res = await api.submitQuiz(activeTest.id, {
         answers: userAnswers,
         timeTakenSec
       });
-      setExamResult(res);
+      // 3. Backend successfully marked attempt SUBMITTED:
+      examSubmittedRef.current = true;
       setExamSubmitted(true);
+      setExamResult(res);
+      fetchTests();
+
+      // 4. Only after successful submission, exit fullscreen if necessary
+      if (document.fullscreenElement) {
+        try {
+          await document.exitFullscreen();
+        } catch {}
+      }
     } catch (err: any) {
+      // 5. Failure case: keep current exam state, show error, allow student to retry
+      isSubmittingRef.current = false;
       setSubmitExamError(err?.message || "Failed to submit assessment to server. Please try again.");
     } finally {
       setSubmittingExam(false);
@@ -861,7 +882,13 @@ export const MockTestView: React.FC = () => {
 
             <div className="pt-4 border-t border-white/10 flex justify-center">
               <button
-                onClick={() => setActiveTest(null)}
+                onClick={() => {
+                  setActiveTest(null);
+                  setExamSubmitted(false);
+                  examSubmittedRef.current = false;
+                  isSubmittingRef.current = false;
+                  fetchTests();
+                }}
                 className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all cursor-pointer"
               >
                 Close Review & Back to Catalog

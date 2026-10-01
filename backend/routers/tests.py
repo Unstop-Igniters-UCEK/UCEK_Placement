@@ -54,11 +54,12 @@ def get_mock_test_notifications(
     since: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
-    """Return newly published mock tests available to the authenticated student during their active session."""
+    """Return newly published mock tests available to the authenticated student."""
     role = current_user.get("role", "student")
     if role == "admin":
         return {"notifications": []}
 
+    uid = current_user["id"]
     dept_id = current_user.get("department_id")
     if not dept_id:
         dept_code = current_user.get("department_code") or current_user.get("branch")
@@ -68,9 +69,9 @@ def get_mock_test_notifications(
                 dept_id = dept["id"]
 
     year = current_user.get("year")
-    session_start = current_user.get("session_start")
+    persisted_seen_at = db.get_student_notifications_seen_at(uid)
 
-    effective_since = session_start
+    effective_since = persisted_seen_at
     if since:
         try:
             parsed_since = datetime.fromisoformat(since.replace("Z", "+00:00"))
@@ -99,6 +100,26 @@ def get_mock_test_notifications(
         for t in new_tests
     ]
     return {"notifications": notifications}
+
+
+@router.post("/notifications/seen")
+def mark_mock_test_notifications_seen(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Record that the authenticated student has consumed/seen the active mock test notifications.
+    Persists last_mock_test_notifications_seen_at to the student's profile.
+    """
+    if current_user.get("role") != "student":
+        return {"message": "Ignored for non-student"}
+
+    uid = current_user["id"]
+    now = datetime.utcnow()
+    db.update_student_notifications_seen_at(uid, now)
+    return {
+        "message": "Mock test notifications marked as seen.",
+        "seen_at": now.isoformat()
+    }
 
 
 # ─── Test history ─────────────────────────────────────────────────────────────
@@ -340,7 +361,7 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
             detail="Cannot submit: Attempt ownership mismatch."
         )
 
-    # Validate expiration against expires_at
+    # Validate expiration against expires_at with 60s grace period for submission network delay
     expires_at_raw = attempt.get("expires_at")
     if expires_at_raw:
         now_iso = datetime.utcnow().isoformat()
@@ -348,13 +369,12 @@ def submit_test(test_id: str, req: SubmitTestRequest, current_user: dict = Depen
         try:
             exp_str = str(expires_at_raw).replace("Z", "+00:00")
             exp_dt = datetime.fromisoformat(exp_str)
-            now_dt = datetime.utcnow()
-            if exp_dt.tzinfo is not None:
-                from datetime import timezone
-                now_dt = datetime.now(timezone.utc)
-            is_expired = now_dt > exp_dt
+            from datetime import timezone
+            now_dt = datetime.now(timezone.utc) if exp_dt.tzinfo is not None else datetime.utcnow()
+            # 60 second grace period for network transit on timeout / normal submission
+            is_expired = now_dt > (exp_dt + timedelta(seconds=60))
         except Exception:
-            is_expired = now_iso > str(expires_at_raw)
+            is_expired = False
 
         if is_expired:
             supabase_client.table("mock_test_attempts").update({

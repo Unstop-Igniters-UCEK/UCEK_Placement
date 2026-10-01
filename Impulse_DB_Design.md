@@ -152,6 +152,7 @@ Stores student-specific academic and placement information.
 | `readiness_calculated_at` | TIMESTAMPTZ | Nullable |
 | `onboarding_source` | ENUM / TEXT | `admin` or `self` |
 | `onboarded_by` | UUID | Nullable; FK → `users.id` (admin) |
+| `last_mock_test_notifications_seen_at` | TIMESTAMPTZ | Nullable; timestamp when student last consumed mock test notifications |
 | `created_at` | TIMESTAMPTZ | Required |
 | `updated_at` | TIMESTAMPTZ | Required |
 

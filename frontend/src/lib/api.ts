@@ -820,6 +820,15 @@ export async function getMockTestNotificationsApi(since?: string): Promise<{ not
   return res.json();
 }
 
+export async function markMockTestNotificationsSeenApi(): Promise<{ message: string; seen_at: string }> {
+  const res = await authFetch(`${BASE_URL}/api/tests/notifications/seen`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to mark notifications as seen');
+  return res.json();
+}
+
 export async function uploadCSVTest(data: {
   title: string;
   duration: number;
@@ -1040,6 +1049,7 @@ export async function updateAdminRegistrationSettingApi(
 export const api = {
   getTests,
   getMockTestNotificationsApi,
+  markMockTestNotificationsSeenApi,
   getMockDrivePracticeSummaryApi,
   uploadCSVTest,
   startTest,

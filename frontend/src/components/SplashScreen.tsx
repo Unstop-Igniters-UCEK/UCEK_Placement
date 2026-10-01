@@ -49,7 +49,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
     const textTimer = setTimeout(() => {
       setShowText(true);
 
-      // Short hold after text appears (450ms)
+      // Noticeable hold after "Impulse" text appears (900ms delay before vertical rectangle cascade)
       holdTimer = setTimeout(() => {
         setIsTransitioning(true);
 
@@ -57,7 +57,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
         exitTimer = setTimeout(() => {
           onComplete();
         }, 1050);
-      }, 450);
+      }, 900);
     }, 1150);
 
     return () => {

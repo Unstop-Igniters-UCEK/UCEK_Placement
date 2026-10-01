@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   User,
   UserRole,
@@ -32,6 +32,7 @@ import {
   clearStoredToken,
   getResumeApi,
   getMockTestNotificationsApi,
+  markMockTestNotificationsSeenApi,
   MockTestNotification
 } from '../lib/api';
 
@@ -68,7 +69,8 @@ interface AppContextType {
   // Mock Test Notifications (Current Session Only)
   notifications: MockTestNotification[];
   unreadNotificationsCount: number;
-  markNotificationsAsRead: () => void;
+  markNotificationsAsRead: (ids?: string[]) => void;
+  markNotificationAsRead: (id: string) => void;
   highlightedTestId: string | null;
   setHighlightedTestId: (id: string | null) => void;
 
@@ -104,17 +106,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // In-Memory Mock Test Notifications (Current Session Only)
   const [notifications, setNotifications] = useState<MockTestNotification[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(new Set());
+  const readNotificationIdsRef = useRef<Set<string>>(new Set());
   const [highlightedTestId, setHighlightedTestId] = useState<string | null>(null);
 
-  const markNotificationsAsRead = useCallback(() => {
-    setReadNotificationIds(prev => {
-      const next = new Set(prev);
-      notifications.forEach(n => next.add(n.id));
-      return next;
-    });
-  }, [notifications]);
+  const markNotificationsAsRead = useCallback((ids?: string[]) => {
+    setNotifications(prev => {
+      const idsToMark = ids && ids.length > 0 ? new Set(ids) : new Set(prev.map(n => n.id));
+      if (idsToMark.size === 0) return prev;
 
-  const unreadNotificationsCount = notifications.filter(n => !readNotificationIds.has(n.id)).length;
+      idsToMark.forEach(id => readNotificationIdsRef.current.add(id));
+      setReadNotificationIds(new Set(readNotificationIdsRef.current));
+
+      return prev.filter(n => !idsToMark.has(n.id));
+    });
+
+    // Persist seen timestamp to backend
+    markMockTestNotificationsSeenApi().catch(err => {
+      console.warn('Failed to persist notification seen timestamp:', err);
+    });
+  }, []);
+
+  const markNotificationAsRead = useCallback((id: string) => {
+    readNotificationIdsRef.current.add(id);
+    setReadNotificationIds(new Set(readNotificationIdsRef.current));
+    setNotifications(prev => prev.filter(n => n.id !== id));
+
+    // Persist seen timestamp to backend
+    markMockTestNotificationsSeenApi().catch(err => {
+      console.warn('Failed to persist notification seen timestamp:', err);
+    });
+  }, []);
+
+  const unreadNotificationsCount = notifications.filter(n => !readNotificationIdsRef.current.has(n.id)).length;
 
   const setSelectedTargetDrive = useCallback((driveLabel: string) => {
     setSelectedTargetDriveState(driveLabel);
@@ -145,6 +168,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setResumeData(EMPTY_RESUME_DATA);
       setNotifications([]);
       setReadNotificationIds(new Set());
+      readNotificationIdsRef.current.clear();
       setHighlightedTestId(null);
       setActiveTab('dashboard');
     };
@@ -277,6 +301,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!user || user.role === 'admin') {
       setNotifications([]);
       setReadNotificationIds(new Set());
+      readNotificationIdsRef.current.clear();
       return;
     }
 
@@ -289,7 +314,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         setNotifications(prev => {
           const existingIds = new Set(prev.map(item => item.id));
-          const incoming = res.notifications.filter(item => !existingIds.has(item.id));
+          const incoming = res.notifications.filter(
+            item => !existingIds.has(item.id) && !readNotificationIdsRef.current.has(item.id)
+          );
           if (incoming.length === 0) return prev;
           return [...incoming, ...prev];
         });
@@ -538,6 +565,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setResumeData(EMPTY_RESUME_DATA);
     setNotifications([]);
     setReadNotificationIds(new Set());
+    readNotificationIdsRef.current.clear();
     setHighlightedTestId(null);
     setActiveTab('dashboard');
   }, []);
@@ -726,6 +754,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     notifications,
     unreadNotificationsCount,
     markNotificationsAsRead,
+    markNotificationAsRead,
     highlightedTestId,
     setHighlightedTestId
   }), [
@@ -765,6 +794,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     notifications,
     unreadNotificationsCount,
     markNotificationsAsRead,
+    markNotificationAsRead,
     highlightedTestId,
     setHighlightedTestId
   ]);

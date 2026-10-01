@@ -105,6 +105,7 @@ class Database:
     def __init__(self):
         self.revokedTokens: List[str] = []
         self.otp_store: Dict[str, Dict[str, Any]] = {}
+        self._student_notifications_seen_cache: Dict[str, datetime] = {}
         self._seed_default_admin()
 
     # ── Internal helpers ───────────────────────────────────────────────────────
@@ -678,11 +679,11 @@ class Database:
                             from datetime import timezone
                             if pub_dt.tzinfo is not None:
                                 s_aware = since.replace(tzinfo=timezone.utc) if since.tzinfo is None else since
-                                if pub_dt < s_aware:
+                                if pub_dt <= s_aware:
                                     continue
                             else:
                                 s_naive = since.replace(tzinfo=None) if since.tzinfo is not None else since
-                                if pub_dt < s_naive:
+                                if pub_dt <= s_naive:
                                     continue
                         except Exception as dt_err:
                             print("[DB published_at parse error]:", dt_err)
@@ -720,6 +721,41 @@ class Database:
         except Exception as e:
             print("[DB get_published_tests_for_student]:", e)
         return []
+
+    def get_student_notifications_seen_at(self, user_id: str) -> Optional[datetime]:
+        """Fetch the persistent last_mock_test_notifications_seen_at timestamp for a student."""
+        uid_str = str(user_id)
+        if supabase_client:
+            try:
+                res = supabase_client.table("student_profiles").select("last_mock_test_notifications_seen_at").eq("user_id", uid_str).execute()
+                if res.data and len(res.data) > 0:
+                    val = res.data[0].get("last_mock_test_notifications_seen_at")
+                    if val:
+                        clean_str = str(val).replace("Z", "+00:00")
+                        dt = datetime.fromisoformat(clean_str)
+                        self._student_notifications_seen_cache[uid_str] = dt
+                        return dt
+            except Exception as e:
+                # Column may not exist yet before migration SQL is run in Supabase
+                pass
+        return self._student_notifications_seen_cache.get(uid_str)
+
+    def update_student_notifications_seen_at(self, user_id: str, seen_at: Optional[datetime] = None) -> bool:
+        """Update last_mock_test_notifications_seen_at for a student in student_profiles."""
+        if seen_at is None:
+            seen_at = datetime.utcnow()
+        uid_str = str(user_id)
+        self._student_notifications_seen_cache[uid_str] = seen_at
+        if not supabase_client:
+            return True
+        try:
+            supabase_client.table("student_profiles").update({
+                "last_mock_test_notifications_seen_at": seen_at.isoformat()
+            }).eq("user_id", uid_str).execute()
+            return True
+        except Exception as e:
+            print(f"[DB update_student_notifications_seen_at {uid_str}]:", e)
+            return True
 
     def get_all_published_tests(self) -> List[Dict[str, Any]]:
         """Return all published mock tests (for admin)."""
