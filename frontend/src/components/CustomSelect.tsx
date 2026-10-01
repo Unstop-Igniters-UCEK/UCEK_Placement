@@ -13,6 +13,7 @@ interface CustomSelectProps {
   options: (string | SelectOption)[];
   placeholder?: string;
   className?: string;
+  triggerClassName?: string;
   disabled?: boolean;
   direction?: 'up' | 'down' | 'auto';
 }
@@ -23,6 +24,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   options,
   placeholder = 'Select option...',
   className = '',
+  triggerClassName = '',
   disabled = false,
   direction = 'auto',
 }) => {
@@ -44,9 +46,20 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         setOpenUpward(false);
       } else {
         const rect = containerRef.current.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - rect.bottom;
-        // If space below is constrained (< 220px) and there is sufficient space above, open upwards
-        if (spaceBelow < 220 && rect.top > spaceBelow) {
+        let spaceBelow = window.innerHeight - rect.bottom;
+        
+        // Check if constrained by an ancestor scroll container (like table overflow)
+        const scrollParent = containerRef.current.closest('.overflow-x-auto, .overflow-y-auto, .overflow-auto');
+        if (scrollParent) {
+          const parentRect = scrollParent.getBoundingClientRect();
+          const spaceInParentBelow = parentRect.bottom - rect.bottom;
+          if (spaceInParentBelow < spaceBelow) {
+            spaceBelow = spaceInParentBelow;
+          }
+        }
+
+        // If space below is constrained (< 180px) and there is sufficient space above, open upwards
+        if (spaceBelow < 180 && rect.top > spaceBelow) {
           setOpenUpward(true);
         } else {
           setOpenUpward(false);
@@ -76,13 +89,13 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   }, [isOpen]);
 
   return (
-    <div className={`relative w-full ${isOpen ? 'z-30' : 'z-10'} ${className}`} ref={containerRef}>
+    <div className={`relative w-full ${isOpen ? 'z-50' : 'z-10'} ${className}`} ref={containerRef}>
       {/* Trigger Button */}
       <button
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full px-4 py-2.5 rounded-full bg-black/40 hover:bg-black/60 border ${
+        className={`w-full ${triggerClassName || 'px-4 py-2.5'} rounded-full bg-black/40 hover:bg-black/60 border ${
           isOpen ? 'border-white ring-1 ring-white/30' : 'border-white/15 hover:border-white/30'
         } text-white text-xs flex items-center justify-between gap-2 transition-all font-sans cursor-pointer outline-none ${
           disabled ? 'opacity-50 cursor-not-allowed' : ''

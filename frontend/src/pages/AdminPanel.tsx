@@ -30,6 +30,11 @@ const itemVariants: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.24, ease: [0.23, 1, 0.32, 1] } },
 };
 
+const ROLE_OPTIONS = [
+  { value: 'mentee', label: 'Student' },
+  { value: 'admin', label: 'Admin (TPO)' }
+];
+
 const KpiCard = ({ icon: Icon, label, value, sub }: { icon: React.ElementType; label: string; value: number | string; sub: string }) => (
   <div className="mono-card mono-card-hover p-3.5 space-y-2.5 flex flex-col justify-between group relative overflow-hidden">
     <div className="flex items-center justify-between">
@@ -103,9 +108,53 @@ export const AdminPanel: React.FC = React.memo(() => {
   useEffect(() => { fetchAdminData(); }, [fetchAdminData]);
   useEffect(() => { fetchAdminStudents(); }, [fetchAdminStudents]);
 
-  const filteredAdminUsersList = useMemo(() =>
-    adminUsersList.filter(u => !searchQuery.trim() || u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())),
-    [adminUsersList, searchQuery]);
+  // All Accounts & Roles filters and pagination state
+  const [accountSearchQuery, setAccountSearchQuery] = useState('');
+  const [accountYearFilter, setAccountYearFilter] = useState('All Years');
+  const [accountDeptFilter, setAccountDeptFilter] = useState('All Departments');
+  const [accountPage, setAccountPage] = useState(1);
+
+  const filteredAdminUsersList = useMemo(() => {
+    return adminUsersList.filter(u => {
+      // 1. Search Query
+      if (accountSearchQuery.trim()) {
+        const q = accountSearchQuery.toLowerCase();
+        const matchesName = (u.name || '').toLowerCase().includes(q);
+        const matchesEmail = (u.email || '').toLowerCase().includes(q);
+        if (!matchesName && !matchesEmail) return false;
+      }
+
+      // 2. Year Filter
+      if (accountYearFilter !== 'All Years') {
+        const uYear = String(u.year || '').toLowerCase();
+        const digit = accountYearFilter.charAt(0);
+        if (!uYear.includes(digit)) return false;
+      }
+
+      // 3. Department Filter (Only 3 departments: CSE, ECE, IT)
+      if (accountDeptFilter !== 'All Departments') {
+        const uBranch = String(u.branch || u.dept || '').toUpperCase();
+        const target = accountDeptFilter.toUpperCase();
+        if (target === 'CSE' && !(uBranch.includes('CSE') || uBranch.includes('CS') || uBranch.includes('COMPUTER'))) return false;
+        if (target === 'ECE' && !(uBranch.includes('ECE') || uBranch.includes('EC') || uBranch.includes('ELECTRONIC'))) return false;
+        if (target === 'IT' && !(uBranch.includes('IT') || uBranch.includes('INFORMATION'))) return false;
+      }
+
+      return true;
+    });
+  }, [adminUsersList, accountSearchQuery, accountYearFilter, accountDeptFilter]);
+
+  useEffect(() => {
+    setAccountPage(1);
+  }, [accountSearchQuery, accountYearFilter, accountDeptFilter]);
+
+  const ACCOUNTS_PER_PAGE = 10;
+  const totalAccountPages = Math.max(1, Math.ceil(filteredAdminUsersList.length / ACCOUNTS_PER_PAGE));
+  const safeAccountPage = Math.min(accountPage, totalAccountPages);
+  const paginatedAccounts = filteredAdminUsersList.slice(
+    (safeAccountPage - 1) * ACCOUNTS_PER_PAGE,
+    safeAccountPage * ACCOUNTS_PER_PAGE
+  );
 
   const kpis = {
     totalStudents: dashboardStats?.kpis?.totalStudents || 0,
@@ -401,54 +450,184 @@ export const AdminPanel: React.FC = React.memo(() => {
       {activeTab === 'admin-roles' && (
         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
           <motion.div variants={itemVariants}>
-            <StudentOnboardingView />
+            <StudentOnboardingView onUserCreated={fetchAdminData} />
           </motion.div>
 
           {/* All Accounts table */}
-          <motion.div variants={itemVariants} className="mono-card p-4 sm:p-6 space-y-5 min-w-0 overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <motion.div variants={itemVariants} className="mono-card p-4 sm:p-6 space-y-5 min-w-0">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-white/10 pb-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-orange-400 shrink-0" />
                   <h2 className="font-bold text-base text-white font-heading">All Accounts &amp; Roles</h2>
                 </div>
-                <p className="text-xs text-zinc-400">Manage role assignment for registered accounts</p>
+                <p className="text-xs text-zinc-400">Manage role assignment and directory for registered accounts</p>
               </div>
-              <span className="text-xs text-zinc-500 font-medium">{filteredAdminUsersList.length} registered</span>
+
+              {/* Filtering & Search Controls */}
+              <div className="flex items-center gap-2.5 flex-wrap">
+                {/* Year Filter */}
+                <div className="w-32 sm:w-36">
+                  <CustomSelect
+                    value={accountYearFilter}
+                    onChange={setAccountYearFilter}
+                    options={['All Years', '1st Year', '2nd Year', '3rd Year', '4th Year']}
+                  />
+                </div>
+
+                {/* Department Filter (Only CSE, ECE, IT) */}
+                <div className="w-40 sm:w-44">
+                  <CustomSelect
+                    value={accountDeptFilter}
+                    onChange={setAccountDeptFilter}
+                    options={['All Departments', 'CSE', 'ECE', 'IT']}
+                  />
+                </div>
+
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={accountSearchQuery}
+                    onChange={e => setAccountSearchQuery(e.target.value)}
+                    placeholder="Search account..."
+                    className="bg-[#2a2e2f] border border-white/10 text-sm text-white pl-9 pr-4 py-2 rounded-full outline-none focus:border-orange-500/40 focus:ring-1 focus:ring-orange-500/20 transition-all placeholder-zinc-600 w-40 sm:w-48"
+                  />
+                </div>
+
+                <span className="text-xs text-zinc-500 font-medium tabular-nums shrink-0">{filteredAdminUsersList.length} total</span>
+              </div>
             </div>
-            <div className="overflow-x-auto border border-white/10 rounded-lg bg-[#0d0d0d] shadow-inner">
-              <table className="w-full min-w-[560px] text-left border-collapse font-sans">
-                <thead>
-                  <tr className="bg-[#000000] border-b border-white/10 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-                    <th className="p-4 pl-5">Name</th>
-                    <th className="p-4">Email</th>
-                    <th className="p-4">Branch &middot; Year</th>
-                    <th className="p-4">Readiness</th>
-                    <th className="p-4 pr-5">Role</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10 text-xs text-white">
-                  {filteredAdminUsersList.map(u => (
-                    <tr key={u.id} className="hover:bg-[#141414] transition-colors">
-                      <td className="p-4 pl-5 font-semibold text-white text-[13px] font-heading">{u.name}</td>
-                      <td className="p-4 text-zinc-500 text-xs">{u.email}</td>
-                      <td className="p-4 text-zinc-400 text-[13px]">{u.branch} &middot; {u.year}</td>
-                      <td className="p-4 font-semibold text-[13px] text-orange-400 tabular-nums">{u.readinessScore}%</td>
-                      <td className="p-4 pr-5">
-                        <select
-                          value={u.role}
-                          onChange={e => updateUserRoleInAdmin(u.id, e.target.value as UserRole)}
-                          className="bg-[#141414] border border-white/10 text-sm text-white px-3 py-1.5 rounded-lg outline-none focus:border-orange-500/40 cursor-pointer transition-colors"
-                        >
-                          <option value="mentee" className="bg-[#0d0d0d]">Student</option>
-                          <option value="admin" className="bg-[#0d0d0d]">Admin (TPO)</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+
+            {filteredAdminUsersList.length === 0 ? (
+              <div className="py-12 text-center space-y-3 bg-[#141414] border border-white/10 rounded-xl">
+                <Users className="w-8 h-8 text-zinc-600 mx-auto" />
+                <p className="text-xs font-semibold text-zinc-400">No accounts match the selected search and filter criteria.</p>
+                {(accountSearchQuery || accountYearFilter !== 'All Years' || accountDeptFilter !== 'All Departments') && (
+                  <button
+                    onClick={() => {
+                      setAccountSearchQuery('');
+                      setAccountYearFilter('All Years');
+                      setAccountDeptFilter('All Departments');
+                    }}
+                    className="text-xs text-orange-400 hover:underline font-medium cursor-pointer"
+                  >
+                    Clear all filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4 min-w-0">
+                <div className="overflow-x-auto md:overflow-visible border border-white/10 rounded-lg bg-[#0d0d0d] shadow-inner">
+                  <table className="w-full min-w-[620px] text-left border-collapse font-sans">
+                    <thead>
+                      <tr className="bg-[#000000] border-b border-white/10 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                        <th className="p-4 pl-5">Account</th>
+                        <th className="p-4">Branch</th>
+                        <th className="p-4">Year</th>
+                        <th className="p-4">Readiness</th>
+                        <th className="p-4 pr-5">Assigned Role</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/10 text-xs text-white">
+                      {paginatedAccounts.map(u => (
+                        <tr key={u.id} className="hover:bg-[#141414] transition-colors group">
+                          <td className="p-4 pl-5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-[#18181b] border border-white/10 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                {u.name?.charAt(0)?.toUpperCase() || 'U'}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-white text-[13px] font-heading block group-hover:text-orange-400 transition-colors">
+                                  {u.name}
+                                </span>
+                                <span className="text-zinc-500 text-xs font-mono">{u.email}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <span className="mono-badge rounded-full px-2.5 py-0.5 bg-[#141414] border border-white/10 text-zinc-300 font-medium text-[11px]">
+                              {u.branch || '—'}
+                            </span>
+                          </td>
+                          <td className="p-4 text-zinc-400 text-xs">{u.year ? `${u.year}` : '—'}</td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 bg-[#000000] rounded-full h-1.5 overflow-hidden border border-white/10">
+                                <div
+                                  className="bg-orange-500 h-full rounded-full"
+                                  style={{ width: `${Math.min(100, Math.max(0, u.readinessScore || 0))}%` }}
+                                />
+                              </div>
+                              <span className="font-semibold text-orange-400 text-xs tabular-nums">{u.readinessScore ?? 0}%</span>
+                            </div>
+                          </td>
+                          <td className="p-4 pr-5">
+                            <div className="w-36">
+                              <CustomSelect
+                                value={u.role || 'mentee'}
+                                onChange={val => updateUserRoleInAdmin(u.id, val as UserRole)}
+                                options={ROLE_OPTIONS}
+                                triggerClassName="px-3.5 py-1.5"
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {totalAccountPages > 1 && (
+                  <div className="flex items-center justify-between pt-2 border-t border-white/10 gap-3 flex-wrap">
+                    <div className="text-xs text-zinc-500 font-medium">
+                      Showing {(safeAccountPage - 1) * ACCOUNTS_PER_PAGE + 1}&ndash;{Math.min(safeAccountPage * ACCOUNTS_PER_PAGE, filteredAdminUsersList.length)} of {filteredAdminUsersList.length}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setAccountPage(p => Math.max(1, p - 1))}
+                        disabled={safeAccountPage === 1}
+                        className="px-3 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] disabled:opacity-40 disabled:cursor-not-allowed border border-white/10 text-zinc-300 hover:text-white transition-all text-xs font-semibold flex items-center gap-1 cursor-pointer active:scale-[0.97]"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>Prev</span>
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalAccountPages }).map((_, idx) => {
+                          const pageNum = idx + 1;
+                          const isCurrent = pageNum === safeAccountPage;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setAccountPage(pageNum)}
+                              className={`w-7 h-7 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                                isCurrent
+                                  ? 'bg-orange-500 text-black shadow-md'
+                                  : 'text-zinc-400 hover:text-white hover:bg-white/10'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        onClick={() => setAccountPage(p => Math.min(totalAccountPages, p + 1))}
+                        disabled={safeAccountPage === totalAccountPages}
+                        className="px-3 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] disabled:opacity-40 disabled:cursor-not-allowed border border-white/10 text-zinc-300 hover:text-white transition-all text-xs font-semibold flex items-center gap-1 cursor-pointer active:scale-[0.97]"
+                      >
+                        <span>Next</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </motion.div>
         </motion.div>
       )}

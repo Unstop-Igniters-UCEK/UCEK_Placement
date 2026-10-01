@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   UserPlus,
-  ShieldCheck,
   Zap,
   Mail,
   FileSpreadsheet,
@@ -24,7 +23,17 @@ interface CSVRowParsed {
   year?: string;
 }
 
-export const StudentOnboardingView: React.FC = React.memo(() => {
+interface StudentOnboardingViewProps {
+  onUserCreated?: () => void;
+}
+
+const SUPPORTED_DEPTS = [
+  'Computer Science (CSE)',
+  'Electronics & Comm (ECE)',
+  'Information Technology (IT)',
+];
+
+export const StudentOnboardingView: React.FC<StudentOnboardingViewProps> = React.memo(({ onUserCreated }) => {
   // Student Self-Registration Toggle States
   const [selfRegEnabled, setSelfRegEnabled] = useState<boolean>(false);
   const [isLoadingSetting, setIsLoadingSetting] = useState<boolean>(true);
@@ -65,9 +74,10 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
       setIsSavingSetting(false);
     }
   };
+
   // CARD 1: Direct Email Batch States
   const [emailYear, setEmailYear] = useState('4th Year');
-  const [emailBranch, setEmailBranch] = useState('Computer Science (CSE)');
+  const [emailBranch, setEmailBranch] = useState(SUPPORTED_DEPTS[0]);
   const [emailRawInput, setEmailRawInput] = useState('');
   const [nameRawInput, setNameRawInput] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
@@ -88,9 +98,6 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
     const bUpper = branch.toUpperCase();
     if (bUpper.includes('ELECTRONIC') || bUpper.includes('ECE') || bUpper.includes('EC')) code = 'ECE';
     else if (bUpper.includes('INFO') || bUpper.includes('IT')) code = 'IT';
-    else if (bUpper.includes('EEE') || bUpper.includes('ELECTRI')) code = 'EEE';
-    else if (bUpper.includes('MECH') || bUpper.includes('ME')) code = 'ME';
-    else if (bUpper.includes('BIO') || bUpper.includes('BT')) code = 'BT';
 
     let yr = '2026';
     if (year.includes('4')) yr = '2026';
@@ -144,6 +151,7 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
       });
       setEmailRawInput('');
       setNameRawInput('');
+      onUserCreated?.();
     } catch (err: any) {
       setEmailError(err.message || 'Failed to provision student emails.');
     } finally {
@@ -213,9 +221,9 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
       if (rowVals.length === 0 || (rowVals.length === 1 && !rowVals[0])) continue;
 
       const rowDept = (rowVals[deptIdx] || '').trim().toLowerCase();
-      if (!['cs', 'ec', 'it'].includes(rowDept)) {
+      if (!['cs', 'cse', 'ec', 'ece', 'it'].includes(rowDept)) {
         throw new Error(
-          `Invalid department '${rowVals[deptIdx] || ''}' at row ${r + 1}. The only allowed department values are: cs, ec, it.`
+          `Invalid department '${rowVals[deptIdx] || ''}' at row ${r + 1}. The only allowed department values are: CSE, ECE, IT.`
         );
       }
 
@@ -289,6 +297,7 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
       setCsvFile(null);
       setParsedCSVRows([]);
       setCsvParseSuccessMsg(null);
+      onUserCreated?.();
     } catch (err: any) {
       setCsvError(err.message || 'Failed to provision CSV student batch.');
     } finally {
@@ -296,85 +305,87 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
     }
   };
 
-  const inputCls = "w-full bg-[#09090b] text-xs text-white p-3 rounded-xl border border-[#27272a] outline-none focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/30 transition-all placeholder-zinc-600 font-sans";
-  const labelCls = "block text-xs font-semibold text-zinc-300 mb-1.5 tracking-wide";
+  const inputCls = "w-full bg-[#141414] text-xs text-white p-3 rounded-2xl border border-white/10 outline-none focus:border-white focus:ring-1 focus:ring-white/30 transition-all placeholder-zinc-500 font-sans";
+  const labelCls = "block text-xs font-medium text-zinc-400 mb-1.5 tracking-wide";
 
   return (
-    <div className="w-full text-white font-sans max-w-[1280px] mx-auto space-y-6">
-      {/* ── HEADER SECTION ── */}
+    <div className="w-full text-white font-sans max-w-7xl mx-auto space-y-6">
+      {/* ── HERO HEADER (Consistent with Student Dashboard & AdminPanel) ── */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl bg-[#18181b] border border-[#27272a] backdrop-blur-xl p-6 shadow-xl"
+        transition={{ duration: 0.24, ease: [0.23, 1, 0.32, 1] }}
+        className="py-1"
       >
-        <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-gradient-to-b from-orange-500 via-amber-400 to-orange-600 rounded-l-2xl" />
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pl-2">
-          <div className="space-y-1.5">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+          <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/10 border border-orange-500/25 text-[11px] font-semibold text-orange-400">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Admin Authorization Active
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-[11px] font-semibold text-amber-300">
-                <Zap className="w-3.5 h-3.5" />
+              <span className="mono-badge rounded-full text-zinc-300 bg-white/5 border-white/10 font-medium">
+                <Zap className="w-3 h-3 inline mr-1 text-amber-400" />
                 Automated Credential Generation
               </span>
+              <span className="text-[11px] text-zinc-600 font-medium tabular-nums hidden sm:inline">
+                {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-heading tracking-tight" style={{ letterSpacing: '-0.02em' }}>
-              Student Onboarding & Provisioning
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight font-heading" style={{ letterSpacing: '-0.03em' }}>
+              Student Onboarding &amp; Provisioning
             </h1>
-            <p className="text-xs text-zinc-400 leading-relaxed max-w-2xl">
+            <p className="text-sm text-zinc-400 leading-relaxed max-w-xl">
               Batch provision new student accounts via direct email list input or CSV spreadsheets for placement drives.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
-            {/* Student Self-Registration Authoritative Toggle Control */}
-            <div className="flex items-center gap-3.5 bg-[#111115] border border-[#27272a] hover:border-white/20 transition-colors rounded-2xl px-4 py-2.5 shadow-md">
-              <div className="text-left">
-                <div className="text-xs font-semibold text-white tracking-tight flex items-center gap-1.5">
-                  <span>Student Self-Registration</span>
+
+          <div className="shrink-0">
+            {/* Student Self-Registration Toggle Control */}
+            <div className="flex items-center gap-4 bg-[#141414] hover:bg-[#17171a] border border-white/10 rounded-2xl p-3.5 px-4 transition-colors shadow-sm">
+              <div className="text-left space-y-0.5">
+                <div className="text-xs font-semibold text-white tracking-tight flex items-center gap-1.5 font-heading">
+                  <span>Public Registration</span>
                   {isSavingSetting && <Loader2 className="w-3 h-3 animate-spin text-orange-400" />}
                 </div>
-                <div className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                <div>
                   {isLoadingSetting ? (
-                    'Checking...'
+                    <span className="text-[11px] text-zinc-500">Syncing status...</span>
                   ) : selfRegEnabled ? (
-                    <span className="text-emerald-400 font-semibold">PUBLIC SIGNUP: ON</span>
+                    <div className="flex items-center gap-1.5 text-[11px] text-zinc-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+                      <span>Open &bull; Students can self-register</span>
+                    </div>
                   ) : (
-                    <span className="text-zinc-400 font-semibold">PUBLIC SIGNUP: OFF</span>
+                    <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 shrink-0" />
+                      <span>Closed &bull; Admin provisioning only</span>
+                    </div>
                   )}
                 </div>
               </div>
 
               <button
                 type="button"
+                role="switch"
+                aria-checked={selfRegEnabled}
                 onClick={handleToggleSelfRegistration}
                 disabled={isSavingSetting || isLoadingSetting}
-                className={`relative inline-flex items-center h-7 w-16 rounded-full transition-colors duration-200 ease-in-out cursor-pointer focus:outline-none select-none ${
-                  selfRegEnabled ? 'bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.4)]' : 'bg-zinc-800 border border-zinc-700'
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50 disabled:opacity-40 disabled:cursor-not-allowed ${
+                  selfRegEnabled ? 'bg-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.35)]' : 'bg-zinc-800'
                 }`}
-                title={`Click to turn ${selfRegEnabled ? 'OFF' : 'ON'} Student Self-Registration`}
-                aria-pressed={selfRegEnabled}
+                title={selfRegEnabled ? 'Click to disable public student registration' : 'Click to enable public student registration'}
               >
-                <span className="sr-only">Toggle Student Self-Registration</span>
+                <span className="sr-only">Toggle public student registration</span>
                 <span
-                  className={`inline-block w-5 h-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out flex items-center justify-center text-[9px] font-black tracking-tight ${
-                    selfRegEnabled ? 'translate-x-9 text-orange-600' : 'translate-x-1 text-zinc-700'
+                  aria-hidden="true"
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                    selfRegEnabled ? 'translate-x-5' : 'translate-x-0'
                   }`}
-                >
-                  {selfRegEnabled ? 'ON' : 'OFF'}
-                </span>
+                />
               </button>
-            </div>
-
-            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
-              <UserPlus className="w-6 h-6" />
             </div>
           </div>
         </div>
 
         {settingError && (
-          <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-2">
+          <div className="mt-3 p-3 rounded-full px-5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
               <span>{settingError}</span>
@@ -390,24 +401,24 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
         )}
       </motion.div>
 
-      {/* ── TWO SIDE-BY-SIDE RESPONSIVE CARDS ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* ── TWO SIDE-BY-SIDE PROVISIONING CARDS ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-20">
         {/* CARD 1: Direct Email Batch Provisioning */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="bg-[#18181b] border border-[#27272a] rounded-2xl p-6 space-y-5 shadow-xl flex flex-col justify-between"
+          transition={{ duration: 0.24 }}
+          className="mono-card p-5 sm:p-6 space-y-5 flex flex-col justify-between"
         >
           <div className="space-y-5">
-            <div className="flex items-center justify-between border-b border-[#27272a] pb-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/25 text-orange-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
                   <Mail className="w-4 h-4" />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white font-heading tracking-tight">Direct Email Batch Provisioning</h2>
-                  <p className="text-[11px] text-zinc-400">Paste multiple email addresses to auto-create student accounts.</p>
+                  <p className="text-xs text-zinc-400">Paste multiple student email addresses to auto-create accounts</p>
                 </div>
               </div>
             </div>
@@ -427,14 +438,7 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
                   <CustomSelect
                     value={emailBranch}
                     onChange={setEmailBranch}
-                    options={[
-                      'Computer Science (CSE)',
-                      'Electronics & Comm (ECE)',
-                      'Information Technology (IT)',
-                      'Electrical & Electronics (EEE)',
-                      'Mechanical Engg',
-                      'Biotechnology'
-                    ]}
+                    options={SUPPORTED_DEPTS}
                   />
                 </div>
               </div>
@@ -447,43 +451,43 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
                     value={nameRawInput}
                     onChange={e => setNameRawInput(e.target.value)}
                     placeholder="John Doe, Alice Smith&#10;Bob Miller"
-                    className={`${inputCls} resize-none leading-relaxed font-sans text-[11px]`}
+                    className={`${inputCls} resize-none leading-relaxed font-sans text-xs`}
                   />
-                  <p className="text-[10px] text-zinc-500 mt-1">One per line/comma. Matches line order of emails below.</p>
+                  <p className="text-[10px] text-zinc-500 mt-1">One per line/comma. Matches order of emails.</p>
                 </div>
                 <div>
-                  <label className={labelCls}>Student Email Addresses</label>
+                  <label className={labelCls}>Student Email Addresses <span className="text-orange-400">*</span></label>
                   <textarea
                     rows={4}
                     required
                     value={emailRawInput}
                     onChange={e => setEmailRawInput(e.target.value)}
                     placeholder="john.doe@college.edu, alice.smith@college.edu&#10;bob.miller@college.edu"
-                    className={`${inputCls} resize-none leading-relaxed font-mono text-[11px]`}
+                    className={`${inputCls} resize-none leading-relaxed font-mono text-xs`}
                   />
-                  <p className="text-[10px] text-zinc-500 mt-1">Accepts comma-separated or newline-separated student emails.</p>
+                  <p className="text-[10px] text-zinc-500 mt-1">Comma or newline separated student emails.</p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-[#09090b] border border-[#27272a] flex items-center gap-2.5">
-                <KeyRound className="w-4 h-4 text-orange-400 shrink-0" />
-                <div className="text-[11px] text-zinc-300">
-                  Default Password Format:{' '}
-                  <span className="font-mono font-bold text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">
-                    {getHelperDefaultPassword(emailBranch, emailYear)}
-                  </span>
+              <div className="p-3 rounded-full px-4 bg-[#0d0d0d] border border-white/10 flex items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                  <span className="text-xs text-zinc-300">Default Password Format:</span>
                 </div>
+                <span className="font-mono font-bold text-orange-400 bg-orange-500/10 px-2.5 py-0.5 rounded-full border border-orange-500/20 text-xs">
+                  {getHelperDefaultPassword(emailBranch, emailYear)}
+                </span>
               </div>
 
               {emailError && (
-                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-full px-5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                   <span>{emailError}</span>
                 </div>
               )}
 
               {emailSuccess && (
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs space-y-1">
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs space-y-1">
                   <div className="flex items-center gap-1.5 font-bold text-emerald-400">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Email Batch Provisioning Complete!</span>
@@ -491,9 +495,8 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
                   <p className="text-[11px]">
                     Successfully created <strong className="text-white">{emailSuccess.createdCount}</strong> student account(s). Skipped <strong className="text-white">{emailSuccess.skippedCount}</strong> duplicate/invalid email(s).
                   </p>
-                  <div className="pt-1 text-[11px]">
-                    Default Password assigned:{' '}
-                    <span className="font-mono text-orange-300 font-bold">{emailSuccess.defaultPassword}</span>
+                  <div className="pt-0.5 text-[11px]">
+                    Default Password: <span className="font-mono text-orange-300 font-bold">{emailSuccess.defaultPassword}</span>
                   </div>
                 </div>
               )}
@@ -501,7 +504,7 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
               <button
                 type="submit"
                 disabled={emailLoading}
-                className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 active:bg-orange-600 text-black font-semibold text-xs transition-all duration-150 cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-orange-500/10"
+                className="btn-primary w-full py-2.5 px-6 rounded-full text-xs font-bold text-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed font-heading"
               >
                 {emailLoading ? (
                   <>
@@ -523,24 +526,24 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-[#18181b] border border-[#27272a] rounded-2xl p-6 space-y-5 shadow-xl flex flex-col justify-between"
+          transition={{ duration: 0.24, delay: 0.05 }}
+          className="mono-card p-5 sm:p-6 space-y-5 flex flex-col justify-between"
         >
           <div className="space-y-5">
-            <div className="flex items-center justify-between border-b border-[#27272a] pb-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
                   <FileSpreadsheet className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-white font-heading tracking-tight">CSV Spreadsheet Upload & Validation</h2>
-                  <p className="text-[11px] text-zinc-400">Upload bulk student CSV spreadsheet files with validation.</p>
+                  <h2 className="text-base font-bold text-white font-heading tracking-tight">CSV Spreadsheet Upload &amp; Validation</h2>
+                  <p className="text-xs text-zinc-400">Upload bulk student CSV spreadsheet files with validation</p>
                 </div>
               </div>
             </div>
 
             <form onSubmit={handleCSVBatchSubmit} className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-[#09090b] border border-[#27272a] space-y-2 text-xs">
+              <div className="p-3.5 px-4 rounded-2xl bg-[#0d0d0d] border border-white/10 space-y-2 text-xs">
                 <div className="flex items-center gap-1.5 font-bold text-zinc-200">
                   <Info className="w-3.5 h-3.5 text-amber-400" />
                   <span>Strict CSV Spreadsheet Specification</span>
@@ -552,14 +555,14 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
                   </div>
                   <div>
                     <span className="text-zinc-500 block">Allowed Dept Values:</span>
-                    <span className="font-mono text-amber-300 font-semibold">cs, ec, it</span>
+                    <span className="font-mono text-amber-300 font-semibold">CSE, ECE, IT</span>
                   </div>
                 </div>
               </div>
 
               <div>
                 <label className={labelCls}>Upload CSV File (.csv)</label>
-                <div className="relative border-2 border-dashed border-[#27272a] hover:border-orange-500/40 rounded-xl p-5 text-center bg-[#09090b] transition-colors cursor-pointer group">
+                <div className="relative border-2 border-dashed border-white/15 hover:border-orange-500/40 rounded-2xl p-5 text-center bg-[#141414] hover:bg-[#1a1a1a] transition-all cursor-pointer group">
                   <input
                     type="file"
                     accept=".csv"
@@ -577,21 +580,21 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
               </div>
 
               {csvError && (
-                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-full px-5 bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                   <span className="leading-relaxed">{csvError}</span>
                 </div>
               )}
 
               {csvParseSuccessMsg && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
+                <div className="p-3 rounded-full px-5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>{csvParseSuccessMsg}</span>
                 </div>
               )}
 
               {csvSuccess && (
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs space-y-1">
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs space-y-1">
                   <div className="flex items-center gap-1.5 font-bold text-emerald-400">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>CSV Batch Provisioning Successful!</span>
@@ -605,17 +608,17 @@ export const StudentOnboardingView: React.FC = React.memo(() => {
               <button
                 type="submit"
                 disabled={parsedCSVRows.length === 0 || csvLoading}
-                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-black font-semibold text-xs transition-all duration-150 cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10"
+                className="btn-primary w-full py-2.5 px-6 rounded-full text-xs font-bold text-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed font-heading"
               >
                 {csvLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-black" />
-                    <span>Uploading & Provisioning CSV...</span>
+                    <span>Uploading &amp; Provisioning CSV...</span>
                   </>
                 ) : (
                   <>
                     <FileSpreadsheet className="w-4 h-4 text-black" />
-                    <span>Upload and Provision CSV</span>
+                    <span>Upload &amp; Provision CSV</span>
                   </>
                 )}
               </button>
