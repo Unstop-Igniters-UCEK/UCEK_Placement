@@ -22,7 +22,6 @@ import {
   CheckSquare,
   Activity,
   CheckCircle2,
-  GraduationCap,
   Target,
   ChevronLeft,
   ChevronRight,
@@ -122,8 +121,8 @@ export const Dashboard: React.FC = React.memo(() => {
   if (!user) {
     return (
       <div className="mono-card p-8 text-center max-w-md mx-auto space-y-6 my-20 font-sans shadow-2xl relative overflow-hidden">
-        <div className="w-14 h-14 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center mx-auto shadow-inner">
-          <GraduationCap className="w-7 h-7" />
+        <div className="w-14 h-14 rounded-xl bg-white border border-white/20 flex items-center justify-center mx-auto shadow-inner overflow-hidden p-1">
+          <img src="/new_logo.png" alt="Impulse Logo" className="w-full h-full object-contain" />
         </div>
         <div className="space-y-2 relative z-10">
           <h2 className="text-2xl font-bold text-white tracking-tight font-heading">

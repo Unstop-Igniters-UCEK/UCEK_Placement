@@ -32,9 +32,9 @@ import {
 const LogoMark = ({ size = 9 }: { size?: number }) => (
   <div
     style={{ width: `${size * 4}px`, height: `${size * 4}px` }}
-    className="rounded-xl bg-white text-black flex items-center justify-center shadow-md shrink-0"
+    className="rounded-xl bg-white text-black flex items-center justify-center shadow-md shrink-0 overflow-hidden"
   >
-    <GraduationCap style={{ width: `${size * 2.2}px`, height: `${size * 2.2}px` }} className="text-black" />
+    <img src="/new_logo.png" alt="Impulse Logo" className="w-full h-full object-contain" />
   </div>
 );
 

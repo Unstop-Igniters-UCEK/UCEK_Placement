@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -9,6 +9,7 @@ import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motio
 import Lenis from 'lenis';
 import Maintenance from "./pages/Maintenance";
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { SplashScreen } from './components/SplashScreen';
 
 // Lazy loaded page modules to reduce initial JavaScript parse time
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -30,6 +31,7 @@ export function App() {
 }
 
 function AppContent() {
+  const [splashActive, setSplashActive] = useState(true);
   const { activeTab, user, sidebarOpen } = useApp();
   const lenisRef = useRef<Lenis | null>(null);
 
@@ -86,6 +88,9 @@ function AppContent() {
 
   return (
     <>
+      {/* Dedicated Impulse Initial Splash Screen */}
+      {splashActive && <SplashScreen onComplete={() => setSplashActive(false)} />}
+
       {/* Framer Motion Spring Scroll Progress Indicator Bar */}
       <motion.div
         className="fixed top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-[#F97316] via-amber-500 to-amber-300 z-50 origin-left pointer-events-none"

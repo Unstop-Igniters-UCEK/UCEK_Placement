@@ -47,9 +47,11 @@ export const StudentNavHeader: React.FC = React.memo(() => {
             className="flex items-center gap-3 cursor-pointer group select-none shrink-0"
             title="Return to Dashboard"
           >
-            <div className="w-10 h-10 rounded-xl bg-white overflow-hidden flex items-center justify-center font-bold shadow-md group-hover:scale-105 transition-transform shrink-0 p-1">
-              <img src="/new_logo.png" alt="Impulse" className="w-full h-full object-contain" />
-            </div>
+            <img
+              src="/new_logo.png"
+              alt="Impulse Logo"
+              className="w-10 h-10 rounded-xl object-contain shadow-md group-hover:scale-105 transition-transform shrink-0"
+            />
             <span
               className="text-xl sm:text-2xl font-normal text-white tracking-tight group-hover:text-orange-400 transition-colors hidden sm:inline"
               style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400 }}
