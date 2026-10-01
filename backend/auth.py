@@ -34,11 +34,12 @@ security = HTTPBearer(auto_error=False)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
+    now = datetime.utcnow()
     if expires_delta is not None:
-        expire = datetime.utcnow() + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+        expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"iat": int(now.timestamp()), "exp": expire})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
 
 
@@ -76,7 +77,19 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
     if not user.get("is_active", True):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated.")
-    return user
+
+    # Calculate session_start from token iat or exp (fallback)
+    user_copy = dict(user)
+    iat = payload.get("iat")
+    if iat is not None:
+        user_copy["session_start"] = datetime.utcfromtimestamp(iat)
+    elif payload.get("exp") is not None:
+        exp_ts = payload["exp"] - (ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+        user_copy["session_start"] = datetime.utcfromtimestamp(exp_ts)
+    else:
+        user_copy["session_start"] = datetime.utcnow()
+
+    return user_copy
 
 
 def get_current_user_optional(

@@ -30,7 +30,9 @@ import {
   getStoredToken,
   setStoredToken,
   clearStoredToken,
-  getResumeApi
+  getResumeApi,
+  getMockTestNotificationsApi,
+  MockTestNotification
 } from '../lib/api';
 
 export type Theme = 'dark' | 'light';
@@ -63,6 +65,13 @@ interface AppContextType {
   setResumeData: React.Dispatch<React.SetStateAction<ResumeData>>;
   allUsers: User[];
 
+  // Mock Test Notifications (Current Session Only)
+  notifications: MockTestNotification[];
+  unreadNotificationsCount: number;
+  markNotificationsAsRead: () => void;
+  highlightedTestId: string | null;
+  setHighlightedTestId: (id: string | null) => void;
+
   // Actions
   switchDemoRole: (role: UserRole) => void;
   loginUser: (email: string, password?: string, role?: string) => Promise<boolean>;
@@ -92,6 +101,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedTargetDrive, setSelectedTargetDriveState] = useState<string>('');
   const [selectedInterviewQuestionId, setSelectedInterviewQuestionId] = useState<string | null>(null);
 
+  // In-Memory Mock Test Notifications (Current Session Only)
+  const [notifications, setNotifications] = useState<MockTestNotification[]>([]);
+  const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(new Set());
+  const [highlightedTestId, setHighlightedTestId] = useState<string | null>(null);
+
+  const markNotificationsAsRead = useCallback(() => {
+    setReadNotificationIds(prev => {
+      const next = new Set(prev);
+      notifications.forEach(n => next.add(n.id));
+      return next;
+    });
+  }, [notifications]);
+
+  const unreadNotificationsCount = notifications.filter(n => !readNotificationIds.has(n.id)).length;
+
   const setSelectedTargetDrive = useCallback((driveLabel: string) => {
     setSelectedTargetDriveState(driveLabel);
     const token = getStoredToken();
@@ -119,6 +143,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setRecentScores([]);
       setMentorshipPair(null);
       setResumeData(EMPTY_RESUME_DATA);
+      setNotifications([]);
+      setReadNotificationIds(new Set());
+      setHighlightedTestId(null);
       setActiveTab('dashboard');
     };
 
@@ -244,6 +271,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setMockTests([]);
       });
   }, []);
+
+  // Poll for newly published mock tests every 30 seconds for active students (Current Session Only)
+  useEffect(() => {
+    if (!user || user.role === 'admin') {
+      setNotifications([]);
+      setReadNotificationIds(new Set());
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchNotifications = async () => {
+      try {
+        const res = await getMockTestNotificationsApi();
+        if (!isMounted || !res || !Array.isArray(res.notifications)) return;
+
+        setNotifications(prev => {
+          const existingIds = new Set(prev.map(item => item.id));
+          const incoming = res.notifications.filter(item => !existingIds.has(item.id));
+          if (incoming.length === 0) return prev;
+          return [...incoming, ...prev];
+        });
+      } catch (err) {
+        // Silently fail gracefully without fabricating fake notifications
+        console.warn('Failed to poll mock test notifications:', err);
+      }
+    };
+
+    fetchNotifications();
+    const intervalId = setInterval(fetchNotifications, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [user?.id, user?.role, user?.branch, user?.year]);
 
   // Sync personalized roadmap from Supabase when user is authenticated
   useEffect(() => {
@@ -473,6 +536,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setRecentScores([]);
     setMentorshipPair(null);
     setResumeData(EMPTY_RESUME_DATA);
+    setNotifications([]);
+    setReadNotificationIds(new Set());
+    setHighlightedTestId(null);
     setActiveTab('dashboard');
   }, []);
 
@@ -656,7 +722,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     publishTest,
     addMentorshipLog,
     requestMentorship,
-    updateUserRoleInAdmin
+    updateUserRoleInAdmin,
+    notifications,
+    unreadNotificationsCount,
+    markNotificationsAsRead,
+    highlightedTestId,
+    setHighlightedTestId
   }), [
     user,
     activeTab,
@@ -690,7 +761,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     publishTest,
     addMentorshipLog,
     requestMentorship,
-    updateUserRoleInAdmin
+    updateUserRoleInAdmin,
+    notifications,
+    unreadNotificationsCount,
+    markNotificationsAsRead,
+    highlightedTestId,
+    setHighlightedTestId
   ]);
 
   return (

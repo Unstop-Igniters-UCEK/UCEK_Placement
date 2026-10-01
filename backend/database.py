@@ -615,7 +615,13 @@ class Database:
 
     # ── Mock Tests ─────────────────────────────────────────────────────────────
 
-    def get_published_tests_for_student(self, department_id: Optional[str], year: Optional[Any]) -> List[Dict[str, Any]]:
+    def get_published_tests_for_student(
+        self,
+        department_id: Optional[str],
+        year: Optional[Any],
+        since: Optional[datetime] = None,
+        count_questions: bool = True
+    ) -> List[Dict[str, Any]]:
         """
         Return published mock tests that match the student's department and year.
         Targeting rules (Impulse_DB_Design.md §16.4):
@@ -662,8 +668,30 @@ class Database:
                 year_match = (ty is None) or (parsed_year is not None and int(ty) == parsed_year)
 
                 if dept_match and year_match:
-                    q_res = supabase_client.table("mock_test_questions").select("id", count="exact").eq("test_id", t["id"]).execute()
-                    q_count = q_res.count if hasattr(q_res, 'count') and q_res.count is not None else len(q_res.data or [])
+                    if since is not None:
+                        pub_raw = t.get("published_at")
+                        if not pub_raw:
+                            continue
+                        try:
+                            clean_str = str(pub_raw).replace("Z", "+00:00")
+                            pub_dt = datetime.fromisoformat(clean_str)
+                            from datetime import timezone
+                            if pub_dt.tzinfo is not None:
+                                s_aware = since.replace(tzinfo=timezone.utc) if since.tzinfo is None else since
+                                if pub_dt < s_aware:
+                                    continue
+                            else:
+                                s_naive = since.replace(tzinfo=None) if since.tzinfo is not None else since
+                                if pub_dt < s_naive:
+                                    continue
+                        except Exception as dt_err:
+                            print("[DB published_at parse error]:", dt_err)
+                            continue
+
+                    q_count = 0
+                    if count_questions:
+                        q_res = supabase_client.table("mock_test_questions").select("id", count="exact").eq("test_id", t["id"]).execute()
+                        q_count = q_res.count if hasattr(q_res, 'count') and q_res.count is not None else len(q_res.data or [])
 
                     target_dept_code = dept_map.get(str(td)) if td else None
                     duration = int(t.get("duration_minutes", 30))

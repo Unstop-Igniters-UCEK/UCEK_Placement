@@ -221,7 +221,7 @@ function formatOptionWithLetter(item: any, letterOrIndex: any): string | null {
 }
 
 export const MockTestView: React.FC = () => {
-  const { user, mockTests: contextTests } = useApp();
+  const { user, mockTests: contextTests, highlightedTestId, setHighlightedTestId } = useApp();
 
   // Catalog tests state
   const [tests, setTests] = useState<any[]>([]);
@@ -306,6 +306,20 @@ export const MockTestView: React.FC = () => {
   useEffect(() => {
     fetchTests();
   }, [user]);
+
+  // Auto-scroll and highlight when navigating from a notification
+  useEffect(() => {
+    if (highlightedTestId && !loadingTests) {
+      const el = document.getElementById(`mock-test-card-${highlightedTestId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      const timer = setTimeout(() => {
+        setHighlightedTestId(null);
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedTestId, loadingTests, setHighlightedTestId]);
 
   // Click-outside listener for category dropdown
   useEffect(() => {
@@ -1524,7 +1538,12 @@ export const MockTestView: React.FC = () => {
               return (
                 <div
                   key={test.id}
-                  className="bg-[#121217] border border-white/10 hover:border-white/20 hover:border-orange-500/30 rounded-2xl p-6 flex flex-col justify-between transition-all duration-200 group shadow-lg hover:shadow-xl hover:shadow-black/50 hover:-translate-y-0.5 relative overflow-hidden"
+                  id={`mock-test-card-${test.id}`}
+                  className={`bg-[#121217] border rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group shadow-lg hover:shadow-xl hover:shadow-black/50 hover:-translate-y-0.5 relative overflow-hidden ${
+                    highlightedTestId === test.id
+                      ? 'border-orange-500 ring-2 ring-orange-500/60 shadow-orange-500/20'
+                      : 'border-white/10 hover:border-white/20 hover:border-orange-500/30'
+                  }`}
                 >
                   <div className="space-y-4">
                     {/* Top Targeting Badges */}

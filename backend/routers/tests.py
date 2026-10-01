@@ -47,6 +47,60 @@ def get_tests(current_user: dict = Depends(get_current_user)):
     return {"tests": tests}
 
 
+# ─── Mock Test Notifications for Student ──────────────────────────────────────
+
+@router.get("/notifications")
+def get_mock_test_notifications(
+    since: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Return newly published mock tests available to the authenticated student during their active session."""
+    role = current_user.get("role", "student")
+    if role == "admin":
+        return {"notifications": []}
+
+    dept_id = current_user.get("department_id")
+    if not dept_id:
+        dept_code = current_user.get("department_code") or current_user.get("branch")
+        if dept_code:
+            dept = db.get_department_by_code(dept_code)
+            if dept:
+                dept_id = dept["id"]
+
+    year = current_user.get("year")
+    session_start = current_user.get("session_start")
+
+    effective_since = session_start
+    if since:
+        try:
+            parsed_since = datetime.fromisoformat(since.replace("Z", "+00:00"))
+            if effective_since is None or parsed_since > effective_since:
+                effective_since = parsed_since
+        except Exception:
+            pass
+
+    new_tests = db.get_published_tests_for_student(
+        department_id=dept_id,
+        year=year,
+        since=effective_since,
+        count_questions=False
+    )
+
+    notifications = [
+        {
+            "id": str(t["id"]),
+            "title": str(t["title"]),
+            "test_type": str(t.get("test_type", "general")),
+            "category": str(t.get("category", "General")),
+            "targetDept": str(t.get("targetDept", "All Departments")),
+            "targetYear": str(t.get("targetYear", "All Years")),
+            "published_at": str(t.get("published_at", "")),
+        }
+        for t in new_tests
+    ]
+    return {"notifications": notifications}
+
+
 # ─── Test history ─────────────────────────────────────────────────────────────
 
 @router.get("/history/my")

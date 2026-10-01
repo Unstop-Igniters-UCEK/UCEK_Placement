@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -11,15 +11,53 @@ import {
   Mic,
   Users,
   ChevronDown,
-  Pencil
+  Pencil,
+  Bell,
+  FileCheck2
 } from 'lucide-react';
 import { EditProfileModal } from './EditProfileModal';
 
 export const StudentNavHeader: React.FC = React.memo(() => {
-  const { user, logoutUser, activeTab, setActiveTab } = useApp();
+  const {
+    user,
+    logoutUser,
+    activeTab,
+    setActiveTab,
+    notifications,
+    unreadNotificationsCount,
+    markNotificationsAsRead,
+    setHighlightedTestId
+  } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userCardOpen, setUserCardOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+
+  // Click-outside listener to close notification popup on desktop
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setNotificationOpen(false);
+      }
+    };
+    if (notificationOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [notificationOpen]);
+
+  const handleToggleNotifications = () => {
+    setNotificationOpen(prev => {
+      const next = !prev;
+      if (next) {
+        markNotificationsAsRead();
+      }
+      return next;
+    });
+  };
 
   if (!user || user.role === 'admin') return null;
 
@@ -149,8 +187,99 @@ export const StudentNavHeader: React.FC = React.memo(() => {
             </div>
           </div>
 
-          {/* Right: Standalone User Logo (Interactive) + Logout Button */}
+          {/* Right: Notification Button + Standalone User Logo + Logout Button */}
           <div className="flex items-center gap-3 shrink-0">
+            {/* Notification Button + Dropdown */}
+            <div className="relative" ref={notificationRef}>
+              <button
+                type="button"
+                onClick={handleToggleNotifications}
+                className="relative w-10 h-10 rounded-full bg-zinc-900 border border-white/20 hover:border-white/60 hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center overflow-visible cursor-pointer transition-all duration-200 active:scale-95 shadow-md group"
+                title="Notifications"
+                aria-label="Mock Test Notifications"
+              >
+                <Bell className="w-5 h-5 text-zinc-300 group-hover:text-white transition-colors" />
+                {unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-black text-[10px] font-extrabold flex items-center justify-center shadow-lg border-2 border-black font-mono">
+                    {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown Popup */}
+              <AnimatePresence>
+                {notificationOpen && (
+                  <>
+                    {/* Click-away backdrop overlay on mobile */}
+                    <div
+                      className="fixed inset-0 z-40 md:hidden"
+                      onClick={() => setNotificationOpen(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                      transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+                      className="absolute top-full right-0 mt-3 w-72 sm:w-80 p-3 sm:p-4 rounded-2xl bg-[#0d0d12]/95 backdrop-blur-2xl border border-white/20 shadow-2xl z-50 text-left pointer-events-auto"
+                    >
+                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-white/10">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-4 h-4 text-orange-400" />
+                          <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight font-heading">
+                            Notifications
+                          </h3>
+                        </div>
+                        {unreadNotificationsCount > 0 && (
+                          <span className="px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-[10px] font-semibold text-orange-400 font-mono">
+                            {unreadNotificationsCount} New
+                          </span>
+                        )}
+                      </div>
+
+                      {notifications.length === 0 ? (
+                        <div className="py-6 px-3 text-center space-y-1.5">
+                          <Bell className="w-5 h-5 text-zinc-600 mx-auto" />
+                          <p className="text-xs font-medium text-zinc-400">No new notifications</p>
+                          <p className="text-[10px] text-zinc-500 font-mono">
+                            Mock tests published in this session appear here
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {notifications.slice(0, 3).map((n) => (
+                            <div
+                              key={n.id}
+                              onClick={() => {
+                                setNotificationOpen(false);
+                                setHighlightedTestId(n.id);
+                                setActiveTab('tests');
+                              }}
+                              className="p-2.5 rounded-xl bg-white/[0.04] hover:bg-orange-500/10 border border-white/10 hover:border-orange-500/30 transition-all cursor-pointer group flex items-start gap-2.5"
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                                <FileCheck2 className="w-4 h-4 text-orange-400" />
+                              </div>
+                              <div className="overflow-hidden min-w-0 flex-1">
+                                <p className="text-[10px] font-bold text-orange-400 tracking-wider uppercase font-mono">
+                                  New Mock Test Available
+                                </p>
+                                <h4 className="text-xs font-semibold text-white truncate group-hover:text-orange-300 transition-colors">
+                                  {n.title}
+                                </h4>
+                                <p className="text-[10px] text-zinc-400 truncate mt-0.5">
+                                  Available for your department/year
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Standalone User Logo Container (No surrounding outer pill/circle) */}
             <div
               className="relative"

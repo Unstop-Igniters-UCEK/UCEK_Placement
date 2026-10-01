@@ -799,6 +799,27 @@ export async function getTests(): Promise<{ tests: any[] }> {
   return res.json();
 }
 
+export interface MockTestNotification {
+  id: string;
+  title: string;
+  test_type: string;
+  category: string;
+  targetDept: string;
+  targetYear: string;
+  published_at: string;
+}
+
+export async function getMockTestNotificationsApi(since?: string): Promise<{ notifications: MockTestNotification[] }> {
+  const url = since
+    ? `${BASE_URL}/api/tests/notifications?since=${encodeURIComponent(since)}`
+    : `${BASE_URL}/api/tests/notifications`;
+  const res = await authFetch(url, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch mock test notifications');
+  return res.json();
+}
+
 export async function uploadCSVTest(data: {
   title: string;
   duration: number;
@@ -1018,6 +1039,7 @@ export async function updateAdminRegistrationSettingApi(
 
 export const api = {
   getTests,
+  getMockTestNotificationsApi,
   getMockDrivePracticeSummaryApi,
   uploadCSVTest,
   startTest,
