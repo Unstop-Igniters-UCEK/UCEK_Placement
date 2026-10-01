@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useApp } from './context/AppContext';
 import { Header } from './components/Header';
-import { Sidebar } from './components/Sidebar';
+import { AdminNavHeader } from './components/AdminNavHeader';
 import { StudentNavHeader } from './components/StudentNavHeader';
 import { LandingPage } from './pages/LandingPage';
 import OrangeBlackGradient from './components/OrangeBlackGradient';
@@ -32,7 +32,7 @@ export function App() {
 
 function AppContent() {
   const [splashActive, setSplashActive] = useState(true);
-  const { activeTab, user, sidebarOpen } = useApp();
+  const { activeTab, user } = useApp();
   const lenisRef = useRef<Lenis | null>(null);
 
   // Manual scroll progress for the top progress bar (driven by Lenis events)
@@ -101,8 +101,8 @@ function AppContent() {
         {/* Header shown only on Landing Page / Unauthenticated */}
         {!user && <Header />}
 
-        {/* Sidebar shown only for Logged-In Admin */}
-        {user && user.role === 'admin' && <Sidebar />}
+        {/* Admin Dashboard Header + Horizontal Pill Navigation */}
+        {user && user.role === 'admin' && <AdminNavHeader />}
 
         {/* Student Dashboard Header + Horizontal Pill Navigation */}
         {user && user.role !== 'admin' && <StudentNavHeader />}
@@ -116,17 +116,13 @@ function AppContent() {
           <>
             {/* Dashboard 21st.dev Static Orange-Black Gradient Background Layer */}
             <div
-              className={`fixed inset-0 z-0 opacity-100 overflow-hidden transform-gpu pointer-events-none transition-all duration-300 ${
-                user.role === 'admin' && sidebarOpen ? 'pl-0 lg:pl-72' : 'pl-0'
-              }`}
+              className={`fixed inset-0 z-0 opacity-100 overflow-hidden transform-gpu pointer-events-none transition-all duration-300`}
               style={{ transform: 'translateZ(0)' }}
             >
               <OrangeBlackGradient />
             </div>
 
-            <main className={`flex-1 w-full relative z-10 transition-all duration-300 p-4 sm:p-6 lg:p-8 ${
-              user.role === 'admin' && sidebarOpen ? 'pl-0 lg:pl-72' : 'pl-0'
-            }`}>
+            <main className={`flex-1 w-full relative z-10 transition-all duration-300 p-4 sm:p-6 lg:p-8`}>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
@@ -158,8 +154,7 @@ function AppContent() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-          className={`w-full bg-transparent border-t border-white/10 py-4 text-xs transition-all duration-300 relative z-20 ${user && sidebarOpen ? 'pl-0 lg:pl-72' : 'pl-0'
-            }`}
+          className={`w-full bg-transparent border-t border-white/10 py-4 text-xs transition-all duration-300 relative z-20`}
         >
           <div className="max-w-[1600px] mx-auto px-4 sm:px-6 text-center">
             <span

@@ -1131,26 +1131,52 @@ class Database:
 
     # ── Admin metrics ──────────────────────────────────────────────────────────
 
-    def get_admin_student_list(self, page: int = 1, page_size: int = 50) -> Dict[str, Any]:
+    def get_admin_student_list(
+        self,
+        page: int = 1,
+        page_size: int = 50,
+        year: Optional[int] = None,
+        department_code: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
-        Return paginated student list for the admin dashboard.
-        Reads readiness_score snapshot from student_profiles directly.
+        Return paginated, optionally filtered student list for the admin dashboard.
+        Includes per-student mock test attempts and HR interview attempt counts.
         """
         if not supabase_client:
             return {"students": [], "total": 0}
         try:
             offset = (page - 1) * page_size
-            # Join users + student_profiles + departments using explicit foreign key
+
+            # ── Fetch all students with profiles (no server-side year/dept filter
+            # in Supabase because the filter is on a joined table) ──
             res = supabase_client.table("users").select(
                 "id, name, email, created_at, "
-                "student_profiles!student_profiles_user_id_fkey(department_id, year, readiness_score, domain_id, departments(code, name))"
-            ).eq("role", "student").eq("is_active", True).order("created_at", desc=True).range(offset, offset + page_size - 1).execute()
+                "student_profiles!student_profiles_user_id_fkey("
+                "  department_id, year, readiness_score, domain_id,"
+                "  departments(code, name)"
+                ")"
+            ).eq("role", "student").eq("is_active", True).order("created_at", desc=True).execute()
 
-            total_res = supabase_client.table("users").select("id", count="exact").eq("role", "student").eq("is_active", True).execute()
-            total = total_res.count if hasattr(total_res, 'count') and total_res.count is not None else 0
+            all_rows = res.data or []
 
+            # ── Per-student mock-test & interview counts ──
+            mt_res = supabase_client.table("mock_test_attempts").select("student_id").execute()
+            test_count: Dict[str, int] = {}
+            for a in (mt_res.data or []):
+                sid = str(a.get("student_id") or "")
+                if sid:
+                    test_count[sid] = test_count.get(sid, 0) + 1
+
+            iv_res = supabase_client.table("hr_interview_attempts").select("student_id").execute()
+            iv_count: Dict[str, int] = {}
+            for a in (iv_res.data or []):
+                sid = str(a.get("student_id") or "")
+                if sid:
+                    iv_count[sid] = iv_count.get(sid, 0) + 1
+
+            # ── Build + filter in Python ──
             students = []
-            for u in (res.data or []):
+            for u in all_rows:
                 profile = u.get("student_profiles")
                 if isinstance(profile, list) and profile:
                     profile = profile[0]
@@ -1161,18 +1187,40 @@ class Database:
                     dept = dept[0]
                 elif not isinstance(dept, dict):
                     dept = {}
+
+                student_year = profile.get("year")
+                dept_code = dept.get("code")
+
+                # Apply year filter
+                if year is not None and student_year != year:
+                    continue
+                # Apply department code filter
+                if department_code and (dept_code or "").upper() != department_code.upper():
+                    continue
+
+                uid = str(u["id"])
+                score = profile.get("readiness_score") or 0
                 students.append({
-                    "id": str(u["id"]),
+                    "id": uid,
                     "name": str(u.get("name", "")),
                     "email": str(u.get("email", "")),
-                    "department_code": dept.get("code"),
+                    "department_code": dept_code,
                     "department_name": dept.get("name"),
-                    "branch": dept.get("code"),
-                    "year": profile.get("year"),
-                    "readiness_score": profile.get("readiness_score"),
+                    "branch": dept_code,
+                    "year": student_year,
+                    "readiness_score": score,
+                    "readinessScore": score,
+                    "tests_completed": test_count.get(uid, 0),
+                    "testsCompleted": test_count.get(uid, 0),
+                    "interviews_completed": iv_count.get(uid, 0),
+                    "interviewsCompleted": iv_count.get(uid, 0),
                     "created_at": str(u.get("created_at", "")),
                 })
-            return {"students": students, "total": total}
+
+            total = len(students)
+            # Apply pagination after filter
+            paginated = students[offset: offset + page_size]
+            return {"students": paginated, "total": total}
         except Exception as e:
             print("[DB get_admin_student_list]:", e)
         return {"students": [], "total": 0}

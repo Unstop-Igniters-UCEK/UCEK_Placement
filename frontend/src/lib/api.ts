@@ -831,6 +831,30 @@ export const getAllUsersAdminApi = async () => {
   }
 };
 
+/** Admin: Fetch paginated, filterable student list for the Students table. */
+export const getAdminStudentsApi = async (
+  page: number = 1,
+  pageSize: number = 10,
+  year?: string,
+  branch?: string,
+): Promise<{ students: any[]; total: number; page: number; page_size: number } | null> => {
+  try {
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('page_size', String(pageSize));
+    if (year && year !== 'All Years') params.set('year', year);
+    if (branch && branch !== 'All Departments') params.set('branch', branch);
+    const res = await authFetch(`${BASE_URL}/api/admin/students?${params.toString()}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to fetch admin students');
+    return await res.json();
+  } catch (error) {
+    console.error('getAdminStudentsApi Error:', error);
+    return null;
+  }
+};
+
 // ─── Quiz Assignment & Exam Hub API Methods ───
 
 export interface MockDrivePracticeSummary {

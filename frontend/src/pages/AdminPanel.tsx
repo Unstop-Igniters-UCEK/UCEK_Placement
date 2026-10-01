@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
-import { getAdminDashboardStatsApi, getAllUsersAdminApi } from '../lib/api';
+import { getAdminDashboardStatsApi, getAllUsersAdminApi, getAdminStudentsApi } from '../lib/api';
 import { AdminMockTests } from './AdminMockTests';
 import { StudentOnboardingView } from './StudentOnboardingView';
 import { motion, Variants } from 'framer-motion';
@@ -9,125 +9,52 @@ import { CustomSelect } from '../components/CustomSelect';
 import {
   ShieldCheck,
   Users,
-  Plus,
   CheckCircle2,
   FileCheck,
   Mic,
   Search,
-  Trophy,
-  GraduationCap,
-  Building2,
-  LayoutDashboard,
-  LogOut,
   CheckSquare,
-  UserPlus,
-  Menu,
-  X,
   RotateCw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Activity,
 } from 'lucide-react';
 
-/* ─── Shared logo mark — matches student dashboard header ─── */
-const LogoMark = ({ size = 9 }: { size?: number }) => (
-  <div
-    style={{ width: `${size * 4}px`, height: `${size * 4}px` }}
-    className="rounded-xl bg-white text-black flex items-center justify-center shadow-md shrink-0 overflow-hidden"
-  >
-    <img src="/new_logo.png" alt="Impulse Logo" className="w-full h-full object-contain" />
-  </div>
-);
-
-/* ─── Spring variants (Emil §3: strong custom ease-out, no sluggish ease-in) ─── */
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
-  visible: { 
-    opacity: 1, 
-    transition: { 
-      staggerChildren: 0.05, 
-      ease: [0.23, 1, 0.32, 1] 
-    } 
-  }
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
 };
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 12, scale: 0.98 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    scale: 1, 
-    transition: { 
-      duration: 0.22, 
-      ease: [0.23, 1, 0.32, 1] 
-    } 
-  }
+  hidden: { opacity: 0, y: 12, willChange: 'transform, opacity' },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.24, ease: [0.23, 1, 0.32, 1] } },
 };
 
-/* ─── Sidebar nav item — Apple §1: feedback on pointer-down (active:scale-[0.97]) ─── */
-const NavItem = ({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: React.ElementType;
-  label: string;
-  active?: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    onClick={onClick}
-    className={`
-      w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs
-      font-semibold transition-all duration-150 cursor-pointer select-none
-      active:scale-[0.97] active:transition-none
-      ${active
-        ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30 shadow-sm'
-        : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]'
-      }
-    `}
-  >
-    <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? 'text-orange-400' : 'text-zinc-500'}`} />
-    <span className="tracking-tight">{label}</span>
-  </button>
-);
-
-/* ─── Single-accent KPI stat card — Emil: tactile surface depth ─── */
-const StatCard = ({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: number | string;
-  sub: string;
-}) => (
-  <div className="group bg-[#121217]/90 border border-white/10 hover:border-orange-500/30 backdrop-blur-2xl rounded-2xl p-5 space-y-3 transition-all duration-200 shadow-xl hover:shadow-orange-500/5 active:scale-[0.99]">
+const KpiCard = ({ icon: Icon, label, value, sub }: { icon: React.ElementType; label: string; value: number | string; sub: string }) => (
+  <div className="mono-card mono-card-hover p-3.5 space-y-2.5 flex flex-col justify-between group relative overflow-hidden">
     <div className="flex items-center justify-between">
-      <span className="text-[11px] font-bold text-zinc-400 tracking-wider uppercase font-mono">{label}</span>
-      <span className="w-2 h-2 rounded-full bg-orange-500/80 group-hover:animate-ping" />
+      <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner shrink-0">
+        <Icon className="w-4 h-4 text-white" />
+      </div>
+      <span className="mono-badge rounded-full text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">{sub}</span>
     </div>
-    <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-heading group-hover:text-orange-400 transition-colors" style={{ letterSpacing: '-0.03em' }}>
-      {value}
-    </div>
-    <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium">
-      <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-      <span>{sub}</span>
+    <div>
+      <div className="text-2xl sm:text-3xl font-extrabold text-white font-heading tracking-tight group-hover:text-orange-400 transition-colors tabular-nums" style={{ letterSpacing: '-0.03em' }}>{value}</div>
+      <p className="text-xs text-zinc-400 font-medium mt-0.5">{label}</p>
     </div>
   </div>
 );
 
 export const AdminPanel: React.FC = React.memo(() => {
-  const { user, logoutUser, allUsers, recentScores, addQuestionToBank, updateUserRoleInAdmin, activeTab, setActiveTab } = useApp();
-
-  
+  const { user, addQuestionToBank, updateUserRoleInAdmin, activeTab, setActiveTab } = useApp();
   const [selectedYearFilter, setSelectedYearFilter] = useState('All Years');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All Departments');
   const [searchQuery, setSearchQuery] = useState('');
   const [performancePage, setPerformancePage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  /* Question Bank form */
+  const [studentsList, setStudentsList] = useState<any[]>([]);
+  const [studentsTotal, setStudentsTotal] = useState(0);
+  const [studentsLoading, setStudentsLoading] = useState(false);
   const [qTitle, setQTitle] = useState('');
   const [qType, setQType] = useState<'Technical' | 'Aptitude' | 'Logical' | 'Verbal' | 'Company-Specific'>('Technical');
   const [qCompanyTag, setQCompanyTag] = useState('TCS');
@@ -140,8 +67,6 @@ export const AdminPanel: React.FC = React.memo(() => {
   const [qExplanation, setQExplanation] = useState('');
   const [addSuccess, setAddSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  // ─── Backend Data States ───
   const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [adminUsersList, setAdminUsersList] = useState<any[]>([]);
 
@@ -149,59 +74,57 @@ export const AdminPanel: React.FC = React.memo(() => {
     setIsRefreshing(true);
     try {
       if (activeTab === 'admin-dashboard') {
-        const data = await getAdminDashboardStatsApi(selectedYearFilter, selectedDeptFilter);
+        const data = await getAdminDashboardStatsApi();
         if (data) setDashboardStats(data);
       } else if (activeTab === 'admin-roles') {
         const data = await getAllUsersAdminApi();
         if (data && data.users) setAdminUsersList(data.users);
       }
     } catch (err) {
-      console.warn('Failed to fetch admin dashboard stats:', err);
+      console.warn('Failed to fetch admin data:', err);
     } finally {
       setTimeout(() => setIsRefreshing(false), 400);
     }
-  }, [activeTab, selectedYearFilter, selectedDeptFilter]);
+  }, [activeTab]);
 
-  useEffect(() => {
-    fetchAdminData();
-  }, [fetchAdminData]);
+  const fetchAdminStudents = useCallback(async () => {
+    if (activeTab !== 'admin-dashboard') return;
+    setStudentsLoading(true);
+    try {
+      const data = await getAdminStudentsApi(performancePage, 10, selectedYearFilter, selectedDeptFilter);
+      if (data) { setStudentsList(data.students); setStudentsTotal(data.total); }
+    } catch (err) {
+      console.warn('Failed to fetch students:', err);
+    } finally {
+      setStudentsLoading(false);
+    }
+  }, [activeTab, performancePage, selectedYearFilter, selectedDeptFilter]);
 
-  // Derived filtered users for "Student Onboarding" view
-  const filteredAdminUsersList = useMemo(() => {
-    return adminUsersList.filter(u => {
-      const matchSearch = !searchQuery.trim() || 
-                          u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          u.email.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchSearch;
-    });
-  }, [adminUsersList, searchQuery]);
+  useEffect(() => { fetchAdminData(); }, [fetchAdminData]);
+  useEffect(() => { fetchAdminStudents(); }, [fetchAdminStudents]);
+
+  const filteredAdminUsersList = useMemo(() =>
+    adminUsersList.filter(u => !searchQuery.trim() || u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())),
+    [adminUsersList, searchQuery]);
 
   const kpis = {
     totalStudents: dashboardStats?.kpis?.totalStudents || 0,
     totalMockTestsTaken: dashboardStats?.kpis?.totalMockTestsTaken || 0,
     totalResumeReviews: dashboardStats?.kpis?.totalResumeReviews || 0,
-    totalInterviewsCompleted: dashboardStats?.kpis?.totalInterviewSimulationsCompleted || dashboardStats?.kpis?.totalInterviewsCompleted || 0,
+    totalInterviewsCompleted: dashboardStats?.kpis?.totalInterviewsCompleted || dashboardStats?.kpis?.totalInterviewSimulationsCompleted || 0,
   };
+
   const filteredStudents = useMemo(() => {
-    const students = dashboardStats?.studentPerformance || [];
-    return students.filter((u: any) => {
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      return (u.name?.toLowerCase().includes(q)) || (u.email?.toLowerCase().includes(q));
-    });
-  }, [dashboardStats?.studentPerformance, searchQuery]);
+    if (!searchQuery.trim()) return studentsList;
+    const q = searchQuery.toLowerCase();
+    return studentsList.filter((u: any) => u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q));
+  }, [studentsList, searchQuery]);
 
-  useEffect(() => {
-    setPerformancePage(1);
-  }, [searchQuery]);
+  useEffect(() => { setPerformancePage(1); }, [searchQuery, selectedYearFilter, selectedDeptFilter]);
 
-  const performanceRowsPerPage = 5;
-  const totalPerformancePages = Math.max(1, Math.ceil(filteredStudents.length / performanceRowsPerPage));
-  const paginatedStudents = filteredStudents.slice((performancePage - 1) * performanceRowsPerPage, performancePage * performanceRowsPerPage);
+  const totalPerformancePages = Math.max(1, Math.ceil(studentsTotal / 10));
 
-  const handleRefresh = () => {
-    fetchAdminData();
-  };
+  const handleRefresh = () => { fetchAdminData(); fetchAdminStudents(); };
 
   const handleAddQuestionSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,8 +132,7 @@ export const AdminPanel: React.FC = React.memo(() => {
     setSubmitting(true);
     setTimeout(() => {
       addQuestionToBank({ title: qTitle, type: qType, companyTag: qCompanyTag, difficulty: qDifficulty, options: [optA, optB, optC, optD], correctOption, explanation: qExplanation });
-      setAddSuccess(true);
-      setSubmitting(false);
+      setAddSuccess(true); setSubmitting(false);
       setQTitle(''); setOptA(''); setOptB(''); setOptC(''); setOptD(''); setQExplanation('');
       setTimeout(() => setAddSuccess(false), 3000);
     }, 300);
@@ -219,15 +141,15 @@ export const AdminPanel: React.FC = React.memo(() => {
   if (!user || user.role !== 'admin') {
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-[#111115]/90 border border-white/10 backdrop-blur-2xl rounded-2xl p-8 text-center space-y-5 shadow-2xl text-white">
+        <div className="mono-card p-8 text-center max-w-sm mx-auto space-y-5 shadow-2xl">
           <div className="w-12 h-12 mx-auto rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
             <ShieldCheck className="w-6 h-6 text-orange-400" />
           </div>
           <div className="space-y-1.5">
-            <h2 className="text-lg font-bold font-heading tracking-tight">Admin access only</h2>
+            <h2 className="text-lg font-bold text-white font-heading tracking-tight">Admin access only</h2>
             <p className="text-sm text-zinc-400 leading-relaxed">Sign in with an authorized TPO Cell admin account.</p>
           </div>
-          <button onClick={() => setActiveTab('dashboard')} className="btn-primary w-full py-2.5 text-sm font-semibold rounded-xl cursor-pointer">
+          <button onClick={() => setActiveTab('dashboard')} className="btn-primary w-full py-2.5 text-sm font-semibold rounded-full cursor-pointer">
             Return to Dashboard
           </button>
         </div>
@@ -235,357 +157,382 @@ export const AdminPanel: React.FC = React.memo(() => {
     );
   }
 
-  /* ─── INPUT FIELD SHARED STYLE ─── */
-  const inputCls = "w-full bg-white/[0.05] text-sm text-white p-3 rounded-xl border border-white/10 outline-none focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/30 transition-all placeholder-zinc-600 font-sans";
+  const inputCls = "w-full bg-[#141414] text-sm text-white p-3 rounded-xl border border-white/10 outline-none focus:border-orange-500/40 focus:ring-1 focus:ring-orange-500/20 transition-all placeholder-zinc-600 font-sans";
   const labelCls = "block text-xs font-medium text-zinc-400 mb-1.5 tracking-wide";
 
   return (
-    <div className="w-full text-white font-sans max-w-[1280px] mx-auto">
-      <motion.div key={activeTab}  className="space-y-5">
+    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6 py-4 font-sans max-w-7xl mx-auto w-full">
 
-            {/* ── 1. Analytics view ── */}
-            {activeTab === 'admin-dashboard' && (
-              <>
-                {/* ── Page hero ── */}
-                <motion.div  className="relative overflow-hidden rounded-2xl bg-[#111115]/70 border border-white/8 backdrop-blur-xl px-6 pt-6 pb-5">
-                  {/* Subtle orange left accent bar */}
-                  <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-orange-500 via-amber-400 to-transparent rounded-l-2xl" />
+      {/* ── Admin Dashboard ── */}
+      {activeTab === 'admin-dashboard' && (
+        <>
+          {/* Hero header — naked like Student Dashboard */}
+          <motion.div variants={itemVariants} className="py-1">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="mono-badge rounded-full text-orange-400 bg-orange-500/10 border-orange-500/20 font-bold">
+                    TPO Cell · Admin View
+                  </span>
+                  <span className="text-[11px] text-zinc-600 font-medium tabular-nums">
+                    {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight font-heading" style={{ letterSpacing: '-0.03em' }}>
+                  Admin Dashboard
+                </h1>
+                <p className="text-sm text-zinc-500 leading-relaxed max-w-lg">
+                  Engagement, test completion, and readiness indices across all enrolled batches.
+                </p>
+              </div>
+              <div className="shrink-0">
+                <button
+                  onClick={handleRefresh}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#2a2e2f] hover:bg-[#323637] border border-white/10 text-sm text-zinc-300 hover:text-white font-medium transition-all cursor-pointer active:scale-[0.97]"
+                >
+                  <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-orange-400' : ''}`} />
+                  Refresh
+                </button>
+              </div>
+            </div>
+          </motion.div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-                    <div className="space-y-2 pl-1">
-                      {/* Badge row */}
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/10 border border-orange-500/20 text-[11px] font-medium text-orange-400 tracking-wide">
-                          <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-                          TPO Cell · Admin View
-                        </span>
-                        <span className="text-[11px] text-zinc-600 font-medium tabular-nums">
-                          {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                        </span>
-                      </div>
+          {/* 4 KPI pillar cards */}
+          <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard icon={Users}       label="Total Students"       value={kpis.totalStudents}           sub="Enrolled"  />
+            <KpiCard icon={CheckSquare} label="Mock Tests Taken"      value={kpis.totalMockTestsTaken}     sub="Attempts"  />
+            <KpiCard icon={FileCheck}   label="Resumes Reviewed"      value={kpis.totalResumeReviews}      sub="ATS Scans" />
+            <KpiCard icon={Mic}         label="Interviews Practiced"  value={kpis.totalInterviewsCompleted} sub="Sessions" />
+          </motion.div>
 
-                      {/* Main heading */}
-                      <h1
-                        className="text-3xl sm:text-4xl font-bold text-white font-heading leading-tight"
-                        style={{ letterSpacing: '-0.03em' }}
-                      >
-                        Placement Analytics
-                      </h1>
+          {/* Students table */}
+          <motion.div variants={itemVariants} className="mono-card p-4 sm:p-6 space-y-5 min-w-0">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-white/10 pb-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-orange-400 shrink-0" />
+                  <h2 className="font-bold text-base text-white font-heading">Students</h2>
+                </div>
+                <p className="text-xs text-zinc-400">Tests, interviews, and readiness indices</p>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Year filter dropdown */}
+                <div className="w-36 sm:w-40">
+                  <CustomSelect
+                    value={selectedYearFilter}
+                    onChange={setSelectedYearFilter}
+                    options={['All Years', '1st Year', '2nd Year', '3rd Year', '4th Year']}
+                  />
+                </div>
 
-                      {/* Sub-line */}
-                      <p className="text-sm text-zinc-500 leading-relaxed max-w-lg">
-                        Engagement, test completion, and readiness indices across all enrolled batches.
-                      </p>
+                {/* Department filter dropdown */}
+                <div className="w-48 sm:w-56">
+                  <CustomSelect
+                    value={selectedDeptFilter}
+                    onChange={setSelectedDeptFilter}
+                    options={['All Departments', 'Computer Science & Engg', 'Electronics & Comm Engg', 'Information Technology']}
+                  />
+                </div>
+
+                {/* Search bar */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search student..."
+                    className="bg-[#2a2e2f] border border-white/10 text-sm text-white pl-9 pr-4 py-2 rounded-full outline-none focus:border-orange-500/40 focus:ring-1 focus:ring-orange-500/20 transition-all placeholder-zinc-600 w-44 sm:w-56"
+                  />
+                </div>
+                <span className="text-xs text-zinc-500 font-medium tabular-nums shrink-0">{studentsTotal} total</span>
+              </div>
+            </div>
+
+            {studentsLoading ? (
+              <div className="py-12 text-center space-y-3 bg-[#141414] border border-white/10 rounded-lg">
+                <Activity className="w-9 h-9 text-zinc-600 mx-auto animate-pulse" />
+                <p className="text-xs font-semibold text-zinc-400">Loading students...</p>
+              </div>
+            ) : filteredStudents.length === 0 ? (
+              <div className="py-12 text-center space-y-3 bg-[#141414] border border-white/10 rounded-lg">
+                <Users className="w-9 h-9 text-zinc-600 mx-auto" />
+                <p className="text-xs font-semibold text-zinc-400">No students match the selected filters.</p>
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="text-xs text-orange-400 hover:underline font-medium">
+                    Clear search
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4 min-w-0">
+                <div className="overflow-x-auto border border-white/10 rounded-lg bg-[#0d0d0d] shadow-inner">
+                  <table className="w-full min-w-[620px] text-left border-collapse font-sans">
+                    <thead>
+                      <tr className="bg-[#000000] border-b border-white/10 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                        <th className="p-4 pl-5">Student</th>
+                        <th className="p-4">Department</th>
+                        <th className="p-4">Year</th>
+                        <th className="p-4 text-center">Tests</th>
+                        <th className="p-4 text-center">Interviews</th>
+                        <th className="p-4 pr-5 text-right">Readiness</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/10 text-xs text-white">
+                      {filteredStudents.map((student: any) => {
+                        const initial = (student.name || 'U').charAt(0).toUpperCase();
+                        const tests = student.testsCompleted ?? student.tests_completed ?? 0;
+                        const interviews = student.interviewsCompleted ?? student.interviews_completed ?? 0;
+                        const score = student.readinessScore ?? student.readiness_score ?? 0;
+                        const branch =
+                          student.branch === 'CSE' ? 'CS & Engg'
+                          : student.branch === 'ECE' ? 'EC & Comm'
+                          : student.branch === 'IT' ? 'Info Tech'
+                          : (student.branch || '—');
+                        const yr = student.year
+                          ? `${student.year}${student.year === 1 ? 'st' : student.year === 2 ? 'nd' : student.year === 3 ? 'rd' : 'th'} Year`
+                          : '—';
+                        return (
+                          <tr key={student.id} className="hover:bg-[#141414] transition-colors group">
+                            <td className="p-4 pl-5 flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-[#000000] border border-white/10 text-orange-400 flex items-center justify-center shrink-0 font-semibold text-sm">
+                                {initial}
+                              </div>
+                              <div>
+                                <span className="block font-semibold text-[13px] group-hover:text-orange-400 transition-colors">{student.name}</span>
+                                <span className="text-[10px] text-zinc-500 font-mono">{student.email}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className="mono-badge rounded-full px-3 py-1 bg-[#141414] border border-white/10 text-zinc-200 text-[11px] font-medium">
+                                {branch}
+                              </span>
+                            </td>
+                            <td className="p-4 text-zinc-400 text-[13px]">{yr}</td>
+                            <td className="p-4 text-center">
+                              <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-semibold tabular-nums ${tests > 0 ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 'bg-[#141414] text-zinc-500 border border-white/10'}`}>
+                                {tests}
+                              </span>
+                            </td>
+                            <td className="p-4 text-center">
+                              <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-semibold tabular-nums ${interviews > 0 ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 'bg-[#141414] text-zinc-500 border border-white/10'}`}>
+                                {interviews}
+                              </span>
+                            </td>
+                            <td className="p-4 pr-5 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-16 bg-[#000000] rounded-full h-1.5 overflow-hidden border border-white/10 hidden sm:block">
+                                  <div
+                                    className="bg-orange-500 h-full rounded-full transition-all duration-500"
+                                    style={{ width: `${Math.min(100, Math.max(3, score))}%` }}
+                                  />
+                                </div>
+                                <span className="text-[13px] font-semibold text-white tabular-nums font-heading">
+                                  {score}<span className="text-zinc-500 font-normal text-xs">/100</span>
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination — Student Dashboard style */}
+                {totalPerformancePages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-lg bg-[#0d0d0d] border border-white/10 text-xs font-sans">
+                    <div className="text-zinc-400">
+                      Page <strong className="text-white font-mono">{performancePage}</strong> of <strong className="text-white font-mono">{totalPerformancePages}</strong>
+                      <span className="ml-2 text-zinc-600">({studentsTotal} students)</span>
                     </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5">
                       <button
-                        onClick={handleRefresh}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-sm text-zinc-300 font-medium transition-colors duration-150 cursor-pointer active:scale-[0.97]"
+                        onClick={() => setPerformancePage(p => Math.max(1, p - 1))}
+                        disabled={performancePage === 1}
+                        className="px-3.5 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] disabled:opacity-40 disabled:cursor-not-allowed border border-white/10 text-zinc-300 hover:text-white transition-all text-xs font-semibold flex items-center gap-1 cursor-pointer active:scale-[0.97]"
                       >
-                        <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-orange-400' : ''}`} />
-                        Refresh
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>Prev</span>
+                      </button>
+                      <div className="flex items-center gap-1 px-1">
+                        {Array.from({ length: Math.min(5, totalPerformancePages) }, (_, i) => {
+                          let start = Math.max(1, performancePage - 2);
+                          const end = Math.min(totalPerformancePages, start + 4);
+                          start = Math.max(1, end - 4);
+                          const pageNum = start + i;
+                          if (pageNum > totalPerformancePages) return null;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setPerformancePage(pageNum)}
+                              className={`w-7 h-7 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                                performancePage === pageNum
+                                  ? 'bg-orange-500 text-black shadow-md shadow-orange-500/20'
+                                  : 'bg-[#141414] text-zinc-400 hover:text-white hover:bg-zinc-800 border border-white/10'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setPerformancePage(p => Math.min(totalPerformancePages, p + 1))}
+                        disabled={performancePage === totalPerformancePages}
+                        className="px-3.5 py-1.5 rounded-full bg-[#2a2e2f] hover:bg-[#323637] disabled:opacity-40 disabled:cursor-not-allowed border border-white/10 text-zinc-300 hover:text-white transition-all text-xs font-semibold flex items-center gap-1 cursor-pointer active:scale-[0.97]"
+                      >
+                        <span>Next</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                </motion.div>
-
-
-                {/* Filters */}
-                <motion.div  className="relative z-50 bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl p-5">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <div>
-                      <label className={labelCls}>
-                        <span className="inline-flex items-center gap-1.5"><GraduationCap className="w-3.5 h-3.5 text-orange-400/70" />Year of study</span>
-                      </label>
-                      <CustomSelect value={selectedYearFilter} onChange={setSelectedYearFilter} options={['All Years', '1st Year', '2nd Year', '3rd Year', '4th Year']} />
-                    </div>
-                    <div>
-                      <label className={labelCls}>
-                        <span className="inline-flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-orange-400/70" />Department</span>
-                      </label>
-                      <CustomSelect value={selectedDeptFilter} onChange={setSelectedDeptFilter} options={['All Departments', 'Computer Science & Engg', 'Electronics & Comm Engg', 'Information Technology']} />
-                    </div>
-                    <div className="flex items-end justify-end md:justify-start">
-                      <span className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-orange-500/8 border border-orange-500/20 text-sm text-orange-400 font-medium">
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-                        {kpis.totalStudents} {kpis.totalStudents === 1 ? 'student' : 'students'}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* KPI cards — single accent, distinguished by label/weight not hue */}
-                <motion.div  className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <StatCard label="Total students" value={kpis.totalStudents} sub="Enrolled candidates" />
-                  <StatCard label="Mock tests taken" value={kpis.totalMockTestsTaken} sub="Attempted assessments" />
-                  <StatCard label="Resumes reviewed" value={kpis.totalResumeReviews} sub="AI ATS scans" />
-                  <StatCard label="Interviews practiced" value={kpis.totalInterviewsCompleted} sub="Mock sessions" />
-                </motion.div>
-
-                {/* Performance table */}
-                <motion.div  className="bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl overflow-hidden">
-                  {/* Table header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 border-b border-white/8">
-                    <div className="flex items-center gap-2.5">
-                      <Trophy className="w-4 h-4 text-orange-400" />
-                      <div>
-                        <h2 className="font-semibold text-white text-[15px] tracking-tight font-heading">Student Performance</h2>
-                        <p className="text-xs text-zinc-500 mt-0.5">Tests, interviews, and readiness indices</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          value={searchQuery}
-                          onChange={e => setSearchQuery(e.target.value)}
-                          placeholder="Search student…"
-                          className="bg-white/[0.05] border border-white/10 text-sm text-white pl-9 pr-4 py-2 rounded-full outline-none focus:border-orange-500/60 focus:ring-1 focus:ring-orange-500/20 transition-all placeholder-zinc-600 w-44 sm:w-56"
-                        />
-                      </div>
-                      <span className="text-xs text-zinc-500 font-medium shrink-0 tabular-nums">{filteredStudents.length} listed</span>
-                    </div>
-                  </div>
-
-                  {/* Table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-white/6 bg-white/[0.01]">
-                          <th className="py-3 px-6 text-xs font-medium text-zinc-500 tracking-wide">Student</th>
-                          <th className="py-3 px-4 text-xs font-medium text-zinc-500 tracking-wide">Department</th>
-                          <th className="py-3 px-4 text-xs font-medium text-zinc-500 tracking-wide">Year</th>
-                          <th className="py-3 px-4 text-xs font-medium text-zinc-500 tracking-wide text-center">Tests</th>
-                          <th className="py-3 px-4 text-xs font-medium text-zinc-500 tracking-wide text-center">Interviews</th>
-                          <th className="py-3 px-6 text-xs font-medium text-zinc-500 tracking-wide text-right">Readiness</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/[0.05]">
-                        {filteredStudents.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="py-14 text-center text-zinc-600 text-sm">No students match the selected filters.</td>
-                          </tr>
-                        ) : (
-                          paginatedStudents.map((student: any) => {
-                            const initial = (student.name || 'U').charAt(0).toUpperCase();
-                            const mockTestsAttended = student.testsCompleted || 0;
-                            const interviewsCompleted = student.interviewsCompleted || 0;
-                            const score = student.readinessScore || 0;
-                            return (
-                              <tr key={student.id} className="hover:bg-white/[0.025] transition-colors duration-100 group">
-                                <td className="py-3.5 px-6">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center font-semibold text-orange-400 text-sm shrink-0">
-                                      {initial}
-                                    </div>
-                                    <div>
-                                      <p className="font-medium text-white text-[13px] group-hover:text-orange-400 transition-colors duration-150 font-heading">{student.name}</p>
-                                      <p className="text-xs text-zinc-500 mt-0.5">{student.email}</p>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="py-3.5 px-4">
-                                  <span className="px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/8 text-zinc-300 text-xs">
-                                    {student.branch === 'CSE' ? 'CS & Engg' : student.branch === 'ECE' ? 'EC & Comm' : student.branch === 'IT' ? 'Info Tech' : student.branch}
-                                  </span>
-                                </td>
-                                <td className="py-3.5 px-4 text-zinc-400 text-[13px]">{student.year || '4th Year'}</td>
-                                <td className="py-3.5 px-4 text-center">
-                                  <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-semibold tabular-nums ${mockTestsAttended > 0 ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 'bg-white/[0.05] text-zinc-500 border border-white/8'}`}>
-                                    {mockTestsAttended}
-                                  </span>
-                                </td>
-                                <td className="py-3.5 px-4 text-center">
-                                  <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-semibold tabular-nums ${interviewsCompleted > 0 ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 'bg-white/[0.05] text-zinc-500 border border-white/8'}`}>
-                                    {interviewsCompleted}
-                                  </span>
-                                </td>
-                                <td className="py-3.5 px-6 text-right">
-                                  <div className="flex items-center justify-end gap-3">
-                                    <div className="w-20 h-1.5 rounded-full bg-white/8 overflow-hidden hidden sm:block">
-                                      <div className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.max(3, score))}%` }} />
-                                    </div>
-                                    <span className="text-[13px] font-semibold text-white tabular-nums font-heading">{score}<span className="text-zinc-500 font-normal text-xs">/100</span></span>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Pagination Controls */}
-                  {totalPerformancePages > 1 && (
-                    <div className="flex items-center justify-end px-6 py-4 border-t border-white/8 bg-white/[0.01]">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => setPerformancePage(p => Math.max(1, p - 1))}
-                          disabled={performancePage === 1}
-                          className="p-1.5 rounded-lg border border-white/10 bg-white/[0.05] hover:bg-white/10 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <span className="text-xs font-semibold text-white px-2">
-                          {performancePage} / {totalPerformancePages}
-                        </span>
-                        <button
-                          onClick={() => setPerformancePage(p => Math.min(totalPerformancePages, p + 1))}
-                          disabled={performancePage === totalPerformancePages}
-                          className="p-1.5 rounded-lg border border-white/10 bg-white/[0.05] hover:bg-white/10 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              </>
+                )}
+              </div>
             )}
-
-            {/* ── Admin Mock Tests view ── */}
-            {activeTab === 'admin-tests' && <AdminMockTests />}
-
-            {/* ── 2. Student Onboarding view ── */}
-            {activeTab === 'admin-roles' && (
-              <motion.div className="space-y-6">
-                <StudentOnboardingView />
-
-                <div className="bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl overflow-hidden mt-6">
-                  <div className="px-6 py-4 border-b border-white/8 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Users className="w-4 h-4 text-orange-400" />
-                      <span className="font-semibold text-white text-[15px] font-heading">All accounts & Roles</span>
-                    </div>
-                    <span className="text-xs text-zinc-500">{filteredAdminUsersList.length} registered</span>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-white/6 bg-white/[0.01]">
-                          <th className="py-3 px-6 text-xs font-medium text-zinc-500 tracking-wide">Name</th>
-                          <th className="py-3 px-4 text-xs font-medium text-zinc-500 tracking-wide">Email</th>
-                          <th className="py-3 px-4 text-xs font-medium text-zinc-500 tracking-wide">Branch · Year</th>
-                          <th className="py-3 px-4 text-xs font-medium text-zinc-500 tracking-wide">Readiness</th>
-                          <th className="py-3 px-6 text-xs font-medium text-zinc-500 tracking-wide">Role</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/[0.05]">
-                        {filteredAdminUsersList.map(u => (
-                          <tr key={u.id} className="hover:bg-white/[0.025] transition-colors duration-100">
-                            <td className="py-3.5 px-6 font-medium text-white text-[13px] font-heading">{u.name}</td>
-                            <td className="py-3.5 px-4 text-zinc-500 text-xs">{u.email}</td>
-                            <td className="py-3.5 px-4 text-zinc-400 text-[13px]">{u.branch} · {u.year}</td>
-                            <td className="py-3.5 px-4 font-semibold text-[13px] text-orange-400 tabular-nums">{u.readinessScore}%</td>
-                            <td className="py-3.5 px-6">
-                              <select
-                                value={u.role}
-                                onChange={e => updateUserRoleInAdmin(u.id, e.target.value as UserRole)}
-                                className="bg-white/[0.05] border border-white/10 text-sm text-white px-3 py-1.5 rounded-lg outline-none focus:border-orange-500/60 cursor-pointer transition-colors"
-                              >
-                                <option value="mentee" className="bg-[#111115]">Student</option>
-                                <option value="admin" className="bg-[#111115]">Admin (TPO)</option>
-                              </select>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ── 3. Question bank view ── */}
-            {activeTab === 'admin-question-bank' && (
-              <motion.div  className="space-y-5">
-                <div className="pt-1 pb-2 flex items-start justify-between">
-                  <div>
-                    <h1 className="text-xl font-bold text-white font-heading tracking-tight" style={{ letterSpacing: '-0.02em' }}>Question Bank</h1>
-                    <p className="text-sm text-zinc-500 mt-0.5">Add custom questions to the practice assessments</p>
-                  </div>
-                  {addSuccess && (
-                    <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-medium">
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Saved</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-[#111115]/80 border border-white/8 backdrop-blur-xl rounded-2xl p-6">
-                  <form onSubmit={handleAddQuestionSubmit} className="space-y-5">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className={labelCls}>Category</label>
-                        <select value={qType} onChange={e => setQType(e.target.value as any)} className={inputCls}>
-                          <option value="Technical" className="bg-[#111115]">Technical Core</option>
-                          <option value="Aptitude" className="bg-[#111115]">Aptitude & Reasoning</option>
-                          <option value="Logical" className="bg-[#111115]">Logical Analysis</option>
-                          <option value="Verbal" className="bg-[#111115]">Verbal Communication</option>
-                          <option value="Company-Specific" className="bg-[#111115]">Company Specific</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className={labelCls}>Company tag</label>
-                        <input type="text" value={qCompanyTag} onChange={e => setQCompanyTag(e.target.value)} placeholder="TCS / Infosys / Wipro" className={inputCls} />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Difficulty</label>
-                        <select value={qDifficulty} onChange={e => setQDifficulty(e.target.value as any)} className={inputCls}>
-                          <option value="Easy" className="bg-[#111115]">Easy</option>
-                          <option value="Medium" className="bg-[#111115]">Medium</option>
-                          <option value="Hard" className="bg-[#111115]">Hard</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={labelCls}>Question prompt</label>
-                      <textarea required rows={3} value={qTitle} onChange={e => setQTitle(e.target.value)} placeholder="Enter the question text…" className={`${inputCls} resize-none leading-relaxed`} />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {[['Option A', optA, setOptA], ['Option B', optB, setOptB], ['Option C', optC, setOptC], ['Option D', optD, setOptD]].map(([label, val, setter]) => (
-                        <div key={label as string}>
-                          <label className={labelCls}>{label as string}</label>
-                          <input type="text" required value={val as string} onChange={e => (setter as any)(e.target.value)} className={inputCls} />
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelCls}>Correct answer</label>
-                        <select value={correctOption} onChange={e => setCorrectOption(Number(e.target.value))} className={inputCls}>
-                          {['Option A', 'Option B', 'Option C', 'Option D'].map((opt, i) => (
-                            <option key={i} value={i} className="bg-[#111115]">{opt}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={labelCls}>Explanation</label>
-                        <input type="text" required value={qExplanation} onChange={e => setQExplanation(e.target.value)} placeholder="Step-by-step rationale…" className={inputCls} />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 active:bg-orange-600 text-black font-semibold text-sm transition-colors duration-150 cursor-pointer active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {submitting ? 'Saving…' : 'Save question to bank'}
-                    </button>
-                  </form>
-                </div>
-              </motion.div>
-            )}
-
           </motion.div>
-    </div>
+        </>
+      )}
+
+      {/* ── Mock Tests view ── */}
+      {activeTab === 'admin-tests' && <AdminMockTests />}
+
+      {/* ── Student Onboarding view ── */}
+      {activeTab === 'admin-roles' && (
+        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+          <motion.div variants={itemVariants}>
+            <StudentOnboardingView />
+          </motion.div>
+
+          {/* All Accounts table */}
+          <motion.div variants={itemVariants} className="mono-card p-4 sm:p-6 space-y-5 min-w-0 overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-orange-400 shrink-0" />
+                  <h2 className="font-bold text-base text-white font-heading">All Accounts &amp; Roles</h2>
+                </div>
+                <p className="text-xs text-zinc-400">Manage role assignment for registered accounts</p>
+              </div>
+              <span className="text-xs text-zinc-500 font-medium">{filteredAdminUsersList.length} registered</span>
+            </div>
+            <div className="overflow-x-auto border border-white/10 rounded-lg bg-[#0d0d0d] shadow-inner">
+              <table className="w-full min-w-[560px] text-left border-collapse font-sans">
+                <thead>
+                  <tr className="bg-[#000000] border-b border-white/10 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                    <th className="p-4 pl-5">Name</th>
+                    <th className="p-4">Email</th>
+                    <th className="p-4">Branch &middot; Year</th>
+                    <th className="p-4">Readiness</th>
+                    <th className="p-4 pr-5">Role</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10 text-xs text-white">
+                  {filteredAdminUsersList.map(u => (
+                    <tr key={u.id} className="hover:bg-[#141414] transition-colors">
+                      <td className="p-4 pl-5 font-semibold text-white text-[13px] font-heading">{u.name}</td>
+                      <td className="p-4 text-zinc-500 text-xs">{u.email}</td>
+                      <td className="p-4 text-zinc-400 text-[13px]">{u.branch} &middot; {u.year}</td>
+                      <td className="p-4 font-semibold text-[13px] text-orange-400 tabular-nums">{u.readinessScore}%</td>
+                      <td className="p-4 pr-5">
+                        <select
+                          value={u.role}
+                          onChange={e => updateUserRoleInAdmin(u.id, e.target.value as UserRole)}
+                          className="bg-[#141414] border border-white/10 text-sm text-white px-3 py-1.5 rounded-lg outline-none focus:border-orange-500/40 cursor-pointer transition-colors"
+                        >
+                          <option value="mentee" className="bg-[#0d0d0d]">Student</option>
+                          <option value="admin" className="bg-[#0d0d0d]">Admin (TPO)</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* ── Question Bank view ── */}
+      {activeTab === 'admin-question-bank' && (
+        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-5">
+          <motion.div variants={itemVariants} className="pt-1 pb-2 flex items-start justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-white font-heading tracking-tight" style={{ letterSpacing: '-0.02em' }}>Question Bank</h1>
+              <p className="text-sm text-zinc-500 mt-0.5">Add custom questions to the practice assessments</p>
+            </div>
+            {addSuccess && (
+              <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-medium">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Saved</span>
+              </div>
+            )}
+          </motion.div>
+          <motion.div variants={itemVariants} className="mono-card p-5 sm:p-6">
+            <form onSubmit={handleAddQuestionSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className={labelCls}>Category</label>
+                  <select value={qType} onChange={e => setQType(e.target.value as any)} className={inputCls}>
+                    <option value="Technical" className="bg-[#0d0d0d]">Technical Core</option>
+                    <option value="Aptitude" className="bg-[#0d0d0d]">Aptitude &amp; Reasoning</option>
+                    <option value="Logical" className="bg-[#0d0d0d]">Logical Analysis</option>
+                    <option value="Verbal" className="bg-[#0d0d0d]">Verbal Communication</option>
+                    <option value="Company-Specific" className="bg-[#0d0d0d]">Company Specific</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Company tag</label>
+                  <input type="text" value={qCompanyTag} onChange={e => setQCompanyTag(e.target.value)} placeholder="TCS / Infosys / Wipro" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Difficulty</label>
+                  <select value={qDifficulty} onChange={e => setQDifficulty(e.target.value as any)} className={inputCls}>
+                    <option value="Easy" className="bg-[#0d0d0d]">Easy</option>
+                    <option value="Medium" className="bg-[#0d0d0d]">Medium</option>
+                    <option value="Hard" className="bg-[#0d0d0d]">Hard</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Question prompt</label>
+                <textarea required rows={3} value={qTitle} onChange={e => setQTitle(e.target.value)} placeholder="Enter the question text..." className={`${inputCls} resize-none leading-relaxed`} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[['Option A', optA, setOptA], ['Option B', optB, setOptB], ['Option C', optC, setOptC], ['Option D', optD, setOptD]].map(([label, val, setter]) => (
+                  <div key={label as string}>
+                    <label className={labelCls}>{label as string}</label>
+                    <input type="text" required value={val as string} onChange={e => (setter as any)(e.target.value)} className={inputCls} />
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Correct answer</label>
+                  <select value={correctOption} onChange={e => setCorrectOption(Number(e.target.value))} className={inputCls}>
+                    {['Option A', 'Option B', 'Option C', 'Option D'].map((opt, i) => (
+                      <option key={i} value={i} className="bg-[#0d0d0d]">{opt}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Explanation</label>
+                  <input type="text" required value={qExplanation} onChange={e => setQExplanation(e.target.value)} placeholder="Step-by-step rationale..." className={inputCls} />
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="btn-primary w-full py-3 text-sm font-bold rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Saving...' : 'Save question to bank'}
+              </button>
+            </form>
+          </motion.div>
+        </motion.div>
+      )}
+
+    </motion.div>
   );
 });
 

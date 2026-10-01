@@ -33,22 +33,64 @@ def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
             "totalStudents": kpis["total_students"],
             "totalMockTestsTaken": kpis["total_mock_tests_taken"],
             "totalResumeReviews": kpis["total_resumes_reviewed"],
-            "totalInterviewPractices": kpis["total_interview_practices"],
+            # Expose both keys so frontend can use either
+            "totalInterviewsCompleted": kpis["total_interview_practices"],
+            "totalInterviewSimulationsCompleted": kpis["total_interview_practices"],
         }
     }
 
 
-# ─── Student List (paginated) ──────────────────────────────────────────────────
+# ─── Student List (paginated, filterable) ─────────────────────────────────────
+
+YEAR_LABEL_TO_INT = {
+    "1st year": 1, "1st": 1, "1": 1,
+    "2nd year": 2, "2nd": 2, "2": 2,
+    "3rd year": 3, "3rd": 3, "3": 3,
+    "4th year": 4, "4th": 4, "4": 4,
+}
+
+DEPT_LABEL_TO_CODE = {
+    "computer science & engg": "CSE",
+    "computer science & engineering": "CSE",
+    "cse": "CSE",
+    "electronics & comm engg": "ECE",
+    "electronics & communication engineering": "ECE",
+    "ece": "ECE",
+    "information technology": "IT",
+    "it": "IT",
+}
+
 
 @router.get("/students")
 @router.get("/users")
 def get_students(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
+    year: Optional[str] = Query(None),
+    branch: Optional[str] = Query(None),
     current_user: dict = Depends(get_current_user)
 ):
     _require_admin(current_user)
-    result = db.get_admin_student_list(page=page, page_size=page_size)
+
+    # Normalise year
+    year_int: Optional[int] = None
+    if year and year.lower() not in ("", "all years", "all"):
+        year_int = YEAR_LABEL_TO_INT.get(year.lower().strip())
+        if year_int is None:
+            try:
+                year_int = int(year)
+            except (ValueError, TypeError):
+                year_int = None
+
+    # Normalise department/branch to dept code
+    dept_code: Optional[str] = None
+    if branch and branch.lower() not in ("", "all departments", "all"):
+        dept_code = DEPT_LABEL_TO_CODE.get(branch.lower().strip()) or branch.strip().upper()
+
+    result = db.get_admin_student_list(
+        page=page, page_size=page_size,
+        year=year_int, department_code=dept_code,
+    )
     return {
         "users": result["students"],
         "students": result["students"],
