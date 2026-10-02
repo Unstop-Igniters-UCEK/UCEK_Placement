@@ -6,7 +6,7 @@ import Grainient from '../components/Grainient';
 import { CustomSelect } from '../components/CustomSelect';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogIn, UserPlus, X, AlertCircle, Eye, EyeOff, KeyRound, CheckCircle2, Loader2 } from 'lucide-react';
-import { sendOtpApi, verifyOtpResetApi, getRegistrationStatusApi } from '../lib/api';
+import { requestPasswordResetHelpApi, getRegistrationStatusApi } from '../lib/api';
 
 export const LandingPage: React.FC = React.memo(() => {
   const { loginUser, signupUser } = useApp();
@@ -37,13 +37,10 @@ export const LandingPage: React.FC = React.memo(() => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Forgot password OTP state
+  // Forgot password Admin-Assisted state
   const [forgotEmail, setForgotEmail] = useState('');
-  const [otpStep, setOtpStep] = useState<'email' | 'verify'>('email');
-  const [otpCode, setOtpCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [isResetSuccess, setIsResetSuccess] = useState(false);
+  const [forgotSubmitted, setForgotSubmitted] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch authoritative registration setting from backend
@@ -142,11 +139,9 @@ export const LandingPage: React.FC = React.memo(() => {
   const handleOpenForgot = () => {
     setErrorMsg(null);
     setSuccessMsg(null);
-    setIsResetSuccess(false);
-    setOtpStep('email');
+    setForgotSubmitted(false);
+    setForgotMessage('');
     setForgotEmail(email.trim());
-    setOtpCode('');
-    setNewPassword('');
     setAuthMode('forgot');
   };
 
@@ -155,8 +150,7 @@ export const LandingPage: React.FC = React.memo(() => {
     setShowRestrictionModal(false);
     setErrorMsg(null);
     setSuccessMsg(null);
-    setIsResetSuccess(false);
-    setOtpStep('email');
+    setForgotSubmitted(false);
   };
 
   const handleRoleSelect = async (role: UserRole | any) => {
@@ -177,7 +171,7 @@ export const LandingPage: React.FC = React.memo(() => {
     setSelectedRole(safeRole);
   };
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleRequestAdminHelp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -187,36 +181,11 @@ export const LandingPage: React.FC = React.memo(() => {
     }
     setIsSubmitting(true);
     try {
-      const res = await sendOtpApi(forgotEmail);
-      setOtpStep('verify');
-      setSuccessMsg(res.message || 'Verification code sent to your email.');
+      const res = await requestPasswordResetHelpApi(forgotEmail);
+      setForgotSubmitted(true);
+      setForgotMessage(res.message);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to send verification code.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleVerifyOtpReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
-    if (!otpCode.trim() || otpCode.length !== 6) {
-      setErrorMsg('Please enter the 6-digit OTP code.');
-      return;
-    }
-    if (newPassword.length < 6) {
-      setErrorMsg('New password must be at least 6 characters long.');
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await verifyOtpResetApi(forgotEmail, otpCode, newPassword);
-      setIsResetSuccess(true);
-      setErrorMsg(null);
-      setSuccessMsg(null);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'OTP verification failed.');
+      setErrorMsg(err.message || 'Failed to submit password reset request.');
     } finally {
       setIsSubmitting(false);
     }
@@ -438,14 +407,14 @@ export const LandingPage: React.FC = React.memo(() => {
                       ? selectedRole === 'admin' ? 'Admin Sign In' : 'Student Sign In'
                       : authMode === 'signup'
                       ? selectedRole === 'admin' ? 'Create Admin Account' : 'Create Student Account'
-                      : 'Reset Password'}
+                      : 'Forgot your password?'}
                   </h3>
-                  <p className="text-xs text-zinc-400 font-sans">
+                  <p className="text-xs text-zinc-400 font-sans leading-relaxed">
                     {authMode === 'login'
                       ? 'Enter your institutional credentials below to access your portal.'
                       : authMode === 'signup'
                       ? 'Register your account profile to access placement preparation tools.'
-                      : 'Enter your institutional email to receive a verification OTP code.'}
+                      : 'For security reasons, password recovery is handled by the UCEK Placement Administrator. Submit a request and an administrator will assist you with resetting your password.'}
                   </p>
                 </div>
 
@@ -524,15 +493,17 @@ export const LandingPage: React.FC = React.memo(() => {
                       transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
                       className="space-y-4 pt-1 font-sans"
                     >
-                      {isResetSuccess ? (
+                      {forgotSubmitted ? (
                         <div className="text-center py-4 space-y-4">
-                          <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-lg">
+                          <div className="w-12 h-12 mx-auto rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 shadow-lg">
                             <CheckCircle2 className="w-6 h-6" />
                           </div>
-                          <div className="space-y-1">
-                            <h4 className="text-base font-bold text-white font-sans">Password Reset Successful!</h4>
-                            <p className="text-xs text-zinc-400 max-w-xs mx-auto leading-relaxed">
-                              Your password has been updated in Supabase. You can now sign in with your new password.
+                          <div className="space-y-1.5">
+                            <h4 className="text-base font-bold text-white font-sans">
+                              Password change request submitted.
+                            </h4>
+                            <p className="text-xs text-zinc-300 max-w-xs mx-auto leading-relaxed">
+                              {forgotMessage || "Your request has been sent to the Placement Administrator. Please wait for an administrator to assist you."}
                             </p>
                           </div>
                           <button
@@ -540,6 +511,7 @@ export const LandingPage: React.FC = React.memo(() => {
                             onClick={() => {
                               setErrorMsg(null);
                               setSuccessMsg(null);
+                              setForgotSubmitted(false);
                               setAuthMode('login');
                             }}
                             className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-lg mt-2 active:scale-[0.98] transition-transform duration-100"
@@ -548,8 +520,8 @@ export const LandingPage: React.FC = React.memo(() => {
                             <span>Return to Sign In</span>
                           </button>
                         </div>
-                      ) : otpStep === 'email' ? (
-                        <form onSubmit={handleSendOtp} className="space-y-4">
+                      ) : (
+                        <form onSubmit={handleRequestAdminHelp} className="space-y-4">
                           <div className="space-y-1">
                             <label className="block text-xs font-semibold text-zinc-300">Registered Email Address</label>
                             <input
@@ -568,7 +540,7 @@ export const LandingPage: React.FC = React.memo(() => {
                             className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.98] transition-transform duration-150 disabled:opacity-50"
                           >
                             <KeyRound className="w-4 h-4 text-black" />
-                            <span>{isSubmitting ? 'Sending Code...' : 'Send Verification Code'}</span>
+                            <span>{isSubmitting ? 'Requesting...' : 'Request Password Change'}</span>
                           </button>
 
                           <div className="pt-2 text-center">
@@ -577,71 +549,7 @@ export const LandingPage: React.FC = React.memo(() => {
                               onClick={() => {
                                 setErrorMsg(null);
                                 setSuccessMsg(null);
-                                setAuthMode('login');
-                              }}
-                              className="text-xs text-zinc-400 hover:text-white font-medium hover:underline cursor-pointer"
-                            >
-                              ← Back to Sign In
-                            </button>
-                          </div>
-                        </form>
-                      ) : (
-                        <form onSubmit={handleVerifyOtpReset} className="space-y-4">
-                          <div className="space-y-1">
-                            <label className="block text-xs font-semibold text-zinc-300">6-Digit Verification Code</label>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              autoComplete="one-time-code"
-                              maxLength={6}
-                              className="w-full px-4 py-2.5 rounded-full bg-white/5 border border-white/20 text-white font-mono font-bold tracking-[0.3em] text-center text-xs focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all"
-                              placeholder="123456"
-                              value={otpCode}
-                              onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                              required
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="block text-xs font-semibold text-zinc-300">New Password</label>
-                            <div className="relative">
-                              <input
-                                type={showNewPassword ? "text" : "password"}
-                                autoComplete="new-password"
-                                className="w-full pl-4 pr-10 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-sans"
-                                placeholder="Min 6 characters"
-                                value={newPassword}
-                                onChange={e => setNewPassword(e.target.value)}
-                                required
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowNewPassword(!showNewPassword)}
-                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
-                                title={showNewPassword ? "Hide password" : "Show password"}
-                                tabIndex={-1}
-                              >
-                                {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
-                          </div>
-
-                          <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="btn-primary w-full py-3 text-xs font-bold rounded-full cursor-pointer flex items-center justify-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.98] transition-transform duration-150 disabled:opacity-50"
-                          >
-                            <KeyRound className="w-4 h-4 text-black" />
-                            <span>{isSubmitting ? 'Resetting Password...' : 'Verify OTP & Reset Password'}</span>
-                          </button>
-
-                          <div className="pt-2 text-center">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setErrorMsg(null);
-                                setSuccessMsg(null);
+                                setForgotSubmitted(false);
                                 setAuthMode('login');
                               }}
                               className="text-xs text-zinc-400 hover:text-white font-medium hover:underline cursor-pointer"

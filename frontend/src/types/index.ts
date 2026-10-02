@@ -24,7 +24,20 @@ export interface User {
   company?: string; // For placed mentors
   bio?: string;
   isExternal?: boolean;
+  must_change_password?: boolean;
 }
+
+export interface AdminPasswordResetRequest {
+  id: string;
+  student_id: string;
+  name: string;
+  email: string;
+  department: string;
+  year: string;
+  created_at: string;
+  status: string;
+}
+
 
 export interface Milestone {
   id: string;

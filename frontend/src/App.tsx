@@ -10,6 +10,7 @@ import Lenis from 'lenis';
 import Maintenance from "./pages/Maintenance";
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SplashScreen } from './components/SplashScreen';
+import { ForcedPasswordChange } from './components/ForcedPasswordChange';
 
 // Lazy loaded page modules to reduce initial JavaScript parse time
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -91,6 +92,16 @@ function AppContent() {
       setActiveTab('admin-dashboard');
     }
   }, [user, activeTab, setActiveTab]);
+
+  // Blocking forced password change screen for students whose credentials were reset by admin
+  if (user && user.role !== 'admin' && user.must_change_password) {
+    return (
+      <>
+        {splashActive && <SplashScreen onComplete={() => setSplashActive(false)} />}
+        <ForcedPasswordChange />
+      </>
+    );
+  }
 
   return (
     <>

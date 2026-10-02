@@ -1,3 +1,5 @@
+import type { AdminPasswordResetRequest } from '../types';
+
 /**
  * api.ts — Central API service for the UCEK Placement Platform frontend.
  * All requests to the FastAPI backend go through this file.
@@ -106,6 +108,7 @@ export interface AuthResponse {
     avatar?: string;
     bio?: string;
     targetDrive?: string;
+    must_change_password?: boolean;
   };
   accessToken: string;
 }
@@ -270,8 +273,9 @@ export async function getRegistrationStatusApi(): Promise<RegistrationStatusResp
   }
 }
 
-export async function sendOtpApi(email: string): Promise<{ message: string; otpSent: boolean }> {
-  const res = await fetch(`${BASE_URL}/api/auth/send-otp`, {
+/** Student: Request Admin Help for password reset */
+export async function requestPasswordResetHelpApi(email: string): Promise<{ message: string; alreadyPending?: boolean }> {
+  const res = await fetch(`${BASE_URL}/api/auth/forgot-password/request`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: email.trim() }),
@@ -279,29 +283,37 @@ export async function sendOtpApi(email: string): Promise<{ message: string; otpS
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(parseErrorMessage(err, 'Failed to send verification code'));
+    throw new Error(parseErrorMessage(err, 'Failed to request password reset help'));
   }
 
   return res.json();
 }
 
-export async function verifyOtpResetApi(email: string, otpCode: string, newPassword: string): Promise<{ message: string }> {
-  const res = await fetch(`${BASE_URL}/api/auth/verify-otp-reset`, {
+/** Student: Forced password change when must_change_password is true */
+export async function forcedChangePasswordApi(payload: {
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<{ message: string; must_change_password: boolean }> {
+  const res = await authFetch(`${BASE_URL}/api/auth/forced-change-password`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: email.trim(),
-      otpCode: otpCode.trim(),
-      newPassword: newPassword,
-    }),
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(parseErrorMessage(err, 'Invalid OTP code or password reset failed'));
+    throw new Error(parseErrorMessage(err, 'Failed to update password'));
   }
 
   return res.json();
+}
+
+export async function sendOtpApi(email: string): Promise<{ message: string; otpSent: boolean }> {
+  return requestPasswordResetHelpApi(email).then(r => ({ message: r.message, otpSent: true }));
+}
+
+export async function verifyOtpResetApi(_email: string, _otpCode: string, _newPassword: string): Promise<{ message: string }> {
+  throw new Error('OTP verification is deprecated. Please use the Admin-Assisted password recovery flow.');
 }
 
 export async function changePasswordApi(payload: {
@@ -1123,6 +1135,79 @@ export async function updateAdminRegistrationSettingApi(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(parseErrorMessage(err, `Failed to update registration setting (${res.status})`));
+  }
+  return res.json();
+}
+
+// ─── Admin Password Reset Requests ────────────────────────────────────────
+
+/** Admin: Fetch all pending student password reset requests */
+export async function getAdminPasswordResetRequestsApi(): Promise<{
+  requests: AdminPasswordResetRequest[];
+  total: number;
+}> {
+  const res = await authFetch(`${BASE_URL}/api/admin/password-reset-requests`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to load password reset requests (${res.status})`));
+  }
+  return res.json();
+}
+
+/** Admin: Reset student password and receive temporary 5-character password */
+export async function resetStudentPasswordAdminApi(requestId: string): Promise<{
+  temporaryPassword: string;
+  studentName: string;
+  studentEmail: string;
+  requestId: string;
+  studentId?: string;
+  message: string;
+}> {
+  const res = await authFetch(`${BASE_URL}/api/admin/password-reset-requests/${requestId}/reset`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to reset student password (${res.status})`));
+  }
+  return res.json();
+}
+
+/** Admin: Regenerate a new temporary 5-character password */
+export async function regenerateStudentPasswordAdminApi(targetId: string): Promise<{
+  temporaryPassword: string;
+  studentName: string;
+  studentEmail: string;
+  requestId: string;
+  studentId?: string;
+  message: string;
+}> {
+  const res = await authFetch(`${BASE_URL}/api/admin/password-reset-requests/${targetId}/regenerate`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to regenerate temporary password (${res.status})`));
+  }
+  return res.json();
+}
+
+/** Admin: Resolve/dismiss request once student password has been shared */
+export async function resolvePasswordResetRequestApi(requestId: string): Promise<{
+  message: string;
+  requestId: string;
+}> {
+  const res = await authFetch(`${BASE_URL}/api/admin/password-reset-requests/${requestId}/resolve`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to resolve password reset request (${res.status})`));
   }
   return res.json();
 }

@@ -310,3 +310,95 @@ def update_registration_setting(
             status_code=500,
             detail=f"Failed to update platform settings: {str(e)}"
         )
+
+
+# ─── Password Reset Requests (Admin-Assisted) ─────────────────────────────────
+
+@router.get("/password-reset-requests")
+def get_password_reset_requests(current_user: dict = Depends(get_current_user)):
+    """
+    List all pending password reset requests for administrators.
+    """
+    _require_admin(current_user)
+    requests = db.get_pending_password_reset_requests()
+    return {
+        "requests": requests,
+        "total": len(requests)
+    }
+
+
+@router.post("/password-reset-requests/{request_id}/reset")
+def reset_student_password(
+    request_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Admin resets student password:
+    1. Verifies admin authorization.
+    2. Atomically validates request is pending and target is active student.
+    3. Generates 5-character temporary password (no visually ambiguous chars).
+    4. Hashes and updates users.password_hash with must_change_password=True.
+    5. Returns temporary password once for copying.
+    """
+    _require_admin(current_user)
+    temp_pw, student, err = db.reset_student_password_from_request(request_id)
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+
+    return {
+        "temporaryPassword": temp_pw,
+        "studentName": student["name"],
+        "studentEmail": student["email"],
+        "studentId": student["id"],
+        "requestId": request_id,
+        "message": "Temporary password generated successfully."
+    }
+
+
+@router.post("/password-reset-requests/{target_id}/regenerate")
+def regenerate_student_password(
+    target_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Admin generates a new temporary password if previous one was uncopied or lost:
+    - Generates another secure 5-character password.
+    - Overwrites previous hash, immediately invalidating previous temporary password.
+    - Keeps must_change_password = True.
+    """
+    _require_admin(current_user)
+    # Check if target_id is student_id or request_id
+    temp_pw, student, err = db.regenerate_student_temporary_password(target_id)
+    if err:
+        # Fallback to reset_student_password_from_request in case request_id was passed
+        temp_pw, student, err = db.reset_student_password_from_request(target_id)
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+
+    return {
+        "temporaryPassword": temp_pw,
+        "studentName": student["name"],
+        "studentEmail": student["email"],
+        "studentId": student["id"],
+        "requestId": target_id,
+        "message": "New temporary password generated successfully. Previous temporary password is now invalid."
+    }
+
+
+@router.post("/password-reset-requests/{request_id}/resolve")
+@router.delete("/password-reset-requests/{request_id}")
+def resolve_password_reset_request(
+    request_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Mark/delete password reset request as resolved.
+    Removes the request so it disappears from the pending queue for all admins.
+    """
+    _require_admin(current_user)
+    db.resolve_password_reset_request(request_id)
+    return {
+        "message": "Password reset request resolved successfully.",
+        "requestId": request_id
+    }
+

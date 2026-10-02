@@ -90,6 +90,7 @@ interface AppContextType {
   addMentorshipLog: (topic: string, feedback: string, actionItems: string[]) => void;
   requestMentorship: (mentorId: string) => void;
   updateUserRoleInAdmin: (userId: string, newRole: UserRole) => void;
+  completeForcedPasswordChange: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -203,6 +204,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               readiness: data.user.readiness,
               avatar: data.user.avatar,
               bio: data.user.bio,
+              must_change_password: Boolean(data.user.must_change_password),
             });
 
             setSelectedTargetDriveState(data.user.targetDrive || '');
@@ -477,6 +479,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       readiness: data.user.readiness,
       avatar: data.user.avatar,
       bio: data.user.bio,
+      must_change_password: false,
     };
     setUser(mappedUser);
     setActiveTab(mappedUser.role === 'admin' ? 'admin-dashboard' : 'dashboard');
@@ -503,6 +506,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       readiness: data.user.readiness,
       avatar: data.user.avatar,
       bio: data.user.bio,
+      must_change_password: Boolean(data.user.must_change_password),
     };
     setUser(mappedUser);
     setSelectedTargetDriveState(data.user.targetDrive || '');
@@ -574,6 +578,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     readNotificationIdsRef.current.clear();
     setHighlightedTestId(null);
     setActiveTab('dashboard');
+  }, []);
+
+  const completeForcedPasswordChange = useCallback(() => {
+    setUser(prev => prev ? { ...prev, must_change_password: false } : null);
   }, []);
 
   const toggleMilestone = useCallback((domainId: string, moduleId: string, milestoneId: string) => {
@@ -762,6 +770,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addMentorshipLog,
     requestMentorship,
     updateUserRoleInAdmin,
+    completeForcedPasswordChange,
     notifications,
     unreadNotificationsCount,
     markNotificationsAsRead,
@@ -802,6 +811,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     addMentorshipLog,
     requestMentorship,
     updateUserRoleInAdmin,
+    completeForcedPasswordChange,
     notifications,
     unreadNotificationsCount,
     markNotificationsAsRead,

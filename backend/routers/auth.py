@@ -18,7 +18,8 @@ from backend.database import db, hash_password, verify_password, supabase_client
 from backend.auth import create_access_token, create_refresh_token, decode_token, get_current_user, ALLOWED_EMAIL_DOMAIN, security
 from backend.schemas import (
     RegisterRequest, LoginRequest, DemoLoginRequest,
-    SendOTPRequest, VerifyOTPResetRequest
+    SendOTPRequest, VerifyOTPResetRequest,
+    ForgotPasswordHelpRequest, ForcedChangePasswordRequest
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -385,62 +386,95 @@ def _send_otp_email(to_email: str, otp_code: str) -> tuple[bool, Optional[str]]:
         return False, f"Failed to connect to email provider: {str(e)}"
 
 
+# ─── Forgot Password / Admin-Assisted Reset Request ──────────────────────────
+
+GENERIC_RESET_HELP_MESSAGE = "Your request has been sent to the Placement Administrator. Please wait for an administrator to assist you."
+
+@router.post("/forgot-password/request")
 @router.post("/send-otp")
-@limiter.limit("3/minute")
-def send_otp(request: Request, req: SendOTPRequest):
+@limiter.limit("5/minute")
+def request_password_reset_help(request: Request, req: ForgotPasswordHelpRequest):
+    """
+    Student submits email to request admin-assisted password recovery.
+    - Server looks up the account.
+    - If user doesn't exist, is not student, or is inactive: returns generic response (no email enumeration).
+    - If already pending: returns message indicating request is already pending.
+    - If valid: creates pending record in password_reset_requests.
+    """
     email = req.email.strip().lower()
     user = db.get_user_by_email(email)
-    # If account does not exist, return generic notice to prevent email enumeration
-    if not user:
+
+    # Generic response for non-existent, inactive, or non-student accounts (no user enumeration)
+    if not user or user.get("role") != "student" or not user.get("is_active", True):
         return {
-            "message": f"If an account exists for {email}, a verification code has been dispatched.",
-            "otpSent": True,
+            "message": GENERIC_RESET_HELP_MESSAGE,
+            "alreadyPending": False,
         }
 
-    otp_code = f"{random.randint(100000, 999999)}"
-    expires_at = datetime.utcnow().timestamp() + 600
+    student_id = user["id"]
+    success, status_code = db.create_password_reset_request(student_id)
 
-    db.otp_store[email] = {"code": otp_code, "expiresAt": expires_at, "attempts": 0}
-    print(f"\n[OTP] Generated for {email}: {otp_code}\n")
+    if status_code == "already_pending":
+        return {
+            "message": "Your password change request is already pending with the Placement Administrator.",
+            "alreadyPending": True,
+        }
 
-    sent, error_msg = _send_otp_email(email, otp_code)
-    if not sent:
-        raise HTTPException(
-            status_code=502,
-            detail=error_msg or "Failed to deliver verification email. Please check your email configuration."
-        )
+    if not success:
+        print(f"[ForgotPassword Error] Server-side database failure persisting request for student_id={student_id}")
+        return {
+            "message": GENERIC_RESET_HELP_MESSAGE,
+            "alreadyPending": False,
+        }
 
     return {
-        "message": f"6-digit verification code dispatched to {email}. Please check your inbox.",
-        "otpSent": True,
+        "message": GENERIC_RESET_HELP_MESSAGE,
+        "alreadyPending": False,
     }
 
 
-@router.post("/verify-otp-reset")
-@limiter.limit("5/minute")
-def verify_otp_reset(request: Request, req: VerifyOTPResetRequest):
-    email = req.email.strip().lower()
-    user = db.get_user_by_email(email)
-    if not user:
-        raise HTTPException(status_code=404, detail="User account not found.")
+# ─── Student Forced Password Change ──────────────────────────────────────────
 
-    otp_entry = db.otp_store.get(email)
-    if not otp_entry:
-        raise HTTPException(status_code=400, detail="No OTP code requested or OTP has expired.")
+@router.post("/forced-change-password")
+@limiter.limit("10/minute")
+def forced_change_password(
+    request: Request,
+    req: ForcedChangePasswordRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Authenticated student forced password change (after logging in with admin temporary password).
+    - Reuses existing password validation rules (min 6 chars, match confirmation).
+    - Hashes with existing bcrypt hash_password.
+    - Updates users.password_hash and sets must_change_password = False.
+    - Updates password_changed_at timestamp.
+    """
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Only students can perform this password reset.")
 
-    if datetime.utcnow().timestamp() > otp_entry["expiresAt"]:
-        del db.otp_store[email]
-        raise HTTPException(status_code=400, detail="OTP code has expired. Please request a new code.")
+    # Validate new password
+    new_pw = (req.newPassword or "").strip()
+    confirm_pw = (req.confirmPassword or "").strip()
 
-    if otp_entry["code"] != req.otpCode.strip():
-        otp_entry["attempts"] += 1
-        if otp_entry["attempts"] >= 5:
-            del db.otp_store[email]
-            raise HTTPException(status_code=400, detail="Too many invalid attempts. OTP invalidated.")
-        raise HTTPException(status_code=400, detail="Invalid 6-digit OTP code. Please check and try again.")
+    if not new_pw:
+        raise HTTPException(status_code=400, detail="New password is required.")
+    if len(new_pw) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters long.")
+    if new_pw != confirm_pw:
+        raise HTTPException(status_code=400, detail="New passwords do not match.")
 
-    new_pw_hash = hash_password(req.newPassword)
-    db.update_user_password(user["id"], new_pw_hash)
-    del db.otp_store[email]
+    # Disallow reusing the same password
+    stored_hash = current_user.get("password_hash")
+    if stored_hash and verify_password(new_pw, stored_hash):
+        raise HTTPException(status_code=400, detail="New password must be different from current password.")
 
-    return {"message": "Password reset successful! You can now sign in with your new password."}
+    # Update in database
+    new_hash = hash_password(new_pw)
+    success = db.update_user_password(current_user["id"], new_hash, must_change_password=False)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update password. Please try again.")
+
+    return {
+        "message": "Password changed successfully. You can now access your dashboard.",
+        "must_change_password": False,
+    }

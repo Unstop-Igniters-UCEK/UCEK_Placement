@@ -445,3 +445,15 @@ class SaveResumeRequest(BaseModel):
 
 class UpdateRegistrationSettingRequest(BaseModel):
     enabled: bool
+
+
+# ─── Admin-Assisted Password Reset ──────────────────────────────────────────
+
+class ForgotPasswordHelpRequest(BaseModel):
+    email: str
+
+
+class ForcedChangePasswordRequest(BaseModel):
+    newPassword: str
+    confirmPassword: str
+

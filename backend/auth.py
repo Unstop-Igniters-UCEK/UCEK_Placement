@@ -61,7 +61,18 @@ def decode_token(token: str) -> Dict[str, Any]:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")
 
 
+ALLOWED_MUST_CHANGE_PASSWORD_PATHS = {
+    "/api/user/profile",
+    "/api/auth/me",
+    "/api/auth/logout",
+    "/api/auth/forced-change-password",
+    "/api/auth/change-password",
+    "/api/user/change-password",
+}
+
+
 def get_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> Dict[str, Any]:
     from backend.database import db
@@ -79,6 +90,16 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
     if not user.get("is_active", True):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated.")
+
+    # Enforce forced password change on student accounts: block all platform routes except password change & auth
+    if user.get("role") == "student" and user.get("must_change_password"):
+        if request is not None and hasattr(request, "url") and request.url:
+            raw_path = request.url.path.rstrip('/')
+            if raw_path not in ALLOWED_MUST_CHANGE_PASSWORD_PATHS:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Password reset required before accessing platform features."
+                )
 
     # Calculate session_start from token iat or exp (fallback)
     user_copy = dict(user)

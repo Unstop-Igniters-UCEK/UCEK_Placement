@@ -9,10 +9,11 @@ PostgreSQL/Supabase is the single source of truth.
 
 import os
 import re
+import secrets
 import hashlib
 import base64
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 # ─── Load environment variables ────────────────────────────────────────────────
 for env_path in [
@@ -90,6 +91,26 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     key = hashlib.pbkdf2_hmac('sha256', plain_password.encode('utf-8'), salt.encode('utf-8'), 100000)
     calc_hash = base64.b64encode(key).decode('utf-8')
     return calc_hash == hashed_password
+
+
+def generate_temp_password(length: int = 5) -> str:
+    """
+    Generate an exactly 5-character cryptographically secure temporary password.
+    Contains uppercase, lowercase, and digits.
+    Excludes visually ambiguous characters: O, 0, I, l, 1.
+    Format example: 8Kp4Z
+    """
+    digits = "23456789"
+    upper = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+    lower = "abcdefghijkmnpqrstuvwxyz"
+    all_chars = digits + upper + lower
+
+    while True:
+        pw = "".join(secrets.choice(all_chars) for _ in range(length))
+        if (any(c in digits for c in pw) and 
+            any(c in upper for c in pw) and 
+            any(c in lower for c in pw)):
+            return pw
 
 
 # ─── Database class ────────────────────────────────────────────────────────────
@@ -347,21 +368,181 @@ class Database:
             "readiness_score": readiness_score,
         }
 
-    def update_user_password(self, user_id: str, new_password_hash: str) -> bool:
-        """Update the password_hash for a user by ID."""
+    def update_user_password(
+        self,
+        user_id: str,
+        new_password_hash: str,
+        must_change_password: Optional[bool] = None
+    ) -> bool:
+        """Update the password_hash for a user by ID and optionally update must_change_password."""
         if not supabase_client:
             return False
         try:
             now = datetime.utcnow().isoformat()
-            res = supabase_client.table("users").update({
+            update_data = {
                 "password_hash": new_password_hash,
                 "password_changed_at": now,
                 "updated_at": now,
-            }).eq("id", str(user_id)).execute()
+            }
+            if must_change_password is not None:
+                update_data["must_change_password"] = must_change_password
+            res = supabase_client.table("users").update(update_data).eq("id", str(user_id)).execute()
             return bool(res.data)
         except Exception as e:
             print(f"[DB update_user_password {user_id}]:", e)
         return False
+
+    # ── Password Reset Requests (Admin-Assisted) ───────────────────────────────
+
+    def create_password_reset_request(self, student_id: str) -> Tuple[bool, str]:
+        """
+        Record an admin-assisted password reset request for a student in PostgreSQL.
+        Enforces one pending request per student via unique check and DB constraint.
+        Returns (success: bool, status: 'created' | 'already_pending' | 'error')
+        """
+        if not supabase_client:
+            return False, "error"
+        uid = str(student_id)
+        try:
+            # Check existing pending request
+            existing = supabase_client.table("password_reset_requests").select("id").eq("student_id", uid).eq("status", "pending").execute()
+            if existing.data and len(existing.data) > 0:
+                return False, "already_pending"
+
+            now = datetime.utcnow().isoformat()
+            res = supabase_client.table("password_reset_requests").insert({
+                "student_id": uid,
+                "status": "pending",
+                "created_at": now,
+                "requested_at": now,
+            }).select().execute()
+
+            if res.data and len(res.data) > 0:
+                return True, "created"
+            return False, "error"
+        except Exception as e:
+            err_str = str(e).lower()
+            if "duplicate" in err_str or "unique" in err_str or "already exists" in err_str or "23505" in err_str:
+                return False, "already_pending"
+            print(f"[DB create_password_reset_request error {uid}]:", e)
+            return False, "error"
+
+    def get_pending_password_reset_requests(self) -> List[Dict[str, Any]]:
+        """
+        Return all pending password reset requests from PostgreSQL enriched with student details.
+        """
+        if not supabase_client:
+            return []
+        try:
+            res = supabase_client.table("password_reset_requests").select(
+                "id, student_id, created_at, status"
+            ).eq("status", "pending").order("created_at", desc=True).execute()
+            if not res.data:
+                return []
+
+            requests = []
+            for row in res.data:
+                sid = row.get("student_id")
+                student = self.get_user_by_id(sid)
+                if not student:
+                    continue
+                requests.append({
+                    "id": str(row["id"]),
+                    "student_id": str(sid),
+                    "name": student.get("name", "Student"),
+                    "email": student.get("email", ""),
+                    "department": student.get("department_code") or student.get("branch") or "CSE",
+                    "year": str(student.get("year") or "4th Year"),
+                    "created_at": row.get("created_at"),
+                    "status": row.get("status", "pending"),
+                })
+            return requests
+        except Exception as e:
+            print("[DB get_pending_password_reset_requests error]:", e)
+            return []
+
+    def reset_student_password_from_request(
+        self, request_id: str
+    ) -> Tuple[Optional[str], Optional[Dict[str, Any]], Optional[str]]:
+        """
+        Atomically verify the request exists, generate a 5-char temporary password,
+        update student password_hash, set must_change_password=True, and resolve/remove
+        the pending request record from PostgreSQL so it immediately disappears for all admins.
+        Returns (temp_password, student_dict, error_message).
+        """
+        if not supabase_client:
+            return None, None, "Database unavailable."
+        try:
+            # 1. Verify request is still pending
+            req_res = supabase_client.table("password_reset_requests").select(
+                "id, student_id, status"
+            ).eq("id", str(request_id)).eq("status", "pending").execute()
+            if not req_res.data:
+                return None, None, "This password reset request has already been resolved or does not exist."
+
+            req_row = req_res.data[0]
+            student_id = str(req_row.get("student_id"))
+            student = self.get_user_by_id(student_id)
+            if not student or student.get("role") != "student" or not student.get("is_active", True):
+                return None, None, "Target student account is inactive or not found."
+
+            # 2. Atomically delete the pending request row (must match status='pending')
+            del_res = supabase_client.table("password_reset_requests").delete().eq("id", str(request_id)).eq("status", "pending").execute()
+            if not del_res.data:
+                return None, None, "This password reset request was already resolved by another administrator."
+
+            # 3. Generate 5-character temporary password
+            temp_pw = generate_temp_password(5)
+            pw_hash = hash_password(temp_pw)
+
+            # 4. Update student credentials
+            success = self.update_user_password(student_id, pw_hash, must_change_password=True)
+            if not success:
+                return None, None, "Failed to update student credentials."
+
+            return temp_pw, student, None
+        except Exception as e:
+            print(f"[DB reset_student_password_from_request error {request_id}]:", e)
+            return None, None, str(e)
+
+    def regenerate_student_temporary_password(
+        self, student_id: str
+    ) -> Tuple[Optional[str], Optional[Dict[str, Any]], Optional[str]]:
+        """
+        Generate another temporary 5-character password for an active student.
+        Overwrites previous hash, immediately invalidating the previous temporary credential.
+        """
+        if not supabase_client:
+            return None, None, "Database unavailable."
+        try:
+            student = self.get_user_by_id(student_id)
+            if not student or student.get("role") != "student" or not student.get("is_active", True):
+                return None, None, "Target student account is inactive or not found."
+
+            temp_pw = generate_temp_password(5)
+            pw_hash = hash_password(temp_pw)
+
+            success = self.update_user_password(student_id, pw_hash, must_change_password=True)
+            if not success:
+                return None, None, "Failed to update student credentials."
+
+            return temp_pw, student, None
+        except Exception as e:
+            print(f"[DB regenerate_student_temporary_password error {student_id}]:", e)
+            return None, None, str(e)
+
+    def resolve_password_reset_request(self, request_id: str) -> bool:
+        """
+        Idempotent helper to remove/delete a password reset request from PostgreSQL.
+        """
+        if not supabase_client:
+            return False
+        try:
+            supabase_client.table("password_reset_requests").delete().eq("id", str(request_id)).execute()
+            return True
+        except Exception as e:
+            print(f"[DB resolve_password_reset_request error {request_id}]:", e)
+            return False
 
     # ── Departments / Domains (catalog) ──────────────────────────────────────
 
