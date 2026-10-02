@@ -1319,9 +1319,10 @@ class Database:
         page_size: int = 50,
         year: Optional[int] = None,
         department_code: Optional[str] = None,
+        include_admins: bool = False,
     ) -> Dict[str, Any]:
         """
-        Return paginated, optionally filtered student list for the admin dashboard.
+        Return paginated, optionally filtered student/user list for the admin dashboard.
         Includes per-student mock test attempts and HR interview attempt counts.
         """
         if not supabase_client:
@@ -1329,15 +1330,20 @@ class Database:
         try:
             offset = (page - 1) * page_size
 
-            # ── Fetch all students with profiles (no server-side year/dept filter
+            # ── Fetch all accounts with profiles (no server-side year/dept filter
             # in Supabase because the filter is on a joined table) ──
-            res = supabase_client.table("users").select(
-                "id, name, email, created_at, "
+            query = supabase_client.table("users").select(
+                "id, name, email, role, created_at, "
                 "student_profiles!student_profiles_user_id_fkey("
                 "  department_id, year, readiness_score, domain_id,"
                 "  departments(code, name)"
                 ")"
-            ).eq("role", "student").eq("is_active", True).order("created_at", desc=True).execute()
+            ).eq("is_active", True)
+
+            if not include_admins:
+                query = query.eq("role", "student")
+
+            res = query.order("created_at", desc=True).execute()
 
             all_rows = res.data or []
 
@@ -1359,6 +1365,7 @@ class Database:
             # ── Build + filter in Python ──
             students = []
             for u in all_rows:
+                user_role = str(u.get("role") or "student")
                 profile = u.get("student_profiles")
                 if isinstance(profile, list) and profile:
                     profile = profile[0]
@@ -1386,6 +1393,7 @@ class Database:
                     "id": uid,
                     "name": str(u.get("name", "")),
                     "email": str(u.get("email", "")),
+                    "role": user_role,
                     "department_code": dept_code,
                     "department_name": dept.get("name"),
                     "branch": dept_code,
@@ -1838,7 +1846,200 @@ class Database:
             return res.data or []
         except Exception as e:
             print(f"[DB get_student_hr_attempts {student_id}]:", e)
-        return []
+    def delete_student_permanently(self, student_id: str) -> Tuple[bool, Optional[str]]:
+        """
+        Permanently and transactionally delete a student account and ALL student-owned data.
+        
+        Guarantees:
+        1. Authenticates target is an existing student (admins cannot be deleted).
+        2. Attempts atomic PostgreSQL RPC (delete_student_account) first.
+        3. If RPC is unavailable, executes strict reverse-dependency cascade:
+           - mock_test_attempt_answers (where attempt belongs to student)
+           - mock_test_attempts (student_id)
+           - resume section sub-tables: resume_skills, resume_projects, resume_experience,
+             resume_education, resume_certifications, resume_achievements (resume_id)
+           - student_resumes (student_id)
+           - student storage files (photo_storage_path, uploaded_file_path)
+           - resume_reviews (student_id)
+           - hr_interview_attempts (student_id)
+           - student_roadmap_progress (student_id)
+           - password_reset_requests (student_id)
+           - student_profiles (user_id)
+           - users (id)
+        4. Cleans in-memory caches and revocation lists.
+        5. Shared catalogs (departments, domains, mock_tests, questions, hr questions, etc.) are never touched.
+        
+        Returns:
+            (True, None) on success
+            (False, error_message) on failure
+        """
+        if not supabase_client:
+            return False, "Database connection unavailable."
+
+        uid = str(student_id).strip()
+        if not uid:
+            return False, "Invalid student ID."
+
+        try:
+            # 1. Verify target account exists and is a student
+            u_res = supabase_client.table("users").select("id, name, email, role").eq("id", uid).execute()
+            if not u_res.data:
+                return False, "Student account not found."
+
+            target_user = u_res.data[0]
+            if target_user.get("role") != "student":
+                return False, "Target account is an administrator and cannot be deleted."
+
+            student_email = target_user.get("email", "").lower().strip()
+
+            # 2. Try PostgreSQL native RPC function first (atomic transaction)
+            rpc_executed = False
+            try:
+                rpc_res = supabase_client.rpc("delete_student_account", {"target_student_id": uid}).execute()
+                if rpc_res.data and isinstance(rpc_res.data, dict):
+                    if rpc_res.data.get("success"):
+                        rpc_executed = True
+                    elif "error" in rpc_res.data:
+                        return False, rpc_res.data["error"]
+                elif rpc_res.data is True or rpc_res.data is None:
+                    # Verify user is truly deleted
+                    verify = supabase_client.table("users").select("id").eq("id", uid).execute()
+                    if not verify.data:
+                        rpc_executed = True
+            except Exception as rpc_err:
+                rpc_str = str(rpc_err)
+                if "Could not find the function" in rpc_str or "PGRST202" in rpc_str or "404" in rpc_str:
+                    rpc_executed = False
+                else:
+                    print(f"[DB delete_student RPC notice, falling back to direct cascade]: {rpc_err}")
+                    rpc_executed = False
+
+            # 3. If RPC was not executed, perform comprehensive PostgREST sequential cascade
+            if not rpc_executed:
+                # a. Inspect student_resumes to gather resume_ids and clean up storage files
+                resume_ids: List[str] = []
+                try:
+                    r_check = supabase_client.table("student_resumes").select("id, photo_storage_path, uploaded_file_path").eq("student_id", uid).execute()
+                    if r_check.data:
+                        for row in r_check.data:
+                            rid = str(row.get("id") or "")
+                            if rid:
+                                resume_ids.append(rid)
+                            for key in ("photo_storage_path", "uploaded_file_path"):
+                                file_path = row.get(key)
+                                if file_path and hasattr(supabase_client, "storage"):
+                                    try:
+                                        if "/" in file_path:
+                                            bucket, fname = file_path.split("/", 1)
+                                            supabase_client.storage.from_(bucket).remove([fname])
+                                        else:
+                                            supabase_client.storage.from_("resumes").remove([file_path])
+                                    except Exception:
+                                        pass
+                except Exception as storage_ex:
+                    print(f"[DB delete storage cleanup notice]: {storage_ex}")
+
+                # b. Delete AI resume reviews FIRST (child of student_resumes and users)
+                try:
+                    supabase_client.table("resume_reviews").delete().eq("student_id", uid).execute()
+                    if resume_ids:
+                        for chunk_start in range(0, len(resume_ids), 50):
+                            chunk = resume_ids[chunk_start:chunk_start + 50]
+                            supabase_client.table("resume_reviews").delete().in_("resume_id", chunk).execute()
+                except Exception as rr_err:
+                    print(f"[DB delete resume_reviews error]: {rr_err}")
+                    return False, "Unable to delete student resume evaluations."
+
+                # c. Delete resume section sub-tables (children of student_resumes)
+                try:
+                    if resume_ids:
+                        for rid in resume_ids:
+                            supabase_client.table("resume_skills").delete().eq("resume_id", rid).execute()
+                            supabase_client.table("resume_projects").delete().eq("resume_id", rid).execute()
+                            supabase_client.table("resume_experience").delete().eq("resume_id", rid).execute()
+                            supabase_client.table("resume_education").delete().eq("resume_id", rid).execute()
+                            supabase_client.table("resume_certifications").delete().eq("resume_id", rid).execute()
+                            supabase_client.table("resume_achievements").delete().eq("resume_id", rid).execute()
+                except Exception as res_sub_err:
+                    print(f"[DB delete resume section sub-tables error]: {res_sub_err}")
+                    return False, "Unable to delete student resume sections."
+
+                # d. Delete student_resumes NOW that all child records referencing it are gone
+                try:
+                    supabase_client.table("student_resumes").delete().eq("student_id", uid).execute()
+                except Exception as res_err:
+                    print(f"[DB delete student_resumes error]: {res_err}")
+                    return False, "Unable to delete student resume records."
+
+                # e. Delete mock_test_attempt_answers FIRST (child of mock_test_attempts)
+                try:
+                    att_res = supabase_client.table("mock_test_attempts").select("id").eq("student_id", uid).execute()
+                    if att_res.data:
+                        att_ids = [a["id"] for a in att_res.data if a.get("id")]
+                        if att_ids:
+                            for chunk_start in range(0, len(att_ids), 50):
+                                chunk = att_ids[chunk_start:chunk_start + 50]
+                                supabase_client.table("mock_test_attempt_answers").delete().in_("attempt_id", chunk).execute()
+                except Exception as mta_err:
+                    print(f"[DB delete mock_test_attempt_answers error]: {mta_err}")
+                    return False, "Unable to delete student test answers."
+
+                # f. Delete mock_test_attempts NOW that answers are removed
+                try:
+                    supabase_client.table("mock_test_attempts").delete().eq("student_id", uid).execute()
+                except Exception as mt_err:
+                    print(f"[DB delete mock_test_attempts error]: {mt_err}")
+                    return False, "Unable to delete student mock test attempts."
+
+                # g. Delete HR interview attempts
+                try:
+                    supabase_client.table("hr_interview_attempts").delete().eq("student_id", uid).execute()
+                except Exception as hr_err:
+                    print(f"[DB delete hr_interview_attempts error]: {hr_err}")
+                    return False, "Unable to delete student interview attempts."
+
+                # h. Delete student roadmap progress
+                try:
+                    supabase_client.table("student_roadmap_progress").delete().eq("student_id", uid).execute()
+                except Exception as rmp_err:
+                    print(f"[DB delete roadmap_progress error]: {rmp_err}")
+                    return False, "Unable to delete student roadmap progress."
+
+                # i. Delete password reset requests
+                try:
+                    supabase_client.table("password_reset_requests").delete().eq("student_id", uid).execute()
+                except Exception:
+                    pass
+
+                # j. Delete student_profiles (after all student dependent records are removed)
+                try:
+                    supabase_client.table("student_profiles").delete().eq("user_id", uid).execute()
+                except Exception as sp_err:
+                    print(f"[DB delete student_profiles error]: {sp_err}")
+                    return False, "Unable to delete student profile."
+
+                # k. Delete users row (after profile and all dependent records are removed)
+                try:
+                    supabase_client.table("users").delete().eq("id", uid).execute()
+                except Exception as u_err:
+                    print(f"[DB delete users error]: {u_err}")
+                    return False, "Unable to delete student user account."
+
+            # 4. Final verification: user must no longer exist
+            verify_res = supabase_client.table("users").select("id").eq("id", uid).execute()
+            if verify_res.data:
+                return False, "Failed to completely delete student account."
+
+            # 5. Clear in-memory caches
+            self._student_notifications_seen_cache.pop(uid, None)
+            if student_email:
+                self.otp_store.pop(student_email, None)
+
+            return True, None
+
+        except Exception as e:
+            print(f"[DB delete_student_permanently unexpected error]: {e}")
+            return False, "An unexpected error occurred while deleting the student."
 
 
 # ─── Module-level singleton ────────────────────────────────────────────────────

@@ -34,9 +34,17 @@ export class ErrorBoundary extends Component<Props, State> {
           <p className="text-xs text-zinc-400 leading-relaxed">
             An unexpected display error occurred while rendering this page module.
           </p>
+          {this.state.error && (
+            <div className="text-left bg-black/70 border border-red-500/30 p-3 rounded-xl overflow-x-auto max-w-full">
+              <p className="text-xs font-mono font-bold text-red-400 mb-1">{this.state.error.name}: {this.state.error.message}</p>
+              {this.state.error.stack && (
+                <pre className="text-[10px] text-zinc-400 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">{this.state.error.stack}</pre>
+              )}
+            </div>
+          )}
           <button
             onClick={() => {
-              this.setState({ hasError: false });
+              this.setState({ hasError: false, error: undefined });
               window.location.reload();
             }}
             className="btn-primary px-6 py-2.5 text-xs font-bold rounded-full cursor-pointer inline-flex items-center gap-2"

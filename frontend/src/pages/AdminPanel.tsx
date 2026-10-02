@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
-import { getAdminDashboardStatsApi, getAllUsersAdminApi, getAdminStudentsApi } from '../lib/api';
+import { getAdminDashboardStatsApi, getAllUsersAdminApi, getAdminStudentsApi, deleteStudentAccountApi } from '../lib/api';
 import { AdminMockTests } from './AdminMockTests';
 import { StudentOnboardingView } from './StudentOnboardingView';
-import { motion, Variants } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { UserRole } from '../types';
 import { CustomSelect } from '../components/CustomSelect';
 import {
@@ -18,6 +19,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Activity,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  X,
 } from 'lucide-react';
 
 const containerVariants: Variants = {
@@ -29,11 +34,6 @@ const itemVariants: Variants = {
   hidden: { opacity: 0, y: 12, willChange: 'transform, opacity' },
   visible: { opacity: 1, y: 0, transition: { duration: 0.24, ease: [0.23, 1, 0.32, 1] } },
 };
-
-const ROLE_OPTIONS = [
-  { value: 'mentee', label: 'Student' },
-  { value: 'admin', label: 'Admin (TPO)' }
-];
 
 const KpiCard = ({ icon: Icon, label, value, sub }: { icon: React.ElementType; label: string; value: number | string; sub: string }) => (
   <div className="mono-card mono-card-hover p-3.5 space-y-2.5 flex flex-col justify-between group relative overflow-hidden">
@@ -114,6 +114,79 @@ export const AdminPanel: React.FC = React.memo(() => {
   const [accountDeptFilter, setAccountDeptFilter] = useState('All Departments');
   const [accountPage, setAccountPage] = useState(1);
 
+  // Permanent Student Account Deletion state
+  const [selectedStudentForDeletion, setSelectedStudentForDeletion] = useState<any | null>(null);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [isDeletingStudent, setIsDeletingStudent] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string | null>(null);
+  const deleteModalOpenedAtRef = useRef<number>(0);
+
+  // Background scroll lock for delete confirmation modal
+  useEffect(() => {
+    if (deleteConfirmationOpen) {
+      deleteModalOpenedAtRef.current = Date.now();
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [deleteConfirmationOpen]);
+
+  const handleOpenDeleteModal = useCallback((student: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedStudentForDeletion(student);
+    setDeleteError(null);
+    setDeleteConfirmationOpen(true);
+  }, []);
+
+  const handleCloseDeleteModal = useCallback((e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (isDeletingStudent) return; // Never close while delete request is in-flight
+    setDeleteConfirmationOpen(false);
+    setSelectedStudentForDeletion(null);
+    setDeleteError(null);
+  }, [isDeletingStudent]);
+
+  const handleConfirmDelete = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectedStudentForDeletion || isDeletingStudent) return;
+
+    // Defense-in-depth: Discard inadvertent click-through / double-click occurring within 400ms of modal open
+    if (Date.now() - deleteModalOpenedAtRef.current < 400) {
+      return;
+    }
+
+    setIsDeletingStudent(true);
+    setDeleteError(null);
+    try {
+      const studentName = selectedStudentForDeletion.name || 'Student';
+      await deleteStudentAccountApi(selectedStudentForDeletion.id);
+      setDeleteSuccessMessage(`${studentName} and all associated data have been permanently removed.`);
+      setDeleteConfirmationOpen(false);
+      setSelectedStudentForDeletion(null);
+
+      // Refresh admin data from real backend state
+      await fetchAdminData();
+
+      // Auto-clear success message after 6 seconds
+      setTimeout(() => {
+        setDeleteSuccessMessage(null);
+      }, 6000);
+    } catch (err: any) {
+      console.error('Delete student failed:', err);
+      setDeleteError(err?.message || 'Unable to delete this student. No changes were made.');
+    } finally {
+      setIsDeletingStudent(false);
+    }
+  }, [selectedStudentForDeletion, isDeletingStudent, fetchAdminData]);
+
   const filteredAdminUsersList = useMemo(() => {
     return adminUsersList.filter(u => {
       // 1. Search Query
@@ -151,6 +224,12 @@ export const AdminPanel: React.FC = React.memo(() => {
   const ACCOUNTS_PER_PAGE = 10;
   const totalAccountPages = Math.max(1, Math.ceil(filteredAdminUsersList.length / ACCOUNTS_PER_PAGE));
   const safeAccountPage = Math.min(accountPage, totalAccountPages);
+
+  useEffect(() => {
+    if (accountPage > totalAccountPages) {
+      setAccountPage(totalAccountPages);
+    }
+  }, [accountPage, totalAccountPages]);
   const paginatedAccounts = filteredAdminUsersList.slice(
     (safeAccountPage - 1) * ACCOUNTS_PER_PAGE,
     safeAccountPage * ACCOUNTS_PER_PAGE
@@ -500,6 +579,23 @@ export const AdminPanel: React.FC = React.memo(() => {
               </div>
             </div>
 
+            {deleteSuccessMessage && (
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <div className="text-sm font-bold text-emerald-300 font-heading">Student Deleted</div>
+                  <div className="text-xs text-emerald-400/90 leading-relaxed">{deleteSuccessMessage}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDeleteSuccessMessage(null)}
+                  className="text-emerald-400/60 hover:text-emerald-300 p-1 cursor-pointer transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {filteredAdminUsersList.length === 0 ? (
               <div className="py-12 text-center space-y-3 bg-[#141414] border border-white/10 rounded-xl">
                 <Users className="w-8 h-8 text-zinc-600 mx-auto" />
@@ -520,14 +616,14 @@ export const AdminPanel: React.FC = React.memo(() => {
             ) : (
               <div className="space-y-4 min-w-0">
                 <div className="overflow-x-auto md:overflow-visible border border-white/10 rounded-lg bg-[#0d0d0d] shadow-inner">
-                  <table className="w-full min-w-[620px] text-left border-collapse font-sans">
+                  <table className="w-full min-w-[720px] text-left border-collapse font-sans">
                     <thead>
                       <tr className="bg-[#000000] border-b border-white/10 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
                         <th className="p-4 pl-5">Account</th>
                         <th className="p-4">Branch</th>
                         <th className="p-4">Year</th>
                         <th className="p-4">Readiness</th>
-                        <th className="p-4 pr-5">Assigned Role</th>
+                        <th className="p-4 pr-5 min-w-[240px]">Assigned Role</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/10 text-xs text-white">
@@ -564,13 +660,27 @@ export const AdminPanel: React.FC = React.memo(() => {
                             </div>
                           </td>
                           <td className="p-4 pr-5">
-                            <div className="w-36">
-                              <CustomSelect
-                                value={u.role || 'mentee'}
-                                onChange={val => updateUserRoleInAdmin(u.id, val as UserRole)}
-                                options={ROLE_OPTIONS}
-                                triggerClassName="px-3.5 py-1.5"
-                              />
+                            <div className="flex items-center justify-between gap-3 min-w-[190px]">
+                              {u.role === 'admin' ? (
+                                <span className="mono-badge rounded-full px-3 py-1 bg-purple-500/10 border border-purple-500/20 text-purple-300 font-semibold text-xs tracking-wide">
+                                  Admin
+                                </span>
+                              ) : (
+                                <>
+                                  <span className="mono-badge rounded-full px-3 py-1 bg-[#141414] border border-white/10 text-zinc-300 font-semibold text-xs tracking-wide">
+                                    Student
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleOpenDeleteModal(u, e)}
+                                    className="px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 hover:border-red-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shrink-0"
+                                    title={`Permanently delete ${u.name || 'student'}`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                                    <span>Delete</span>
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -629,6 +739,117 @@ export const AdminPanel: React.FC = React.memo(() => {
               </div>
             )}
           </motion.div>
+
+          {/* ── CONFIRMATION MODAL: PERMANENT STUDENT DELETION (PORTALED TO DOCUMENT.BODY) ── */}
+          {typeof document !== 'undefined' &&
+            createPortal(
+              <AnimatePresence>
+                {deleteConfirmationOpen && selectedStudentForDeletion && (
+                  <div 
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-hidden font-sans"
+                    data-lenis-prevent="true"
+                    onClick={handleCloseDeleteModal}
+                  >
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                      transition={{ duration: 0.2 }}
+                      className="w-full max-w-md bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-5 font-sans text-white my-auto"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-start justify-between border-b border-white/10 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 shrink-0">
+                            <Trash2 className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-bold text-white font-heading">Delete Student Permanently?</h3>
+                            <p className="text-xs text-red-400/90 font-medium">This action cannot be undone.</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCloseDeleteModal}
+                          disabled={isDeletingStudent}
+                          className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer disabled:opacity-40"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Student identification details */}
+                      <div className="bg-[#141414] border border-white/10 rounded-2xl p-4 space-y-2 text-xs">
+                        <div>
+                          <span className="text-zinc-500 block text-[10px] uppercase tracking-wider font-semibold font-mono">Student</span>
+                          <span className="text-white font-bold text-sm">{selectedStudentForDeletion.name}</span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-500 block text-[10px] uppercase tracking-wider font-semibold font-mono">Email</span>
+                          <span className="text-zinc-300 font-mono text-xs">{selectedStudentForDeletion.email}</span>
+                        </div>
+                        {(selectedStudentForDeletion.branch || selectedStudentForDeletion.department_code || selectedStudentForDeletion.year) && (
+                          <div className="pt-2 border-t border-white/5 flex items-center gap-3 text-zinc-400 text-xs">
+                            <span>Branch: <strong className="text-white">{selectedStudentForDeletion.branch || selectedStudentForDeletion.department_code || '—'}</strong></span>
+                            <span className="text-zinc-600">•</span>
+                            <span>Year: <strong className="text-white">{selectedStudentForDeletion.year ? `${selectedStudentForDeletion.year}` : '—'}</strong></span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Consequence warning */}
+                      <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-200 space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-red-400">
+                          <AlertTriangle className="w-4 h-4 shrink-0" />
+                          <span>Permanent Database Hard Delete</span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-red-300/90">
+                          This will permanently delete this student&apos;s account and all associated placement data.
+                        </p>
+                      </div>
+
+                      {deleteError && (
+                        <div className="p-3 rounded-xl bg-red-950/50 border border-red-500/40 text-xs text-red-300 flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                          <span className="leading-snug">{deleteError}</span>
+                        </div>
+                      )}
+
+                      {/* Modal action buttons */}
+                      <div className="flex items-center justify-end gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={handleCloseDeleteModal}
+                          disabled={isDeletingStudent}
+                          className="px-5 py-2.5 rounded-full bg-[#2a2e2f] hover:bg-[#34383a] text-zinc-300 hover:text-white text-xs font-semibold transition-all cursor-pointer disabled:opacity-40"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleConfirmDelete}
+                          disabled={isDeletingStudent}
+                          className="px-5 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all shadow-lg shadow-red-600/30 flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
+                        >
+                          {isDeletingStudent ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Deleting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete Student</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>,
+              document.body
+            )}
         </motion.div>
       )}
 

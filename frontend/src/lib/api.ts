@@ -1077,25 +1077,93 @@ export interface BatchCSVCreateResponse {
   }>;
 }
 
-export async function batchCSVCreateUsers(
-  users: BatchCSVUser[]
-): Promise<BatchCSVCreateResponse> {
-  const res = await authFetch(`${BASE_URL}/api/admin/users/batch-csv-create`, {
+export interface ExistingUserDetail {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+  year: string;
+}
+
+export interface CheckBatchResponse {
+  existing: Record<string, ExistingUserDetail>;
+  existingCount: number;
+  initialPassword: string;
+}
+
+export interface StudentProvisionItem {
+  name: string;
+  email: string;
+  department_code: string;
+  year: number | string;
+}
+
+export interface ProvisionBatchResponse {
+  message: string;
+  createdCount: number;
+  skippedCount: number;
+  failedCount: number;
+  createdUsers: Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    department_code: string;
+    year: string;
+  }>;
+  skipped: Array<{ email: string; name?: string; reason: string }>;
+  failed: Array<{ email: string; name?: string; reason: string }>;
+  initialPassword: string;
+}
+
+export async function checkBatchDuplicatesApi(
+  emails: string[]
+): Promise<CheckBatchResponse> {
+  const res = await authFetch(`${BASE_URL}/api/admin/users/check-batch`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ users }),
+    body: JSON.stringify({ emails }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(
-      parseErrorMessage(
-        err,
-        `Failed to provision CSV student batch (${res.status})`
-      )
+      parseErrorMessage(err, `Failed to check student batch duplicates (${res.status})`)
     );
   }
 
+  return res.json();
+}
+
+export async function batchProvisionStudentsApi(
+  students: StudentProvisionItem[]
+): Promise<ProvisionBatchResponse> {
+  const res = await authFetch(`${BASE_URL}/api/admin/users/batch-provision`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ students }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      parseErrorMessage(err, `Failed to provision students (${res.status})`)
+    );
+  }
+
+  return res.json();
+}
+
+export async function getOnboardingConfigApi(): Promise<{
+  initialPassword: string;
+  supportedDepartments: string[];
+}> {
+  const res = await authFetch(`${BASE_URL}/api/admin/users/config`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    return { initialPassword: 'impulse@login', supportedDepartments: ['CSE', 'ECE', 'IT'] };
+  }
   return res.json();
 }
 
@@ -1208,6 +1276,25 @@ export async function resolvePasswordResetRequestApi(requestId: string): Promise
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(parseErrorMessage(err, `Failed to resolve password reset request (${res.status})`));
+  }
+  return res.json();
+}
+
+/** Admin: Permanently delete a student account and all associated placement data */
+export async function deleteStudentAccountApi(studentId: string): Promise<{
+  success: boolean;
+  message: string;
+  studentId: string;
+  studentName?: string;
+  studentEmail?: string;
+}> {
+  const res = await authFetch(`${BASE_URL}/api/admin/students/${encodeURIComponent(studentId)}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, `Failed to delete student (${res.status})`));
   }
   return res.json();
 }

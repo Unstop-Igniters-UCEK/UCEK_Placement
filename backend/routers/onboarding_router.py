@@ -1,20 +1,39 @@
 """
 routers/onboarding_router.py — Admin bulk student onboarding endpoints.
-Preserves the existing URL structure (/api/admin/users/) for frontend compatibility.
-Uses the new users + student_profiles schema (Impulse_DB_Design.md §31).
+Mounts at /api/admin/users/.
+Uses the shared OnboardingService for validation, duplicate detection, and account provisioning.
 """
 
-import re
 from typing import List, Optional, Dict, Any
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from backend.database import db, supabase_client, hash_password
+from backend.database import supabase_client
 from backend.auth import get_current_user
+from backend.services.onboarding_service import (
+    check_existing_accounts,
+    provision_student_batch,
+    get_initial_student_password,
+    normalize_department_code,
+    normalize_year_int,
+)
 
 onboarding_router = APIRouter(prefix="/api/admin/users", tags=["onboarding"])
+
+
+class CheckBatchRequest(BaseModel):
+    emails: List[str]
+
+
+class ProvisionStudentItem(BaseModel):
+    name: str
+    email: str
+    department_code: str
+    year: Any = 4
+
+
+class BatchProvisionRequest(BaseModel):
+    students: List[ProvisionStudentItem]
 
 
 class BatchCreateUsersRequest(BaseModel):
@@ -24,242 +43,125 @@ class BatchCreateUsersRequest(BaseModel):
     branch: Optional[str] = None
     year: Optional[Any] = 4
 
-    def resolved_year(self) -> int:
-        from backend.schemas import parse_year_int
-        y = parse_year_int(self.year)
-        return y if y else 4
-
-    def resolved_dept_code(self) -> str:
-        code = self.department_code or self.branch or "CSE"
-        code_str = str(code).strip().upper()
-        if code_str in ("CS", "COMPUTER SCIENCE"):
-            return "CSE"
-        return code_str
-
 
 class BatchCSVCreateRequest(BaseModel):
     users: List[dict]
 
 
-def _derive_name(email: str) -> str:
-    prefix = email.split('@')[0]
-    parts = re.split(r'[._\-]+', prefix)
-    cleaned = [p.capitalize() for p in parts if p and not p.isdigit()]
-    return " ".join(cleaned) if cleaned else "Student"
+def _require_admin(current_user: dict):
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin authorization required.")
+
+
+@onboarding_router.get("/config")
+def get_onboarding_config(current_user: dict = Depends(get_current_user)):
+    """Return onboarding configuration such as initial default student password."""
+    _require_admin(current_user)
+    return {
+        "initialPassword": get_initial_student_password(),
+        "supportedDepartments": ["CSE", "ECE", "IT"]
+    }
+
+
+@onboarding_router.post("/check-batch")
+def check_batch_duplicates(
+    req: CheckBatchRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Check list of incoming student emails against existing database records.
+    Returns existing accounts with names, departments, and years for duplicate resolution.
+    """
+    _require_admin(current_user)
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    existing_map = check_existing_accounts(req.emails)
+    return {
+        "existing": existing_map,
+        "existingCount": len(existing_map),
+        "initialPassword": get_initial_student_password()
+    }
+
+
+@onboarding_router.post("/batch-provision")
+def batch_provision(
+    req: BatchProvisionRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Common student provisioning endpoint used by both Direct Email and CSV onboarding.
+    Provisions validated students with generic initial password and must_change_password=True.
+    Never overwrites existing accounts.
+    """
+    _require_admin(current_user)
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    students_data = [item.dict() for item in req.students]
+    result = provision_student_batch(students_data, admin_id=current_user["id"])
+    return result
 
 
 @onboarding_router.post("/batch-create")
-def batch_create_users(
+def batch_create_legacy(
     req: BatchCreateUsersRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    if current_user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin authorization required.")
-
+    """
+    Legacy Direct Email Batch endpoint routed to the shared provisioning service.
+    """
+    _require_admin(current_user)
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Database unavailable.")
 
-    dept_code = req.resolved_dept_code()
-    dept = db.get_department_by_code(dept_code)
-    if not dept:
-        raise HTTPException(status_code=400, detail=f"Unknown department code: {dept_code}")
-
-    year = req.resolved_year()
-
-    valid_emails = []
-    for raw in req.emails:
-        cleaned = raw.strip().lower()
-        if cleaned and "@" in cleaned and "." in cleaned.split("@")[-1]:
-            valid_emails.append(cleaned)
-
-    unique_emails = list(dict.fromkeys(valid_emails))
+    dept_raw = req.department_code or req.branch or "CSE"
+    dept_code = normalize_department_code(dept_raw) or "CSE"
+    year_int = normalize_year_int(req.year)
     names_map = req.names or {}
 
-    created = []
-    skipped = []
-    now = datetime.utcnow().isoformat()
-    default_pw = f"{dept['code']}@2026"
-    pw_hash = hash_password(default_pw)
-
-    for email in unique_emails:
-        existing = db.get_user_by_email(email)
-        if existing:
-            skipped.append({"email": email, "reason": "Email already exists."})
+    students_to_provision = []
+    for email in req.emails:
+        clean_email = email.strip()
+        if not clean_email:
             continue
+        name = names_map.get(clean_email) or names_map.get(clean_email.lower()) or "Student"
+        students_to_provision.append({
+            "name": name,
+            "email": clean_email,
+            "department_code": dept_code,
+            "year": year_int,
+        })
 
-        provided_name = (names_map.get(email) or names_map.get(email.lower()) or "").strip()
-        student_name = provided_name if provided_name else _derive_name(email)
-
-        try:
-            u_res = supabase_client.table("users").insert({
-                "name": student_name,
-                "email": email,
-                "password_hash": pw_hash,
-                "role": "student",
-                "is_active": True,
-                "must_change_password": True,
-                "created_at": now,
-                "updated_at": now,
-            }).execute()
-
-            if not u_res.data:
-                skipped.append({"email": email, "reason": "DB insert failed."})
-                continue
-
-            new_user_id = u_res.data[0]["id"]
-
-            supabase_client.table("student_profiles").insert({
-                "user_id": new_user_id,
-                "department_id": dept["id"],
-                "year": year,
-                "domain_id": None,
-                "readiness_score": 0,
-                "onboarding_source": "admin",
-                "onboarded_by": current_user["id"],
-                "created_at": now,
-                "updated_at": now,
-            }).execute()
-
-            year_str = "4th Year"
-            if year == 1:
-                year_str = "1st Year"
-            elif year == 2:
-                year_str = "2nd Year"
-            elif year == 3:
-                year_str = "3rd Year"
-
-            created.append({
-                "id": str(new_user_id),
-                "name": student_name,
-                "email": email,
-                "role": "student",
-                "department_code": dept["code"],
-                "branch": dept["code"],
-                "year": year_str,
-                "year_int": year,
-            })
-        except Exception as e:
-            print(f"[batch_create_users {email}]:", e)
-            skipped.append({"email": email, "reason": str(e)})
-
-    return {
-        "message": f"Batch provisioning complete. {len(created)} created, {len(skipped)} skipped.",
-        "created_count": len(created),
-        "createdCount": len(created),
-        "skipped_count": len(skipped),
-        "skippedCount": len(skipped),
-        "default_password": default_pw,
-        "defaultPassword": default_pw,
-        "created_users": created,
-        "createdUsers": created,
-        "skipped": skipped,
-    }
+    return provision_student_batch(students_to_provision, admin_id=current_user["id"])
 
 
 @onboarding_router.post("/batch-csv-create")
-def batch_csv_create_users(
+def batch_csv_create_legacy(
     req: BatchCSVCreateRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    if current_user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin authorization required.")
-
+    """
+    Legacy CSV Batch endpoint routed to the shared provisioning service.
+    """
+    _require_admin(current_user)
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Database unavailable.")
 
-    created = []
-    skipped = []
-    now = datetime.utcnow().isoformat()
-    fallback_pw = "College@2026"
-
+    students_to_provision = []
     for row in req.users:
-        email = str(row.get("email") or row.get("email_id") or "").strip().lower()
-        if not email or "@" not in email:
-            skipped.append({"row": row, "reason": "Invalid or missing email."})
-            continue
+        email = str(row.get("email") or row.get("email_id") or "").strip()
+        name = str(row.get("name") or row.get("Name") or "").strip() or "Student"
+        dept_raw = str(row.get("department_code") or row.get("dept") or row.get("branch") or "CSE").strip()
+        dept_code = normalize_department_code(dept_raw) or "CSE"
+        year_val = row.get("year", 4)
 
-        existing = db.get_user_by_email(email)
-        if existing:
-            skipped.append({"email": email, "reason": "Email already exists."})
-            continue
-
-        name = str(row.get("name") or row.get("Name") or "").strip() or _derive_name(email)
-
-        dept_code = str(row.get("department_code") or row.get("dept") or "CSE").strip().upper()
-        dept = db.get_department_by_code(dept_code)
-        if not dept:
-            skipped.append({"email": email, "reason": f"Unknown department code: {dept_code}"})
-            continue
-
-        try:
-            year = int(row.get("year", 4))
-            if year not in (1, 2, 3, 4):
-                year = 4
-        except (ValueError, TypeError):
-            year = 4
-
-        raw_pw = str(row.get("password") or "").strip()
-        pw_hash = hash_password(raw_pw if raw_pw else fallback_pw)
-
-        try:
-            u_res = supabase_client.table("users").insert({
+        if email:
+            students_to_provision.append({
                 "name": name,
                 "email": email,
-                "password_hash": pw_hash,
-                "role": "student",
-                "is_active": True,
-                "must_change_password": True,
-                "created_at": now,
-                "updated_at": now,
-            }).execute()
-
-            if not u_res.data:
-                skipped.append({"email": email, "reason": "DB insert failed."})
-                continue
-
-            new_user_id = u_res.data[0]["id"]
-
-            supabase_client.table("student_profiles").insert({
-                "user_id": new_user_id,
-                "department_id": dept["id"],
-                "year": year,
-                "domain_id": None,
-                "readiness_score": 0,
-                "onboarding_source": "admin",
-                "onboarded_by": current_user["id"],
-                "created_at": now,
-                "updated_at": now,
-            }).execute()
-
-            year_str = "4th Year"
-            if year == 1:
-                year_str = "1st Year"
-            elif year == 2:
-                year_str = "2nd Year"
-            elif year == 3:
-                year_str = "3rd Year"
-
-            created.append({
-                "id": str(new_user_id),
-                "name": name,
-                "email": email,
-                "role": "student",
-                "department_code": dept["code"],
-                "branch": dept["code"],
-                "year": year_str,
-                "year_int": year,
+                "department_code": dept_code,
+                "year": year_val,
             })
-        except Exception as e:
-            print(f"[batch_csv_create {email}]:", e)
-            skipped.append({"email": email, "reason": str(e)})
 
-    return {
-        "message": f"Successfully provisioned {len(created)} student(s). {len(skipped)} skipped.",
-        "created_count": len(created),
-        "createdCount": len(created),
-        "skipped_count": len(skipped),
-        "skippedCount": len(skipped),
-        "created_users": created,
-        "createdUsers": created,
-        "skipped": skipped,
-    }
+    return provision_student_batch(students_to_provision, admin_id=current_user["id"])
