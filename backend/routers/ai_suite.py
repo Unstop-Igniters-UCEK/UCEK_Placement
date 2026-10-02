@@ -12,7 +12,9 @@ import base64
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from backend.auth import get_current_user, get_current_user_optional
 from backend.database import db, supabase_client
 from backend.schemas import (
@@ -27,6 +29,7 @@ from backend.ai import (
 from backend.services.hr_interview_service import hr_interview_service
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 # ─── PDF Parsing ──────────────────────────────────────────────────────────────
@@ -53,7 +56,8 @@ async def parse_pdf(file: UploadFile = File(...)):
 # ─── AI Resume Review ─────────────────────────────────────────────────────────
 
 @router.post("/review-resume")
-def review_resume(req: ReviewResumeRequest, current_user: dict = Depends(get_current_user)):
+@limiter.limit("5/minute")
+def review_resume(request: Request, req: ReviewResumeRequest, current_user: dict = Depends(get_current_user)):
     """
     Run an AI ATS resume review and persist the result.
     ONE click = ONE Gemini request. Zero mock or fallback data.
@@ -139,7 +143,8 @@ def review_resume(req: ReviewResumeRequest, current_user: dict = Depends(get_cur
 # ─── JD Matcher (ephemeral — not stored) ─────────────────────────────────────
 
 @router.post("/match-jd")
-def match_jd(req: MatchJDRequest, current_user: dict = Depends(get_current_user)):
+@limiter.limit("5/minute")
+def match_jd(request: Request, req: MatchJDRequest, current_user: dict = Depends(get_current_user)):
     """Match resume against a job description using Gemini AI. Results are not stored."""
     if not req.resumeText or not req.resumeText.strip():
         raise HTTPException(status_code=400, detail="Upload your resume to continue.")
@@ -152,7 +157,8 @@ def match_jd(req: MatchJDRequest, current_user: dict = Depends(get_current_user)
 # ─── Bullet Enhancer ─────────────────────────────────────────────────────────
 
 @router.post("/enhance-bullet")
-def enhance_bullet(req: EnhanceBulletRequest, current_user: dict = Depends(get_current_user)):
+@limiter.limit("10/minute")
+def enhance_bullet(request: Request, req: EnhanceBulletRequest, current_user: dict = Depends(get_current_user)):
     result = enhance_bullet_with_gemini(req.bulletText, req.targetRole or "Software Engineer")
     return result
 
@@ -187,7 +193,8 @@ def get_hr_practice_questions(
 # ─── HR Interview Analysis ────────────────────────────────────────────────────
 
 @router.post("/analyze-interview")
-def analyze_interview(req: AnalyzeInterviewRequest, current_user: dict = Depends(get_current_user)):
+@limiter.limit("5/minute")
+def analyze_interview(request: Request, req: AnalyzeInterviewRequest, current_user: dict = Depends(get_current_user)):
     """
     AI evaluation of a recorded HR interview answer using HRInterviewService.
     - Transcription: gemini-3.5-transcribe

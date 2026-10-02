@@ -67,26 +67,45 @@ if HAS_SUPABASE_SDK and SUPABASE_URL and SUPABASE_KEY:
 
 # ─── Password helpers ──────────────────────────────────────────────────────────
 
+# Fail loudly at import time if bcrypt is not installed. Never silently downgrade
+# to a weaker algorithm — that is worse than crashing.
+try:
+    import bcrypt as _bcrypt  # noqa: F401
+except ImportError as _bcrypt_missing:
+    raise RuntimeError(
+        "CRITICAL: 'bcrypt' package is not installed. "
+        "Run 'pip install bcrypt' and restart the server. "
+        "Password hashing cannot proceed without it."
+    ) from _bcrypt_missing
+
+
 def hash_password(password: str) -> str:
-    try:
-        import bcrypt
-        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(10)).decode('utf-8')
-    except Exception:
-        salt = "ucek_salt_2026"
-        key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
-        return base64.b64encode(key).decode('utf-8')
+    """
+    Hash a password using bcrypt. bcrypt is a hard dependency — if it fails
+    the app intentionally crashes rather than falling back to a weaker algorithm.
+    """
+    import bcrypt
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(10)).decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verify a password against a stored hash.
+    - bcrypt hashes ($2a$/$2b$): verified with bcrypt.
+    - PBKDF2 hashes (legacy only, read-only): supported so existing accounts
+      can still log in. New passwords are NEVER hashed with PBKDF2.
+    """
     if not hashed_password or not plain_password:
         return False
     if hashed_password.startswith('$2a$') or hashed_password.startswith('$2b$'):
+        import bcrypt
         try:
-            import bcrypt
             return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
         except Exception:
-            pass
-    # PBKDF2 fallback
+            return False
+    # Legacy PBKDF2 path — read-only, for accounts created before bcrypt was enforced.
+    # These accounts will be re-hashed with bcrypt on their next successful login
+    # if a re-hash step is added in the login flow.
     salt = "ucek_salt_2026"
     key = hashlib.pbkdf2_hmac('sha256', plain_password.encode('utf-8'), salt.encode('utf-8'), 100000)
     calc_hash = base64.b64encode(key).decode('utf-8')
