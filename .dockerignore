@@ -1,0 +1,42 @@
+# Version control
+.git/
+.gitignore
+
+# Environment variables & secrets (NEVER bake into image)
+.env
+.env.*
+*.env
+
+# Python compilation & caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Frontend (hosted independently — not part of backend image)
+frontend/
+node_modules/
+
+# IDE, agent configs, and local metadata
+.agents/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Documentation & static design files
+*.md
+LICENSE
+Banner.png
+skills-lock.json
+mcp.json

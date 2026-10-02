@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 interface SplashScreenProps {
   onComplete: () => void;
 }
 
-// 7 vertical transition panels with organic, staggered delays and tuned durations
+// 7 vertical transition panels with organic, calibrated stagger delays and tuned drop durations
 const PANELS = [
-  { delay: 0.04, duration: 0.72 },
-  { delay: 0.20, duration: 0.75 },
-  { delay: 0.28, duration: 0.68 },
-  { delay: 0.08, duration: 0.74 },
-  { delay: 0.24, duration: 0.70 },
-  { delay: 0.12, duration: 0.78 },
+  { delay: 0.04, duration: 0.70 },
   { delay: 0.18, duration: 0.72 },
+  { delay: 0.26, duration: 0.66 },
+  { delay: 0.08, duration: 0.74 },
+  { delay: 0.22, duration: 0.68 },
+  { delay: 0.12, duration: 0.76 },
+  { delay: 0.16, duration: 0.70 },
 ];
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
+  const shouldReduceMotion = useReducedMotion();
   const [logoRevealed, setLogoRevealed] = useState(false);
   const [showText, setShowText] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -31,34 +32,47 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   }, []);
 
   useEffect(() => {
-    // 1. Initial pure black screen hold (250ms)
-    // 2. Logo bottom-to-top reveal (duration 900ms: 250ms -> 1150ms)
-    // 3. "Impulse" appears immediately after logo reveal finishes (at 1150ms)
-    // 4. Short hold (450ms: 1150ms -> 1600ms)
-    // 5. Vertical panels drop transition (starts at 1600ms)
-    // 6. Complete and clean unmount (2650ms)
+    // Reduced motion fast path: brief hold and soft fade out (600ms total)
+    if (shouldReduceMotion) {
+      setLogoRevealed(true);
+      setShowText(true);
+      const reducedTimer = setTimeout(() => {
+        setIsTransitioning(true);
+        setTimeout(() => {
+          onComplete();
+        }, 220);
+      }, 500);
+      return () => clearTimeout(reducedTimer);
+    }
+
+    // Refined Choreography Sequence:
+    // 1. Initial pure black hold (200ms)
+    // 2. Logo bottom-to-top reveal (720ms duration: 200ms -> 920ms)
+    // 3. "Impulse" text emerges with subtle rise (starts at 840ms with 80ms overlap, completes at 1140ms)
+    // 4. Balanced hold of complete lockup (580ms: 1140ms -> 1720ms)
+    // 5. Vertical panels drop cascade (starts at 1720ms)
+    // 6. Complete and clean unmount (2550ms)
 
     const revealTimer = setTimeout(() => {
       setLogoRevealed(true);
-    }, 250);
+    }, 200);
+
+    // Text emerges slightly before logo reveal fully locks into place (anticipatory stagger)
+    const textTimer = setTimeout(() => {
+      setShowText(true);
+    }, 840);
 
     let holdTimer: ReturnType<typeof setTimeout> | null = null;
     let exitTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Logo reveal finishes at 250ms + 900ms = 1150ms
-    const textTimer = setTimeout(() => {
-      setShowText(true);
+    holdTimer = setTimeout(() => {
+      setIsTransitioning(true);
 
-      // Noticeable hold after "Impulse" text appears (900ms delay before vertical rectangle cascade)
-      holdTimer = setTimeout(() => {
-        setIsTransitioning(true);
-
-        // Once the longest panel animation completes (~1050ms after isTransitioning starts)
-        exitTimer = setTimeout(() => {
-          onComplete();
-        }, 1050);
-      }, 900);
-    }, 1150);
+      // Once the longest panel animation completes (~830ms after isTransitioning starts)
+      exitTimer = setTimeout(() => {
+        onComplete();
+      }, 850);
+    }, 1720);
 
     return () => {
       clearTimeout(revealTimer);
@@ -66,7 +80,43 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
       if (holdTimer) clearTimeout(holdTimer);
       if (exitTimer) clearTimeout(exitTimer);
     };
-  }, [onComplete]);
+  }, [onComplete, shouldReduceMotion]);
+
+  // Reduced motion render
+  if (shouldReduceMotion) {
+    return (
+      <div
+        className={`fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center select-none transition-opacity duration-200 ${
+          isTransitioning ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
+        role="dialog"
+        aria-label="Loading Impulse"
+      >
+        <div className="relative w-28 sm:w-32 aspect-[1253/1164] overflow-hidden">
+          <img
+            src="/splash_logo.png"
+            alt="Impulse Splash Logo"
+            className="select-none pointer-events-none"
+            style={{
+              position: 'absolute',
+              width: '163.45%',
+              height: '175.95%',
+              left: '-32.40%',
+              top: '-35.65%',
+              maxWidth: 'none',
+              objectFit: 'fill',
+            }}
+          />
+        </div>
+        <div
+          className="mt-[4px] -translate-x-[4px] text-2xl sm:text-3xl font-medium text-white tracking-tight select-none leading-none h-8 sm:h-9 flex items-center justify-center"
+          style={{ fontFamily: "'Poppins', sans-serif" }}
+        >
+          Impulse
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -77,23 +127,28 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
       {/* 
         STAGE 4 TRANSITION PANELS:
         Vertical black rectangles covering the viewport.
-        Initially at y: 0%. When transitioning, each panel moves downward (y: 101%)
-        with distinct staggered delays and smooth easing, organically revealing the landing page underneath.
+        Hardware-accelerated translateY(101%) with organic stagger delays
+        and calibrated cubic-bezier(0.76, 0, 0.24, 1) curtain drop easing.
       */}
       <div className="absolute inset-0 flex w-full h-full pointer-events-none overflow-hidden">
         {PANELS.map((panel, idx) => (
           <motion.div
             key={idx}
-            initial={{ y: '0%' }}
-            animate={isTransitioning ? { y: '101%' } : { y: '0%' }}
+            initial={{ transform: 'translate3d(0, 0%, 0)' }}
+            animate={
+              isTransitioning
+                ? { transform: 'translate3d(0, 101%, 0)' }
+                : { transform: 'translate3d(0, 0%, 0)' }
+            }
             transition={{
               duration: panel.duration,
               delay: panel.delay,
-              ease: [0.65, 0, 0.35, 1],
+              ease: [0.76, 0, 0.24, 1],
             }}
-            className="h-full flex-1 bg-black transform-gpu"
+            className="h-full flex-1 bg-black will-change-transform backface-hidden"
             style={{
               marginRight: idx < PANELS.length - 1 ? '-1px' : 0,
+              transformOrigin: 'top center',
             }}
           />
         ))}
@@ -101,26 +156,28 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
 
       {/* 
         CENTERED LOGO & BRAND TEXT:
-        Positioned in the middle of the viewport.
-        Fades out softly right when the panel cascade starts.
+        Dissolves gracefully with a subtle 0.97 scale and slight lift as the curtain drops.
       */}
       <motion.div
-        initial={{ opacity: 1 }}
-        animate={isTransitioning ? { opacity: 0, scale: 0.97 } : { opacity: 1, scale: 1 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 px-4"
+        initial={{ opacity: 1, transform: 'scale(1) translate3d(0, 0, 0)' }}
+        animate={
+          isTransitioning
+            ? { opacity: 0, transform: 'scale(0.97) translate3d(0, -4px, 0)' }
+            : { opacity: 1, transform: 'scale(1) translate3d(0, 0, 0)' }
+        }
+        transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+        className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 px-4 will-change-transform"
       >
         {/* 
           LOGO REVEAL CONTAINER:
-          Mathematically framed to content boundaries [406..1659, 415..1579] of splash_logo.png.
-          Bottom edge aligns strictly with the bottom of the staircase/steps.
-          clipPath reveals from bottom to top over 0.9s.
+          Framed strictly to the bounding box of the splash logo art.
+          Smooth clipPath wipe from bottom to top with strong ease-out cubic-bezier(0.16, 1, 0.3, 1).
         */}
         <div
-          className="relative w-28 sm:w-32 aspect-[1253/1164] overflow-hidden"
+          className="relative w-28 sm:w-32 aspect-[1253/1164] overflow-hidden will-change-[clip-path]"
           style={{
             clipPath: logoRevealed ? 'inset(0% 0% 0% 0%)' : 'inset(100% 0% 0% 0%)',
-            transition: 'clip-path 0.9s cubic-bezier(0.25, 0.1, 0.25, 1.0)',
+            transition: 'clip-path 720ms cubic-bezier(0.16, 1, 0.3, 1)',
             WebkitClipPath: logoRevealed ? 'inset(0% 0% 0% 0%)' : 'inset(100% 0% 0% 0%)',
           }}
         >
@@ -142,13 +199,16 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
 
         {/* 
           BRAND TEXT "Impulse":
-          Optical alignment with logo center of mass, 4px spacing below staircase, and tuned font weight.
+          Optical alignment with logo center of mass, 4px spacing below staircase.
+          Reveals with subtle upward float (4px -> 0) and smooth opacity fade.
         */}
         <div
-          className="mt-[4px] -translate-x-[4px] text-2xl sm:text-3xl font-medium text-white tracking-tight select-none leading-none h-8 sm:h-9 flex items-center justify-center transition-opacity duration-150"
+          className="mt-[4px] -translate-x-[4px] text-2xl sm:text-3xl font-medium text-white tracking-tight select-none leading-none h-8 sm:h-9 flex items-center justify-center will-change-transform"
           style={{
             fontFamily: "'Poppins', sans-serif",
             opacity: showText ? 1 : 0,
+            transform: showText ? 'translate3d(0, 0, 0)' : 'translate3d(0, 5px, 0)',
+            transition: 'opacity 280ms cubic-bezier(0.23, 1, 0.32, 1), transform 280ms cubic-bezier(0.23, 1, 0.32, 1)',
           }}
         >
           Impulse
@@ -159,3 +219,4 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
 };
 
 export default SplashScreen;
+
