@@ -186,18 +186,18 @@ export const AdminNavHeader: React.FC = React.memo(() => {
     <div className="w-full relative z-30 font-sans">
       {/* ADMIN TOP HEADER */}
       <header className="sticky top-0 z-40 w-full bg-black/40 backdrop-blur-xl border-b border-white/10 transition-all">
-        <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-7xl w-full mx-auto px-2.5 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
 
           {/* Left: Impulse Logo */}
           <div
             onClick={() => setActiveTab('admin-dashboard')}
-            className="flex items-center gap-3 cursor-pointer group select-none shrink-0"
+            className="flex items-center gap-2 sm:gap-3 cursor-pointer group select-none shrink-0"
             title="Return to Admin Dashboard"
           >
             <img
               src="/new_logo.png"
               alt="Impulse Logo"
-              className="w-10 h-10 rounded-xl object-contain shadow-md group-hover:scale-105 transition-transform shrink-0"
+              className="w-8.5 h-8.5 sm:w-10 sm:h-10 rounded-xl object-contain shadow-md group-hover:scale-105 transition-transform shrink-0"
             />
             <span
               className="text-xl sm:text-2xl font-normal text-white tracking-tight group-hover:text-orange-400 transition-colors hidden sm:inline"
@@ -208,7 +208,7 @@ export const AdminNavHeader: React.FC = React.memo(() => {
           </div>
 
           {/* Center: Navigation Pill */}
-          <div className="flex-1 flex justify-center items-center px-2">
+          <div className="flex-1 min-w-0 flex justify-center items-center px-1 sm:px-2">
             {/* Desktop: Horizontal Pill Navigation */}
             <nav className="hidden lg:inline-flex items-center gap-1 p-1.5 rounded-full bg-[#0d0d12]/80 backdrop-blur-xl border border-white/10 shadow-xl">
               {adminNavItems.map(tab => {
@@ -240,15 +240,15 @@ export const AdminNavHeader: React.FC = React.memo(() => {
             </nav>
 
             {/* Mobile: Pill Dropdown Navigation */}
-            <div className="relative lg:hidden w-full max-w-xs sm:max-w-sm mx-auto">
+            <div className="relative lg:hidden w-full max-w-[200px] sm:max-w-sm mx-auto min-w-0">
               <button
                 type="button"
                 onClick={() => setMobileOpen(prev => !prev)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-2 rounded-full bg-[#0d0d12]/90 backdrop-blur-xl border border-white/15 text-white shadow-xl cursor-pointer active:scale-[0.98] transition-all"
+                className="w-full flex items-center justify-between gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#0d0d12]/90 backdrop-blur-xl border border-white/15 text-white shadow-xl cursor-pointer active:scale-[0.98] transition-all min-w-0"
               >
-                <div className="flex items-center gap-2.5 truncate">
+                <div className="flex items-center gap-1.5 sm:gap-2.5 truncate min-w-0">
                   <ActiveIcon className="w-4 h-4 text-white shrink-0" />
-                  <span className="text-xs font-bold truncate text-white">{activeItem?.label || 'Select Page'}</span>
+                  <span className="text-xs font-bold truncate text-white min-w-0">{activeItem?.label || 'Select Page'}</span>
                 </div>
                 <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-200 shrink-0 ${mobileOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -294,18 +294,18 @@ export const AdminNavHeader: React.FC = React.memo(() => {
           </div>
 
           {/* Right: Notifications Bell + User menu + Logout */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
 
             {/* Notification Bell Button + Dropdown Panel */}
             <div className="relative" ref={notificationRef}>
               <button
                 type="button"
                 onClick={handleToggleNotifications}
-                className="relative w-10 h-10 rounded-full bg-zinc-900 border border-white/20 hover:border-white/60 hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center overflow-visible cursor-pointer transition-all duration-200 active:scale-95 shadow-md group"
+                className="relative w-8.5 h-8.5 sm:w-10 sm:h-10 rounded-full bg-zinc-900 border border-white/20 hover:border-white/60 hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center overflow-visible cursor-pointer transition-all duration-200 active:scale-95 shadow-md group shrink-0"
                 title="Password Reset Requests"
                 aria-label="Admin Notifications"
               >
-                <Bell className="w-5 h-5 text-zinc-300 group-hover:text-white transition-colors" />
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-300 group-hover:text-white transition-colors" />
                 {resetRequests.length > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-black text-[10px] font-extrabold flex items-center justify-center shadow-lg border-2 border-black font-mono">
                     {resetRequests.length > 9 ? '9+' : resetRequests.length}
@@ -432,11 +432,11 @@ export const AdminNavHeader: React.FC = React.memo(() => {
               <button
                 type="button"
                 onClick={() => setUserCardOpen(prev => !prev)}
-                className="w-10 h-10 rounded-full bg-zinc-900 border border-white/20 hover:border-white/60 hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-200 active:scale-95 shadow-md group"
+                className="w-8.5 h-8.5 sm:w-10 sm:h-10 rounded-full bg-zinc-900 border border-white/20 hover:border-white/60 hover:bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-200 active:scale-95 shadow-md group shrink-0"
                 title="Admin Profile"
                 aria-label="Admin Profile"
               >
-                <User className="w-5 h-5 text-zinc-300 group-hover:text-white transition-colors" />
+                <User className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-300 group-hover:text-white transition-colors" />
               </button>
 
               <AnimatePresence>
@@ -477,10 +477,10 @@ export const AdminNavHeader: React.FC = React.memo(() => {
             {/* Logout */}
             <button
               onClick={logoutUser}
-              className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 sm:py-2 rounded-full bg-rose-600/90 hover:bg-rose-500 text-white font-semibold text-xs transition-all cursor-pointer active:scale-95 shadow-md shadow-rose-950/30"
+              className="flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full bg-rose-600/90 hover:bg-rose-500 text-white font-semibold text-xs transition-all cursor-pointer active:scale-95 shadow-md shadow-rose-950/30 shrink-0"
               title="Logout"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
