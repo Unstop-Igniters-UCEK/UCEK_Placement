@@ -20,6 +20,8 @@ export const Header: React.FC = React.memo(() => {
           <img
             src="/new_logo.png"
             alt="Impulse Logo"
+            width={40}
+            height={40}
             className="w-10 h-10 rounded-xl object-contain shadow-md group-hover:scale-105 transition-transform shrink-0"
           />
           <span

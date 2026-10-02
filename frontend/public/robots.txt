@@ -1,0 +1,15 @@
+# robots.txt for https://impulse.uck.ac.in/
+User-agent: *
+Allow: /$
+Disallow: /api/
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /tests
+Disallow: /resumes
+Disallow: /interview
+Disallow: /roadmap
+Disallow: /register
+Disallow: /signup
+Disallow: /login
+
+Sitemap: https://impulse.uck.ac.in/sitemap.xml

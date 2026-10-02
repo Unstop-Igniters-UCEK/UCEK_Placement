@@ -11,6 +11,8 @@ import Maintenance from "./pages/Maintenance";
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SplashScreen } from './components/SplashScreen';
 import { ForcedPasswordChange } from './components/ForcedPasswordChange';
+import { SeoManager } from './components/SeoManager';
+import { NotFound } from './pages/NotFound';
 
 // Lazy loaded page modules to reduce initial JavaScript parse time
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -34,6 +36,11 @@ function AppContent() {
   const [splashActive, setSplashActive] = useState(true);
   const { activeTab, user, setActiveTab } = useApp();
   const lenisRef = useRef<Lenis | null>(null);
+
+  // Route evaluation for unauthenticated visitors to prevent duplicate homepage rendering on invalid routes
+  const rawPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/' : '/';
+  const isRecognizedRoute = rawPath === '/' || rawPath === '/login' || rawPath === '/register' || rawPath === '/signup';
+  const isNotFound = !user && !isRecognizedRoute;
 
   // Manual scroll progress for the top progress bar (driven by Lenis events)
   const scrollProgress = useMotionValue(0);
@@ -91,6 +98,7 @@ function AppContent() {
   if (user && user.role !== 'admin' && user.must_change_password) {
     return (
       <>
+        <SeoManager isNotFound={false} />
         {splashActive && <SplashScreen onComplete={() => setSplashActive(false)} />}
         <ForcedPasswordChange />
       </>
@@ -99,6 +107,9 @@ function AppContent() {
 
   return (
     <>
+      {/* Central SEO & Metadata Manager */}
+      <SeoManager isNotFound={isNotFound} />
+
       {/* Dedicated Impulse Initial Splash Screen */}
       {splashActive && <SplashScreen onComplete={() => setSplashActive(false)} />}
 
@@ -121,7 +132,7 @@ function AppContent() {
         {/* Main Content Area */}
         {!user ? (
           <main className="flex-1 w-full relative z-10">
-            <LandingPage />
+            {isNotFound ? <NotFound /> : <LandingPage />}
           </main>
         ) : (
           <>
