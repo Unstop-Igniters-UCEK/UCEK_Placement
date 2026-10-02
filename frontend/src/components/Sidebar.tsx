@@ -10,7 +10,6 @@ import {
   FileText,
   CheckSquare,
   Mic,
-  Users,
   ShieldCheck,
   X,
   UserPlus
@@ -31,7 +30,6 @@ export const Sidebar: React.FC = React.memo(() => {
     { id: 'resumes', label: 'AI Resume Suite', icon: FileText },
     { id: 'tests', label: 'Mock Tests', icon: CheckSquare },
     { id: 'interview', label: 'HR Interview', icon: Mic },
-    { id: 'mentorship', label: 'Mentorship', icon: Users },
   ];
 
   return (

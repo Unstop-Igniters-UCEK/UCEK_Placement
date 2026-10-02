@@ -306,7 +306,7 @@ export const MockTestView: React.FC = () => {
 
   useEffect(() => {
     fetchTests();
-  }, [user]);
+  }, [user?.id]);
 
   // Auto-scroll and highlight when navigating from a notification
   useEffect(() => {

@@ -9,7 +9,6 @@ import {
   FileText,
   CheckSquare,
   Mic,
-  Users,
   ChevronDown,
   Pencil,
   Bell,
@@ -79,7 +78,6 @@ export const StudentNavHeader: React.FC = React.memo(() => {
     { id: 'resumes', label: 'AI Resume Suite', icon: FileText },
     { id: 'tests', label: 'Mock Tests', icon: CheckSquare },
     { id: 'interview', label: 'HR Interview', icon: Mic },
-    { id: 'mentorship', label: 'Mentorship', icon: Users },
   ];
 
   const activeItem = studentNavItems.find(item => item.id === activeTab) || studentNavItems[0];

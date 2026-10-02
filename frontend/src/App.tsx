@@ -18,7 +18,6 @@ const DomainRoadmap = lazy(() => import('./pages/DomainRoadmap'));
 const AIResumeSuite = lazy(() => import('./pages/AIResumeSuite'));
 const MockTests = lazy(() => import('./pages/MockTests'));
 const HRInterviewSimulator = lazy(() => import('./pages/HRInterviewSimulator'));
-const Mentorship = lazy(() => import('./pages/Mentorship'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 
 const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
@@ -87,11 +86,6 @@ function AppContent() {
     }
   }, [activeTab]);
 
-  useEffect(() => {
-    if (user?.role === 'admin' && activeTab === 'mentorship') {
-      setActiveTab('admin-dashboard');
-    }
-  }, [user, activeTab, setActiveTab]);
 
   // Blocking forced password change screen for students whose credentials were reset by admin
   if (user && user.role !== 'admin' && user.must_change_password) {
@@ -156,7 +150,6 @@ function AppContent() {
                       {activeTab === 'resumes' && <AIResumeSuite />}
                       {activeTab === 'tests' && <MockTests />}
                       {activeTab === 'interview' && <HRInterviewSimulator />}
-                      {activeTab === 'mentorship' && user?.role !== 'admin' && <Mentorship />}
                       {(activeTab === 'admin-dashboard' || activeTab === 'admin-tests' || activeTab === 'admin-roles') && <AdminPanel />}
                     </Suspense>
                   </ErrorBoundary>

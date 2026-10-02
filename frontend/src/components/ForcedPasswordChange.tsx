@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { forcedChangePasswordApi } from '../lib/api';
 import { motion } from 'framer-motion';
-import { Lock, Eye, EyeOff, ShieldAlert, LogOut, CheckCircle2 } from 'lucide-react';
+import { Lock, Eye, EyeOff, ShieldAlert, LogOut, CheckCircle2, Copy, Check } from 'lucide-react';
 
 export const ForcedPasswordChange: React.FC = () => {
   const { user, completeForcedPasswordChange, logoutUser } = useApp();
@@ -10,9 +10,21 @@ export const ForcedPasswordChange: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [copiedNewPassword, setCopiedNewPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const handleCopyNewPassword = async () => {
+    if (!newPassword) return;
+    try {
+      await navigator.clipboard.writeText(newPassword);
+      setCopiedNewPassword(true);
+      setTimeout(() => setCopiedNewPassword(false), 1500);
+    } catch {
+      // Fallback if clipboard API is restricted
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +60,7 @@ export const ForcedPasswordChange: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[var(--bg-body,#08080c)] flex flex-col justify-between font-sans relative overflow-hidden select-none">
+    <div className="min-h-screen w-full bg-[var(--bg-body,#08080c)] flex flex-col justify-between font-sans relative overflow-hidden">
       {/* Top minimal bar with logo and Logout */}
       <header className="w-full bg-black/40 backdrop-blur-xl border-b border-white/10 px-4 sm:px-8 py-3.5 flex items-center justify-between z-20">
         <div className="flex items-center gap-3">
@@ -140,19 +152,45 @@ export const ForcedPasswordChange: React.FC = () => {
                   disabled={isSubmitting || isSuccess}
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
+                  onKeyDown={e => {
+                    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+                      if (newPassword) {
+                        navigator.clipboard.writeText(newPassword);
+                        setCopiedNewPassword(true);
+                        setTimeout(() => setCopiedNewPassword(false), 1500);
+                      }
+                    }
+                  }}
                   placeholder="At least 6 characters"
                   required
-                  className="w-full pl-4 pr-10 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-sans disabled:opacity-50"
+                  className="w-full pl-4 pr-16 py-2.5 rounded-full bg-white/5 border border-white/15 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-sans disabled:opacity-50"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword(prev => !prev)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
-                  title={showNewPassword ? 'Hide password' : 'Show password'}
-                  tabIndex={-1}
-                >
-                  {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {newPassword && (
+                    <button
+                      type="button"
+                      onClick={handleCopyNewPassword}
+                      className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
+                      title={copiedNewPassword ? 'Copied to clipboard!' : 'Copy password'}
+                      tabIndex={-1}
+                    >
+                      {copiedNewPassword ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(prev => !prev)}
+                    className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full outline-none focus:outline-none"
+                    title={showNewPassword ? 'Hide password' : 'Show password'}
+                    tabIndex={-1}
+                  >
+                    {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -82,12 +82,10 @@ export const AdminNavHeader: React.FC = React.memo(() => {
     }
   }, []);
 
-  // Poll/refresh on mount and periodically every 15 seconds while active
+  // Fetch pending password reset requests once on admin mount
   useEffect(() => {
     if (user?.role === 'admin') {
       loadPendingRequests();
-      const interval = setInterval(loadPendingRequests, 15000);
-      return () => clearInterval(interval);
     }
   }, [user?.role, loadPendingRequests]);
 
@@ -105,11 +103,7 @@ export const AdminNavHeader: React.FC = React.memo(() => {
   }, [notificationOpen]);
 
   const handleToggleNotifications = () => {
-    const nextState = !notificationOpen;
-    setNotificationOpen(nextState);
-    if (nextState) {
-      loadPendingRequests();
-    }
+    setNotificationOpen(prev => !prev);
   };
 
   const handleResetPassword = async (requestId: string) => {
@@ -126,8 +120,8 @@ export const AdminNavHeader: React.FC = React.memo(() => {
       });
       setCopied(false);
       setNotificationOpen(false);
-      // Immediately refresh list so resolved request disappears from bell badge and list
-      loadPendingRequests();
+      // Immediately remove resolved request from state so bell badge and list update without refetching
+      setResetRequests(prev => prev.filter(r => r.id !== requestId));
     } catch (err: any) {
       setActionError(err.message || 'Failed to reset password');
     } finally {
@@ -164,15 +158,16 @@ export const AdminNavHeader: React.FC = React.memo(() => {
 
   const handleDoneModal = async () => {
     if (!activeSuccessModal) return;
+    const reqId = activeSuccessModal.requestId;
     setIsResolving(true);
     try {
-      await resolvePasswordResetRequestApi(activeSuccessModal.requestId);
+      await resolvePasswordResetRequestApi(reqId);
     } catch (err) {
       console.warn('Failed to resolve request on backend:', err);
     } finally {
       setIsResolving(false);
       setActiveSuccessModal(null);
-      loadPendingRequests();
+      setResetRequests(prev => prev.filter(r => r.id !== reqId));
     }
   };
 

@@ -26,7 +26,6 @@ import {
   getRoadmapApi,
   getHrQuestionsApi,
   getMentorsApi,
-  getTests,
   getStoredToken,
   setStoredToken,
   clearStoredToken,
@@ -286,21 +285,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .catch(err => console.warn('Failed to load mentors:', err));
   }, []);
 
-  // Sync authentic tests/quizzes from Supabase via backend
-  useEffect(() => {
-    getTests()
-      .then(res => {
-        if (res && Array.isArray(res.tests)) {
-          setMockTests(res.tests);
-        }
-      })
-      .catch(err => {
-        console.warn('Failed to load tests:', err);
-        setMockTests([]);
-      });
-  }, []);
-
-  // Poll for newly published mock tests every 30 seconds for active students (Current Session Only)
+  // Fetch mock test notifications once for active students on session initialization
   useEffect(() => {
     if (!user || user.role === 'admin') {
       setNotifications([]);
@@ -325,19 +310,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return [...incoming, ...prev];
         });
       } catch (err) {
-        // Silently fail gracefully without fabricating fake notifications
-        console.warn('Failed to poll mock test notifications:', err);
+        console.warn('Failed to load mock test notifications:', err);
       }
     };
 
     fetchNotifications();
-    const intervalId = setInterval(fetchNotifications, 30000);
 
     return () => {
       isMounted = false;
-      clearInterval(intervalId);
     };
-  }, [user?.id, user?.role, user?.branch, user?.year]);
+  }, [user?.id, user?.role]);
 
   // Sync personalized roadmap from Supabase when user is authenticated
   useEffect(() => {

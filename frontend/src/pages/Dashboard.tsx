@@ -101,7 +101,7 @@ export const Dashboard: React.FC = React.memo(() => {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       getSpeechAnalyticsApi().then(data => {
         if (data) {
           setSpeechAnalytics(prev => ({
@@ -114,7 +114,7 @@ export const Dashboard: React.FC = React.memo(() => {
         }
       }).catch(err => console.warn('Failed to load speech analytics:', err));
     }
-  }, [user]);
+  }, [user?.id]);
 
   if (!user) {
     return (
@@ -167,7 +167,7 @@ export const Dashboard: React.FC = React.memo(() => {
         })
         .catch(err => console.warn('Failed to load user readiness metrics:', err));
     }
-  }, [user?.id, recentScores.length]);
+  }, [user?.id]);
 
   // Authentic Mock Drive Practice Stats (Current Availability & Cleared)
   const [mockDriveSummary, setMockDriveSummary] = useState<MockDrivePracticeSummary>({
@@ -188,7 +188,7 @@ export const Dashboard: React.FC = React.memo(() => {
         })
         .catch(err => console.warn('Failed to load mock drive practice summary:', err));
     }
-  }, [user?.id, recentScores.length, mockTests.length]);
+  }, [user?.id]);
 
   const filteredScores = (recentScores || []).filter(s => {
     if (!s) return false;
@@ -672,7 +672,14 @@ export const Dashboard: React.FC = React.memo(() => {
                       <span className="text-[9px] text-emerald-400 font-semibold hidden sm:inline">120-150</span>
                     </div>
                     <div className="w-full bg-[#000000] rounded-full h-1 overflow-hidden">
-                      <div className="bg-emerald-400 h-full rounded-full" style={{ width: speechAnalytics.wpm !== null ? `${Math.min(100, ((speechAnalytics.wpm - 80) / 100) * 100)}%` : '0%' }} />
+                      <div
+                        className="bg-emerald-400 h-full rounded-full transition-all duration-300"
+                        style={{
+                          width: speechAnalytics.wpm !== null
+                            ? `${Math.min(100, Math.max(0, (speechAnalytics.wpm / 160) * 100))}%`
+                            : '0%'
+                        }}
+                      />
                     </div>
                   </div>
 
