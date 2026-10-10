@@ -2,7 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, Variants } from 'framer-motion';
 import { ResumeReviewResult, JDMatchResult } from '../types';
-import { reviewResumeApi, matchJDApi, enhanceBulletApi, parsePdfApi, saveResumeApi, getResumeApi } from '../lib/api';
+import {
+  reviewResumeApi,
+  matchJDApi,
+  enhanceBulletApi,
+  parsePdfApi,
+  saveResumeApi,
+  getResumeApi,
+  getAIUsageApi,
+  AIUsageResponse
+} from '../lib/api';
+import { AIUsageModal } from '../components/AIUsageModal';
 import {
   FileText,
   Sparkles,
@@ -44,6 +54,54 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   const [parseProgress, setParseProgress] = useState(0);
   const [reviewResult, setReviewResult] = useState<ResumeReviewResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // AI Monthly Usage Tracking State
+  const [aiUsage, setAiUsage] = useState<AIUsageResponse | null>(null);
+  const [usageModalOpen, setUsageModalOpen] = useState(false);
+  const [usageModalMode, setUsageModalMode] = useState<'explanation' | 'limit_reached'>('explanation');
+  const [usageModalFeature, setUsageModalFeature] = useState<'resume_reviewer' | 'jd_matcher'>('resume_reviewer');
+
+  const refreshUsage = async () => {
+    if (user && user.role !== 'admin') {
+      try {
+        const data = await getAIUsageApi();
+        setAiUsage(data);
+      } catch (err) {
+        console.warn('Failed to refresh AI usage:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    refreshUsage();
+  }, [user?.id]);
+
+  // First-visit explanation popup: shown once per feature
+  useEffect(() => {
+    if (!user || user.role === 'admin') return;
+    if (activeSubTab === 'reviewer') {
+      const seenKey = `impulse_ai_info_seen_resume_reviewer_${user.id}`;
+      if (!localStorage.getItem(seenKey)) {
+        setUsageModalFeature('resume_reviewer');
+        setUsageModalMode('explanation');
+        setUsageModalOpen(true);
+      }
+    } else if (activeSubTab === 'matcher') {
+      const seenKey = `impulse_ai_info_seen_jd_matcher_${user.id}`;
+      if (!localStorage.getItem(seenKey)) {
+        setUsageModalFeature('jd_matcher');
+        setUsageModalMode('explanation');
+        setUsageModalOpen(true);
+      }
+    }
+  }, [activeSubTab, user?.id]);
+
+  const handleCloseUsageModal = () => {
+    if (usageModalMode === 'explanation' && user?.id) {
+      localStorage.setItem(`impulse_ai_info_seen_${usageModalFeature}_${user.id}`, 'true');
+    }
+    setUsageModalOpen(false);
+  };
 
   // SUB-TAB 2: BUILDER STATE
   const [builderTemplate, setBuilderTemplate] = useState<'ats' | 'modern'>(resumeData.template || 'ats');
@@ -175,6 +233,18 @@ export const AIResumeSuite: React.FC = React.memo(() => {
   // HANDLER: Run ATS AI Scan (Pure Gemini evaluation with single request)
   const handleRunReview = async () => {
     if (!resumeText.trim()) return;
+
+    // Enforce monthly limit for students
+    if (user?.role !== 'admin' && aiUsage?.features?.resume_reviewer) {
+      const revUsage = aiUsage.features.resume_reviewer;
+      if (revUsage.used >= revUsage.limit) {
+        setUsageModalFeature('resume_reviewer');
+        setUsageModalMode('limit_reached');
+        setUsageModalOpen(true);
+        return; // Block action and do not make AI request
+      }
+    }
+
     setReviewResult(null);
     setReviewError(null);
     setReviewLoading(true);
@@ -201,10 +271,23 @@ export const AIResumeSuite: React.FC = React.memo(() => {
           : []
       };
       setReviewResult(normalized);
+      // Refresh persistent backend usage counts
+      refreshUsage();
     } catch (err: any) {
       console.error('Review API Error:', err);
+      const errMsg = err?.message || '';
+      if (
+        errMsg.toLowerCase().includes('monthly limit') ||
+        errMsg.toLowerCase().includes('monthly_limit_exceeded') ||
+        errMsg.includes('429')
+      ) {
+        setUsageModalFeature('resume_reviewer');
+        setUsageModalMode('limit_reached');
+        setUsageModalOpen(true);
+        refreshUsage();
+      }
       setReviewResult(null);
-      setReviewError('AI review temporarily unavailable.');
+      setReviewError(errMsg.length < 150 ? errMsg : 'AI review temporarily unavailable.');
     } finally {
       setReviewLoading(false);
     }
@@ -385,6 +468,17 @@ export const AIResumeSuite: React.FC = React.memo(() => {
       return;
     }
 
+    // Enforce monthly limit for students
+    if (user?.role !== 'admin' && aiUsage?.features?.jd_matcher) {
+      const matchUsage = aiUsage.features.jd_matcher;
+      if (matchUsage.used >= matchUsage.limit) {
+        setUsageModalFeature('jd_matcher');
+        setUsageModalMode('limit_reached');
+        setUsageModalOpen(true);
+        return; // Block action and do not make AI request
+      }
+    }
+
     setMatchLoading(true);
     setMatchError(null);
 
@@ -394,9 +488,21 @@ export const AIResumeSuite: React.FC = React.memo(() => {
         resumeText: matcherResumeText.trim()
       });
       setMatchResult(data);
+      refreshUsage();
     } catch (err: any) {
       console.error('JD Match API Error:', err);
-      setMatchError(err?.message || 'JD evaluation temporarily unavailable.');
+      const errMsg = err?.message || '';
+      if (
+        errMsg.toLowerCase().includes('monthly limit') ||
+        errMsg.toLowerCase().includes('monthly_limit_exceeded') ||
+        errMsg.includes('429')
+      ) {
+        setUsageModalFeature('jd_matcher');
+        setUsageModalMode('limit_reached');
+        setUsageModalOpen(true);
+        refreshUsage();
+      }
+      setMatchError(errMsg || 'JD evaluation temporarily unavailable.');
       setMatchResult(null);
     } finally {
       setMatchLoading(false);
@@ -978,6 +1084,29 @@ export const AIResumeSuite: React.FC = React.memo(() => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LEFT INPUT CARD */}
           <motion.div variants={itemVariants} className="lg:col-span-5 mono-card p-6 space-y-4">
+            {/* Monthly AI Usage Banner */}
+            {user?.role !== 'admin' && aiUsage?.features?.resume_reviewer && (
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-xs">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
+                  <span className="text-zinc-300">
+                    Monthly Reviews: <strong className="text-white font-mono">{aiUsage.features.resume_reviewer.used} of {aiUsage.features.resume_reviewer.limit} used</strong>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsageModalFeature('resume_reviewer');
+                    setUsageModalMode('explanation');
+                    setUsageModalOpen(true);
+                  }}
+                  className="text-[11px] text-orange-400 hover:text-orange-300 font-semibold underline cursor-pointer"
+                >
+                  Allowance Details
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center justify-between gap-2">
               <h2 className="font-bold text-sm text-white font-heading flex items-center gap-2">
                 <FileText className="w-4 h-4 text-orange-400" />
@@ -2238,6 +2367,29 @@ export const AIResumeSuite: React.FC = React.memo(() => {
                 </h2>
               </div>
 
+              {/* Monthly AI Usage Banner */}
+              {user?.role !== 'admin' && aiUsage?.features?.jd_matcher && (
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-orange-400 shrink-0" />
+                    <span className="text-zinc-300">
+                      Monthly Matches: <strong className="text-white font-mono">{aiUsage.features.jd_matcher.used} of {aiUsage.features.jd_matcher.limit} used</strong>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUsageModalFeature('jd_matcher');
+                      setUsageModalMode('explanation');
+                      setUsageModalOpen(true);
+                    }}
+                    className="text-[11px] text-orange-400 hover:text-orange-300 font-semibold underline cursor-pointer"
+                  >
+                    Allowance Details
+                  </button>
+                </div>
+              )}
+
               {/* 1. RESUME INPUT (UPLOAD RESUME ONLY) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -2456,6 +2608,16 @@ export const AIResumeSuite: React.FC = React.memo(() => {
           </motion.div>
         </div>
       )}
+
+      {/* AI Usage Limits Modal (Explanation & Limit-Reached) */}
+      <AIUsageModal
+        isOpen={usageModalOpen}
+        onClose={handleCloseUsageModal}
+        mode={usageModalMode}
+        featureKey={usageModalFeature}
+        featureUsage={aiUsage?.features ? aiUsage.features[usageModalFeature] : null}
+        allUsage={aiUsage}
+      />
     </motion.div>
   );
 });

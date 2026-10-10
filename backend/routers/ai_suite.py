@@ -27,6 +27,13 @@ from backend.ai import (
     extract_text_from_pdf_bytes
 )
 from backend.services.hr_interview_service import hr_interview_service
+from backend.services.ai_usage_service import (
+    enforce_ai_usage_limit,
+    record_successful_usage,
+    get_all_student_usage,
+    get_current_month_bounds,
+    FEATURE_LABELS
+)
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 limiter = Limiter(key_func=get_remote_address)
@@ -53,6 +60,37 @@ async def parse_pdf(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=f"Unable to extract text from PDF: {str(e)}")
 
 
+# ─── Monthly AI Usage Limits ─────────────────────────────────────────────────
+
+@router.get("/usage-limits")
+def get_ai_usage_limits(current_user: dict = Depends(get_current_user)):
+    """
+    Return current calendar month AI usage allowances and consumption.
+    Admins are unconstrained; students have fixed backend-configured monthly limits.
+    """
+    if current_user.get("role") != "student":
+        start_of_month, start_of_next_month, reset_date_str = get_current_month_bounds()
+        return {
+            "month": start_of_month.strftime("%B %Y"),
+            "reset_date": reset_date_str,
+            "reset_date_iso": start_of_next_month.isoformat(),
+            "is_admin": True,
+            "features": {
+                feat: {
+                    "feature": feat,
+                    "label": FEATURE_LABELS.get(feat, feat),
+                    "used": 0,
+                    "limit": 999,
+                    "remaining": 999,
+                    "reset_date": reset_date_str,
+                    "reset_date_iso": start_of_next_month.isoformat(),
+                }
+                for feat in ["resume_reviewer", "jd_matcher", "hr_interview"]
+            }
+        }
+    return get_all_student_usage(current_user["id"])
+
+
 # ─── AI Resume Review ─────────────────────────────────────────────────────────
 
 @router.post("/review-resume")
@@ -72,72 +110,84 @@ def review_resume(request: Request, req: ReviewResumeRequest, current_user: dict
     # Selected domain is the only target context
     domain = (req.jobRole or "").strip() or current_user.get("domain") or "Software Engineering"
 
-    # Exactly ONE Gemini request — raises 503 on AI failure
-    result = review_resume_with_gemini(req.resumeText, domain)
+    def _execute_review():
+        # Exactly ONE Gemini request — raises 503 on AI failure
+        result = review_resume_with_gemini(req.resumeText, domain)
 
-    ats_score: float = float(result.get("ats_score", 0))
+        ats_score: float = float(result.get("ats_score", 0))
 
-    # Resolve domain_id — use student's current domain if not provided
-    domain_id = req.domain_id or current_user.get("domain_id")
+        # Resolve domain_id — use student's current domain if not provided
+        domain_id = req.domain_id or current_user.get("domain_id")
 
-    # Persist in resume_reviews (one row per student, upsert)
-    if supabase_client and domain_id:
-        try:
-            now = datetime.utcnow().isoformat()
+        # Persist in resume_reviews (one row per student, upsert)
+        resume_id = None
+        if supabase_client and domain_id:
+            try:
+                now = datetime.utcnow().isoformat()
 
-            # Check if a review row already exists
-            existing_res = supabase_client.table("resume_reviews").select("id, resume_revision").eq("student_id", current_user["id"]).execute()
+                # Check if a review row already exists
+                existing_res = supabase_client.table("resume_reviews").select("id, resume_revision").eq("student_id", current_user["id"]).execute()
 
-            improvement_points = result.get("bullet_recommendations", [])
+                improvement_points = result.get("bullet_recommendations", [])
 
-            if existing_res.data:
-                existing = existing_res.data[0]
-                revision = int(existing.get("resume_revision", 1)) + 1
-                supabase_client.table("resume_reviews").update({
-                    "domain_id": domain_id,
-                    "ats_score": ats_score,
-                    "improvement_points": improvement_points,
-                    "resume_revision": revision,
-                    "reviewed_at": now,
-                    "updated_at": now,
-                }).eq("student_id", current_user["id"]).execute()
-            else:
-                # Need a resume_id — get or create student resume
-                resume_id = None
-                r_res = supabase_client.table("student_resumes").select("id").eq("student_id", current_user["id"]).execute()
-                if r_res.data:
-                    resume_id = r_res.data[0]["id"]
-                else:
-                    # Create a minimal placeholder resume row so the FK is satisfied
-                    ins_res = supabase_client.table("student_resumes").insert({
-                        "student_id": current_user["id"],
-                        "source_type": "uploaded",
-                        "template_type": "ats",
-                        "created_at": now,
-                        "updated_at": now,
-                    }).execute()
-                    if ins_res.data:
-                        resume_id = ins_res.data[0]["id"]
-
-                if resume_id:
-                    supabase_client.table("resume_reviews").insert({
-                        "student_id": current_user["id"],
-                        "resume_id": resume_id,
+                if existing_res.data:
+                    existing = existing_res.data[0]
+                    revision = int(existing.get("resume_revision", 1)) + 1
+                    supabase_client.table("resume_reviews").update({
                         "domain_id": domain_id,
                         "ats_score": ats_score,
                         "improvement_points": improvement_points,
-                        "resume_revision": 1,
+                        "resume_revision": revision,
                         "reviewed_at": now,
                         "updated_at": now,
-                    }).execute()
+                    }).eq("student_id", current_user["id"]).execute()
+                    resume_id = existing.get("id")
+                else:
+                    # Need a resume_id — get or create student resume
+                    r_res = supabase_client.table("student_resumes").select("id").eq("student_id", current_user["id"]).execute()
+                    if r_res.data:
+                        resume_id = r_res.data[0]["id"]
+                    else:
+                        # Create a minimal placeholder resume row so the FK is satisfied
+                        ins_res = supabase_client.table("student_resumes").insert({
+                            "student_id": current_user["id"],
+                            "source_type": "uploaded",
+                            "template_type": "ats",
+                            "created_at": now,
+                            "updated_at": now,
+                        }).execute()
+                        if ins_res.data:
+                            resume_id = ins_res.data[0]["id"]
 
-            # Recalculate readiness snapshot
-            db.calculate_and_store_readiness(current_user["id"])
+                    if resume_id:
+                        supabase_client.table("resume_reviews").insert({
+                            "student_id": current_user["id"],
+                            "resume_id": resume_id,
+                            "domain_id": domain_id,
+                            "ats_score": ats_score,
+                            "improvement_points": improvement_points,
+                            "resume_revision": 1,
+                            "reviewed_at": now,
+                            "updated_at": now,
+                        }).execute()
 
-        except Exception as e:
-            print(f"[review-resume persist {current_user['id']}]:", e)
+                # Recalculate readiness snapshot
+                db.calculate_and_store_readiness(current_user["id"])
 
-    return {"review": result, "ats_score": ats_score}
+            except Exception as e:
+                print(f"[review-resume persist {current_user['id']}]:", e)
+
+        # Record successful usage for students
+        if current_user.get("role") == "student":
+            record_successful_usage(current_user["id"], "resume_reviewer", reference_id=resume_id)
+
+        return {"review": result, "ats_score": ats_score}
+
+    if current_user.get("role") == "student":
+        with enforce_ai_usage_limit(current_user["id"], "resume_reviewer"):
+            return _execute_review()
+    else:
+        return _execute_review()
 
 
 # ─── JD Matcher (ephemeral — not stored) ─────────────────────────────────────
@@ -145,13 +195,23 @@ def review_resume(request: Request, req: ReviewResumeRequest, current_user: dict
 @router.post("/match-jd")
 @limiter.limit("5/minute")
 def match_jd(request: Request, req: MatchJDRequest, current_user: dict = Depends(get_current_user)):
-    """Match resume against a job description using Gemini AI. Results are not stored."""
+    """Match resume against a job description using Gemini AI."""
     if not req.resumeText or not req.resumeText.strip():
         raise HTTPException(status_code=400, detail="Upload your resume to continue.")
     if not req.jdText or not req.jdText.strip():
         raise HTTPException(status_code=400, detail="Job description is required.")
-    result = match_jd_with_gemini(req.jdText.strip(), req.resumeText.strip())
-    return {"match": result}
+
+    def _execute_match():
+        result = match_jd_with_gemini(req.jdText.strip(), req.resumeText.strip())
+        if current_user.get("role") == "student":
+            record_successful_usage(current_user["id"], "jd_matcher")
+        return {"match": result}
+
+    if current_user.get("role") == "student":
+        with enforce_ai_usage_limit(current_user["id"], "jd_matcher"):
+            return _execute_match()
+    else:
+        return _execute_match()
 
 
 # ─── Bullet Enhancer ─────────────────────────────────────────────────────────
@@ -215,14 +275,15 @@ def analyze_interview(request: Request, req: AnalyzeInterviewRequest, current_us
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid audio base64 payload.")
 
-    analysis = hr_interview_service.process_interview_attempt(
-        student_id=current_user["id"],
-        question_id=req.question_id or "",
-        question_text=req.questionText,
-        audio_bytes=audio_bytes,
-        mime_type=req.mimeType or "audio/webm",
-        client_duration=req.durationSeconds
-    )
+    with enforce_ai_usage_limit(current_user["id"], "hr_interview"):
+        analysis = hr_interview_service.process_interview_attempt(
+            student_id=current_user["id"],
+            question_id=req.question_id or "",
+            question_text=req.questionText,
+            audio_bytes=audio_bytes,
+            mime_type=req.mimeType or "audio/webm",
+            client_duration=req.durationSeconds
+        )
 
     return {
         "evaluation": {

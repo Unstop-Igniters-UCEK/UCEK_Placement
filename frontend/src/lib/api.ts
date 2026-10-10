@@ -171,6 +171,9 @@ function parseErrorMessage(err: any, fallback: string): string {
   let msg = fallback;
   if (typeof err.error === 'string' && err.error) msg = err.error;
   else if (typeof err.detail === 'string' && err.detail) msg = err.detail;
+  else if (typeof err.detail === 'object' && err.detail && typeof err.detail.message === 'string') {
+    msg = err.detail.message;
+  }
   else if (Array.isArray(err.detail) && err.detail.length > 0) {
     msg = err.detail.map((d: any) => d.msg || d.message || JSON.stringify(d)).join(', ');
   }
@@ -573,6 +576,44 @@ export async function getHRQuestionsApi(companyTag: string = 'all'): Promise<Arr
     console.warn('Failed to fetch HR questions from API:', err);
     return [];
   }
+}
+
+export interface FeatureUsage {
+  feature: string;
+  label: string;
+  used: number;
+  limit: number;
+  remaining: number;
+  reset_date: string;
+  reset_date_iso?: string;
+}
+
+export interface AIUsageResponse {
+  month: string;
+  reset_date: string;
+  reset_date_iso?: string;
+  is_admin?: boolean;
+  features: {
+    resume_reviewer: FeatureUsage;
+    jd_matcher: FeatureUsage;
+    hr_interview: FeatureUsage;
+  };
+}
+
+/**
+ * Fetch monthly AI usage allowances and consumption for authenticated student.
+ */
+export async function getAIUsageApi(): Promise<AIUsageResponse> {
+  const res = await authFetch(`${BASE_URL}/api/ai/usage-limits`, {
+    headers: authHeaders(),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(parseErrorMessage(err, 'Failed to fetch AI usage limits.'));
+  }
+
+  return res.json();
 }
 
 /**

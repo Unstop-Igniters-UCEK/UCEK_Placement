@@ -732,8 +732,8 @@ export const MockTestView: React.FC = () => {
     return (
       <div className="space-y-6 font-sans max-w-5xl mx-auto w-full pb-16 min-h-[calc(100vh-12rem)]">
         {/* Header */}
-        <div className="bg-[#121217] border border-white/10 rounded-2xl p-4 md:p-6 flex items-center justify-between shadow-xl">
-          <div className="flex items-center gap-3">
+        <div className="bg-[#121217] border border-white/10 rounded-2xl p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-3.5 md:gap-4 shadow-xl">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => {
                 if (!examSubmitted && !isTerminated) {
@@ -742,21 +742,21 @@ export const MockTestView: React.FC = () => {
                   setActiveTest(null);
                 }
               }}
-              className="p-2 rounded-xl bg-[#09090b] border border-white/10 text-zinc-400 hover:text-white cursor-pointer"
+              className="p-2 rounded-xl bg-[#09090b] border border-white/10 text-zinc-400 hover:text-white cursor-pointer shrink-0"
               title="Exit test"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <div>
-              <h2 className="text-lg font-bold text-white font-heading">{activeTest.title}</h2>
-              <span className="text-xs text-zinc-400 font-mono">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-white font-heading break-words">{activeTest.title}</h2>
+              <span className="text-xs text-zinc-400 font-mono block">
                 {activeTest.target_department_code || activeTest.targetDept || (activeTest.target_department_id ? 'Departmental' : 'All Departments')} • {testQuestions.length} Questions
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className={`px-3.5 py-1.5 rounded-xl border flex items-center gap-2 text-xs font-mono font-bold ${
+          <div className="flex items-center justify-between md:justify-end gap-3 md:gap-4 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-white/5">
+            <div className={`px-3 py-1.5 md:px-3.5 md:py-1.5 rounded-xl border flex items-center gap-2 text-xs font-mono font-bold shrink-0 ${
               timeLeftSec < 180 ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse' : 'bg-[#09090b] border-white/10 text-orange-400'
             }`}>
               <Clock className="w-4 h-4" />
@@ -767,7 +767,7 @@ export const MockTestView: React.FC = () => {
               <button
                 onClick={() => setShowSubmitConfirm(true)}
                 disabled={submittingExam || isMultiWindowBlocked}
-                className="btn-primary px-4 py-2 rounded-xl text-black text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                className="btn-primary px-4 py-2 rounded-xl text-black text-xs font-bold transition-all cursor-pointer disabled:opacity-50 whitespace-nowrap"
               >
                 {submittingExam ? 'Submitting...' : 'Submit Assessment'}
               </button>

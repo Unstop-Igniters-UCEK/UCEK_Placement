@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, Variants } from 'framer-motion';
 import { InterviewQuestion, InterviewFeedback } from '../types';
-import { analyzeInterview } from '../lib/api';
+import { analyzeInterview, getAIUsageApi, AIUsageResponse } from '../lib/api';
+import { AIUsageModal } from '../components/AIUsageModal';
 import {
   Mic,
   Square,
@@ -64,6 +65,45 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
   const [feedback, setFeedback] = useState<InterviewFeedback | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Monthly AI Usage Tracking State
+  const [aiUsage, setAiUsage] = useState<AIUsageResponse | null>(null);
+  const [usageModalOpen, setUsageModalOpen] = useState(false);
+  const [usageModalMode, setUsageModalMode] = useState<'explanation' | 'limit_reached'>('explanation');
+
+  const { user } = useApp();
+
+  const refreshUsage = async () => {
+    if (user && user.role !== 'admin') {
+      try {
+        const data = await getAIUsageApi();
+        setAiUsage(data);
+      } catch (err) {
+        console.warn('Failed to refresh AI usage in HR Interview:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    refreshUsage();
+  }, [user?.id]);
+
+  // First-visit explanation popup: shown once for HR Interview
+  useEffect(() => {
+    if (!user || user.role === 'admin') return;
+    const seenKey = `impulse_ai_info_seen_hr_interview_${user.id}`;
+    if (!localStorage.getItem(seenKey)) {
+      setUsageModalMode('explanation');
+      setUsageModalOpen(true);
+    }
+  }, [user?.id]);
+
+  const handleCloseUsageModal = () => {
+    if (usageModalMode === 'explanation' && user?.id) {
+      localStorage.setItem(`impulse_ai_info_seen_hr_interview_${user.id}`, 'true');
+    }
+    setUsageModalOpen(false);
+  };
+
   // MediaRecorder refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -98,6 +138,16 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
   }, []);
 
   const handleStartRecording = async () => {
+    // Enforce monthly limit for students
+    if (user?.role !== 'admin' && aiUsage?.features?.hr_interview) {
+      const hrUsage = aiUsage.features.hr_interview;
+      if (hrUsage.used >= hrUsage.limit) {
+        setUsageModalMode('limit_reached');
+        setUsageModalOpen(true);
+        return; // Block recording action completely
+      }
+    }
+
     setFeedback(null);
     setApiError(null);
     setRecordingTime(0);
@@ -204,11 +254,17 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
       };
 
       setFeedback(mapped);
+      refreshUsage();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       const lower = msg.toLowerCase();
 
-      if (lower.includes('expired') || msg.includes('401') || lower.includes('unauthorized')) {
+      if (lower.includes('monthly limit') || lower.includes('monthly_limit_exceeded')) {
+        setUsageModalMode('limit_reached');
+        setUsageModalOpen(true);
+        refreshUsage();
+        setApiError('Monthly HR practice allowance reached. Resets on the 1st of next month.');
+      } else if (lower.includes('expired') || msg.includes('401') || lower.includes('unauthorized')) {
         setApiError('Your session has expired. Please sign in again to continue.');
       } else if (
         lower.includes('ai request limit reached') ||
@@ -272,6 +328,24 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
               Practice HR behavioral questions with real-time Speech fluency, Pace, and Confidence analysis.
             </p>
           </div>
+
+          {/* Monthly AI Usage Allowance Pill */}
+          {user?.role !== 'admin' && aiUsage?.features?.hr_interview && (
+            <button
+              type="button"
+              onClick={() => {
+                setUsageModalMode('explanation');
+                setUsageModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/25 text-xs text-zinc-200 transition-all cursor-pointer shadow-sm shrink-0"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+              <span>
+                Monthly Practices: <strong className="text-white font-mono">{aiUsage.features.hr_interview.used} of {aiUsage.features.hr_interview.limit} used</strong>
+              </span>
+              <span className="text-[10px] text-zinc-400 font-mono">• Resets {aiUsage.features.hr_interview.reset_date || aiUsage.reset_date}</span>
+            </button>
+          )}
         </div>
       </motion.div>
 
@@ -488,6 +562,16 @@ export const HRInterviewSimulator: React.FC = React.memo(() => {
           )}
         </motion.div>
       </div>
+
+      {/* AI Usage Limits Modal (Explanation & Limit-Reached) */}
+      <AIUsageModal
+        isOpen={usageModalOpen}
+        onClose={handleCloseUsageModal}
+        mode={usageModalMode}
+        featureKey="hr_interview"
+        featureUsage={aiUsage?.features?.hr_interview || null}
+        allUsage={aiUsage}
+      />
     </motion.div>
   );
 });
